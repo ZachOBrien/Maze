@@ -67,6 +67,22 @@
 ;; --------------------------------------------------------------------
 ;  FUNCTIONALITY IMPLEMENTATION
 
+(define (in-board? board pos)
+  (define num-rows 5)
+  (define num-cols 5)
+  (and (< -1 pos-row num-rows)
+       (< -1 pos-col num-cols)))
+         
+(define (get-neighbors board pos)
+  (define all-neighbors
+    (list (grid-pos (sub1 pos-row) pos-col)
+          (grid-pos pos-row        (sub1 pos-col)
+          (grid-pos (add1 pos-row) pos-col)
+          (grid-pos pos-row        (add1 pos-col)))))
+  (filter in-board? all-neighbors))
+
+
+
 
 
 
