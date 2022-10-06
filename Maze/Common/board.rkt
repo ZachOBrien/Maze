@@ -83,7 +83,13 @@
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Returns the positions of all tiles reachable from the given position
 (define (board-all-reachable-from board pos)
-  empty)
+  (define (board-all-reachable-from-acc board pos queue visited)
+    (define connected-neighbors
+      (filter (lambda (p) (board-adjacent-connected board pos p))
+              (board-get-neighbors board pos)))
+    (cond
+
+
 
 
 ;; Board GridPosn GridPosn -> Boolean
