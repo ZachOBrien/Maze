@@ -1,15 +1,25 @@
 #lang racket
 
-;; This module provides data definitions and logic for the gems that appear on tiles
+;;; This module provides data definitions and logic for the gems that appear on tiles
+
+;; --------------------------------------------------------------------
+;; MODULE INTERFACE
+
+(require racket/contract)
 
 (provide
- gems
- gem/c)
+ (contract-out
+  [gem? contract?]
+  [gems (listof gem?)]))
 
 
-;; interpretation: A precious gem
+;; --------------------------------------------------------------------
+;; DATA DEFINITIONS
+
+;; A Gem is a symbol, enumerated in gems
+;; interpretation: The name of a precious gem
 (define gems (list
               'alexandrite-pear-shape
               'alexandrite
               'almandine-garnet))
-(define gem/c (apply or/c gems))
+(define gem? (apply or/c gems))
