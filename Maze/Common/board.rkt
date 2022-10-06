@@ -8,7 +8,7 @@
 ;; MODULE INTERFACE
 
 (require racket/contract)
-(require racket/list)
+
 
 (provide
  (contract-out
@@ -27,7 +27,8 @@
 ;; DEPENDENCIES
 
 (require "gem.rkt")
-
+(require racket/match)
+(require racket/list)
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -88,14 +89,14 @@
 ;; Board GridPosn GridPosn -> Boolean
 ;; Returns true if the two adjacent tiles are connected
 (define (board-adjacent-connected? board pos1 pos2)
-  (define tile1 (board-get-at pos1))
-  (define tile2 (board-get-at pos2))
+  (define tile1 (board-get-at board pos1))
+  (define tile2 (board-get-at board pos2))
   (define-values (row1 col1 row2 col2) (values (car pos1) (cdr pos1) (car pos2) (cdr pos2)))
   (cond
-    [(and (= col1 col2) (= (row1) (sub1 row2))) (tile-connected-vertical? tile1 tile2)]     ; pos1 above pos2
-    [(and (= col1 col2) (= (row1) (add1 row2))) (tile-connected-vertical? tile2 tile1)]     ; pos1 below pos2
-    [(and (= row1 row2) (= (col1) (sub1 col2))) (tile-connected-horizontal? tile1 tile2)]   ; pos1 to left of pos2
-    [(and (= row1 row2) (= (col1) (add1 col2))) (tile-connected-horizontal? tile2 tile1)]   ; pos1 to right of pos2
+    [(and (= col1 col2) (= row1 (sub1 row2))) (tile-connected-vertical? tile1 tile2)]     ; pos1 above pos2
+    [(and (= col1 col2) (= row1 (add1 row2))) (tile-connected-vertical? tile2 tile1)]     ; pos1 below pos2
+    [(and (= row1 row2) (= col1 (sub1 col2))) (tile-connected-horizontal? tile1 tile2)]   ; pos1 to left of pos2
+    [(and (= row1 row2) (= col1 (add1 col2))) (tile-connected-horizontal? tile2 tile1)]   ; pos1 to right of pos2
     [else #f]))
 
 
@@ -121,69 +122,76 @@
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its top edge
+#;
 (define (open-on-top connector orientation)
-  (define up-con (list ('straight 0)
-                       ('straight 180)
-                       ('elbow 0)
-                       ('elbow 270)
-                       ('tri 90)
-                       ('tri 270)
-                       ('tri 180)
-                       ('cross 0)
-                       ('cross 180)
-                       ('cross 270)
-                       ('cross 90)))
+  (define up-con (list (cons 'straight 0)
+                       (cons 'straight 180)
+                       (cons 'elbow 0)
+                       (cons 'elbow 270)
+                       (cons 'tri 90)
+                       (cons 'tri 270)
+                       (cons 'tri 180)
+                       (cons 'cross 0)
+                       (cons 'cross 180)
+                       (cons 'cross 270)
+                       (cons 'cross 90)))
   (if (member (cons connector orientation) up-con) #t #f))
 
+(define (open-on-top connector orientation)
+  (match* (connector orientation)
+    [('cross _)     #t]
+    [('tri o)      (not (= 0 o))]
+    [('elbow o)    (or (= 0 o) (= 270 o))]
+    [('straight o) (or (= 0 o) (= 180 o))]))
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its bottom edge
 (define (open-on-bottom connector orientation)
-  (define down-con (list ('straight 0)
-                         ('straight 180)
-                         ('elbow 180)
-                         ('elbow 90)
-                         ('tri 90)
-                         ('tri 270)
-                         ('tri 0)
-                         ('cross 0)
-                         ('cross 180)
-                         ('cross 270)
-                         ('cross 90)))
+  (define down-con (list (cons 'straight 0)
+                         (cons 'straight 180)
+                         (cons 'elbow 180)
+                         (cons 'elbow 90)
+                         (cons 'tri 90)
+                         (cons 'tri 270)
+                         (cons 'tri 0)
+                         (cons 'cross 0)
+                         (cons 'cross 180)
+                         (cons 'cross 270)
+                         (cons 'cross 90)))
   (if (member (cons connector orientation) down-con) #t #f))
 
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its left edge
 (define (open-on-left connector orientation)
-  (define left-con (list ('straight 90)
-                         ('straight 270)
-                         ('elbow 180)
-                         ('elbow 270)
-                         ('tri 180)
-                         ('tri 270)
-                         ('tri 0)
-                         ('cross 0)
-                         ('cross 180)
-                         ('cross 270)
-                         ('cross 90)))
+  (define left-con (list (cons 'straight 90)
+                         (cons 'straight 270)
+                         (cons 'elbow 180)
+                         (cons 'elbow 270)
+                         (cons 'tri 180)
+                         (cons 'tri 90)
+                         (cons 'tri 0)
+                         (cons 'cross 0)
+                         (cons 'cross 180)
+                         (cons 'cross 270)
+                         (cons 'cross 90)))
   (if (member (cons connector orientation) left-con) #t #f))
 
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its right edge
 (define (open-on-right connector orientation)
-  (define right-con (list ('straight 90)
-                          ('straight 270)
-                          ('elbow 0)
-                          ('elbow 90)
-                          ('tri 180)
-                          ('tri 90)
-                          ('tri 0)
-                          ('cross 0)
-                          ('cross 180)
-                          ('cross 270)
-                          ('cross 90)))
+  (define right-con (list (cons 'straight 90)
+                          (cons 'straight 270)
+                          (cons 'elbow 0)
+                          (cons 'elbow 90)
+                          (cons 'tri 180)
+                          (cons 'tri 270)
+                          (cons 'tri 0)
+                          (cons 'cross 0)
+                          (cons 'cross 180)
+                          (cons 'cross 270)
+                          (cons 'cross 90)))
   (if (member (cons connector orientation) right-con) #t #f))
 
 
@@ -224,9 +232,72 @@
 
 (module+ test
   (require rackunit)
-  (define tile1  (tile 'elbow 90 empty))
-  (define board1 (board empty empty)))
-                 
+  (define tile00 (tile 'straight 90 empty))
+  (define tile01 (tile 'elbow 180 empty))
+  (define tile02 (tile 'elbow 0 empty))
+  (define tile03 (tile 'elbow 90 empty))
+  (define tile04 (tile 'elbow 270 empty))
+  (define tile05 (tile 'tri 0 empty))
+  (define tile06 (tile 'tri 270 empty))
+
+  (define tile10 (tile 'tri 180 empty))
+  (define tile11 (tile 'tri 90 empty))
+  (define tile12 (tile 'cross 0 empty))
+  (define tile13 (tile 'straight 0 empty))
+  (define tile14 (tile 'straight 270 empty))
+  (define tile15 (tile 'elbow 180 empty))
+  (define tile16 (tile 'elbow 0 empty))
+
+  (define tile20 (tile 'elbow 90 empty))
+  (define tile21 (tile 'elbow 270 empty))
+  (define tile22 (tile 'tri 0 empty))
+  (define tile23 (tile 'tri 270 empty))
+  (define tile24 (tile 'tri 180 empty))
+  (define tile25 (tile 'tri 90 empty))
+  (define tile26 (tile 'cross 270 empty))
+
+  (define tile30 (tile 'straight 180 empty))
+  (define tile31 (tile 'straight 270 empty))
+  (define tile32 (tile 'elbow 180 empty))
+  (define tile33 (tile 'elbow 0 empty))
+  (define tile34 (tile 'elbow 90 empty))
+  (define tile35 (tile 'elbow 270 empty))
+  (define tile36 (tile 'tri 0 empty))
+
+  (define tile40 (tile 'tri 270 empty))
+  (define tile41 (tile 'tri 180 empty))
+  (define tile42 (tile 'tri 90 empty))
+  (define tile43 (tile 'cross 0 empty))
+  (define tile44 (tile 'straight 0 empty))
+  (define tile45 (tile 'straight 90 empty))
+  (define tile46 (tile 'elbow 180 empty))
+  
+  (define tile50 (tile 'elbow 0 empty))
+  (define tile51 (tile 'elbow 90 empty))
+  (define tile52 (tile 'elbow 270 empty))
+  (define tile53 (tile 'try 0 empty))
+  (define tile54 (tile 'tri 270 empty))
+  (define tile55 (tile 'tri 180 empty))
+  (define tile56 (tile 'tri 90 empty))
+  
+  (define tile60 (tile 'cross    0 empty))
+  (define tile61 (tile 'straight 0 empty))
+  (define tile62 (tile 'straight 90 empty))
+  (define tile63 (tile 'elbow 180 empty))
+  (define tile64 (tile 'elbow 0   empty))
+  (define tile65 (tile 'elbow 90 empty))
+  (define tile66 (tile 'elbow 270 empty))
+
+  (define tile-extra (tile 'straight 180 empty))
+
+  (define row0 (list tile00 tile01 tile02 tile03 tile04 tile05 tile06))
+  (define row1 (list tile10 tile11 tile12 tile13 tile14 tile15 tile16))
+  (define row2 (list tile20 tile21 tile22 tile23 tile24 tile25 tile26))
+  (define row3 (list tile30 tile31 tile32 tile33 tile34 tile35 tile36))
+  (define row4 (list tile40 tile41 tile42 tile43 tile44 tile45 tile46))
+  (define row5 (list tile50 tile51 tile52 tile53 tile54 tile55 tile56))
+  (define row6 (list tile60 tile61 tile62 tile63 tile64 tile65 tile66))
+  (define board1 (board (list row0 row1 row2 row3 row4 row5 row6) tile-extra)))
 
 ;; test board-get-neighbors
 (module+ test
@@ -234,20 +305,20 @@
                 (list (cons 1 0) (cons 0 1)))
   (check-equal? (board-get-neighbors board1 (cons 0 2))
                 (list (cons 0 1) (cons 1 2) (cons 0 3)))
-  (check-equal? (board-get-neighbors board1 (cons 2 4))
-                (list (cons 1 4) (cons 2 3) (cons 3 4)))
-  (check-equal? (board-get-neighbors board1 (cons 4 4))
-                (list (cons 3 4) (cons 4 3))))
+  (check-equal? (board-get-neighbors board1 (cons 2 6))
+                (list (cons 1 6) (cons 2 5) (cons 3 6)))
+  (check-equal? (board-get-neighbors board1 (cons 6 6))
+                (list (cons 5 6) (cons 6 5))))
 
 ;; test in-board?
 (module+ test
   (check-true  (in-board? board1 (cons 0 0)))
-  (check-true  (in-board? board1 (cons 4 0)))
-  (check-false (in-board? board1 (cons 5 0)))
-  (check-true  (in-board? board1 (cons 0 4)))
-  (check-false (in-board? board1 (cons 0 5)))
-  (check-true  (in-board? board1 (cons 4 4)))
-  (check-false (in-board? board1 (cons 5 5))))
+  (check-true  (in-board? board1 (cons 6 0)))
+  (check-false (in-board? board1 (cons 7 0)))
+  (check-true  (in-board? board1 (cons 0 6)))
+  (check-false (in-board? board1 (cons 0 7)))
+  (check-true  (in-board? board1 (cons 6 6)))
+  (check-false (in-board? board1 (cons 7 7))))
 
 ;; test num-rows
 (module+ test
@@ -262,25 +333,117 @@
 
 
 ;; test board-adjacent-connected?
-
+(module+ test
+  (check-true (board-adjacent-connected? board1 (cons 0 0) (cons 0 1)))
+  (check-false (board-adjacent-connected? board1 (cons 0 0) (cons 1 0)))
+  (check-true (board-adjacent-connected? board1 (cons 6 6) (cons 5 6)))
+  (check-false (board-adjacent-connected? board1 (cons 6 0) (cons 6 0))))
 
 ;; test tile-connected-horizontal
-
+(module+ test
+  (check-true (tile-connected-horizontal? tile00 tile01))
+  (check-false (tile-connected-horizontal? tile01 tile02))
+  (check-true (tile-connected-horizontal? tile55 tile56))
+  (check-false (tile-connected-horizontal? tile60 tile61)))
 
 ;; test tile-connected-vertical
-
+(module+ test
+  (check-true (tile-connected-vertical? tile01 tile11))
+  (check-false (tile-connected-vertical? tile00 tile10))
+  (check-false (tile-connected-vertical? tile02 tile12)))
 
 ;; test board-get-at
-
+(module+ test
+  (check-equal? (board-get-at board1 (cons 0 0)) tile00)
+  (check-not-equal? (board-get-at board1 (cons 3 1)) tile00)
+  (check-equal? (board-get-at board1 (cons 6 6)) tile66))
 
 ;; test open-on-top
-
+(module+ test
+  (check-true (open-on-top 'straight 0))
+  (check-false (open-on-top 'straight 90))
+  (check-true (open-on-top 'straight 180))
+  (check-false (open-on-top 'straight 270))
+  
+  (check-true (open-on-top 'elbow 0))
+  (check-false (open-on-top 'elbow 90))
+  (check-false (open-on-top 'elbow 180))
+  (check-true (open-on-top 'elbow 270))
+  
+  (check-false (open-on-top 'tri 0))
+  (check-true (open-on-top 'tri 90))
+  (check-true (open-on-top 'tri 180))
+  (check-true (open-on-top 'tri 270))
+  
+  (check-true (open-on-top 'cross 0))
+  (check-true (open-on-top 'cross 90))
+  (check-true (open-on-top 'cross 180))
+  (check-true (open-on-top 'cross 270)))
 
 ;; test open-on-right
-
+(module+ test
+  (check-false (open-on-right 'straight 0))
+  (check-true (open-on-right 'straight 90))
+  (check-false (open-on-right 'straight 180))
+  (check-true (open-on-right 'straight 270))
+  
+  (check-true (open-on-right 'elbow 0))
+  (check-true (open-on-right 'elbow 90))
+  (check-false (open-on-right 'elbow 180))
+  (check-false (open-on-right 'elbow 270))
+  
+  (check-true (open-on-right 'tri 0))
+  (check-false (open-on-right 'tri 90))
+  (check-true (open-on-right 'tri 180))
+  (check-true (open-on-right 'tri 270))
+  
+  (check-true (open-on-right 'cross 0))
+  (check-true (open-on-right 'cross 90))
+  (check-true (open-on-right 'cross 180))
+  (check-true (open-on-right 'cross 270)))
 
 ;; test open-on-bottom
+(module+ test
+  (check-true (open-on-bottom 'straight 0))
+  (check-false (open-on-bottom 'straight 90))
+  (check-true (open-on-bottom 'straight 180))
+  (check-false (open-on-bottom 'straight 270))
+  
+  (check-false (open-on-bottom 'elbow 0))
+  (check-true (open-on-bottom 'elbow 90))
+  (check-true (open-on-bottom 'elbow 180))
+  (check-false (open-on-bottom 'elbow 270))
+  
+  (check-true (open-on-bottom 'tri 0))
+  (check-true (open-on-bottom 'tri 90))
+  (check-false (open-on-bottom 'tri 180))
+  (check-true (open-on-bottom 'tri 270))
+
+  (check-true (open-on-bottom 'cross 0))
+  (check-true (open-on-bottom 'cross 90))
+  (check-true (open-on-bottom 'cross 180))
+  (check-true (open-on-bottom 'cross 270)))
 
 
 ;; test open-on-left
+(module+ test
+  (check-false (open-on-left 'straight 0))
+  (check-true (open-on-left 'straight 90))
+  (check-false (open-on-left 'straight 180))
+  (check-true (open-on-left 'straight 270))
+  
+  (check-false (open-on-left 'elbow 0))
+  (check-false (open-on-left 'elbow 90))
+  (check-true (open-on-left 'elbow 180))
+  (check-true (open-on-left 'elbow 270))
+  
+  (check-true (open-on-left 'tri 0))
+  (check-true (open-on-left 'tri 90))
+  (check-true (open-on-left 'tri 180))
+  (check-false (open-on-left 'tri 270))
+
+  (check-true (open-on-left 'cross 0))
+  (check-true (open-on-left 'cross 90))
+  (check-true (open-on-left 'cross 180))
+  (check-true (open-on-left 'cross 270)))
 
