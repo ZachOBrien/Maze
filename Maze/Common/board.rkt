@@ -30,8 +30,6 @@
 
 ;; A Board is a [Listof [Listof Tile]]
 ;; interpretation: A square matrix of Maze game tiles with dimensions of odd length
-(struct board [rows] #:transparent)
-#;
 (define board? (listof (listof tile?)))
 
 
@@ -58,7 +56,9 @@
     [(empty? queue) (reverse visited)]
     [else (define current-pos (first queue))
           (all-reachable-from-acc board
-                                  (append (rest queue) (get-connected-unvisited-neighbors board current-pos visited))
+                                  (append
+                                   (rest queue)
+                                   (get-connected-unvisited-neighbors board current-pos visited))
                                   (cons current-pos visited))]))
 
 
@@ -79,10 +79,10 @@
   (define tile2 (board-get-at board pos2))
   (define-values (row1 col1 row2 col2) (values (car pos1) (cdr pos1) (car pos2) (cdr pos2)))
   (cond
-    [(and (= col1 col2) (= row1 (sub1 row2))) (tile-connected-vertical? tile1 tile2)]     ; pos1 above pos2
-    [(and (= col1 col2) (= row1 (add1 row2))) (tile-connected-vertical? tile2 tile1)]     ; pos1 below pos2
-    [(and (= row1 row2) (= col1 (sub1 col2))) (tile-connected-horizontal? tile1 tile2)]   ; pos1 to left of pos2
-    [(and (= row1 row2) (= col1 (add1 col2))) (tile-connected-horizontal? tile2 tile1)]   ; pos1 to right of pos2
+    [(and (= col1 col2) (= row1 (sub1 row2))) (tile-connected-vertical? tile1 tile2)]
+    [(and (= col1 col2) (= row1 (add1 row2))) (tile-connected-vertical? tile2 tile1)]
+    [(and (= row1 row2) (= col1 (sub1 col2))) (tile-connected-horizontal? tile1 tile2)]
+    [(and (= row1 row2) (= col1 (add1 col2))) (tile-connected-horizontal? tile2 tile1)]
     [else #f]))
 
 
@@ -108,24 +108,24 @@
 ;; Board Natural -> [Listof Tile]
 ;; Gets the row at the index in the board
 (define (get-row board idx)
-  (list-ref (board-rows board) idx))
+  (list-ref board idx))
 
 ;; Board Natural -> [Listof Tile]
 ;; Gets the column at the index in the board
 (define (get-col board idx)
-  (map (λ (row) (list-ref row idx)) (board-rows board)))
+  (map (λ (row) (list-ref row idx)) board))
 
 ;; replace-row
 ;; Board Natural [Listof Tile] -> Board
 ;; Replaces the row at the index in the board with the given row
 (define (replace-row board idx row)
-  (board (list-set (board-rows board) idx row)))
+  (list-set board idx row))
 
 ;; replace-col
 (define (replace-col old-board idx col)
-  (board (for/list ([row (board-rows old-board)]
-                    [new-tile col])
-           (list-set row idx new-tile))))
+  (for/list ([row old-board]
+             [new-tile col])
+    (list-set row idx new-tile)))
 
 ;; Board GridPosn -> Boolean
 ;; Checks if a GridPosn is within the bounds of the board. That is,
@@ -138,18 +138,18 @@
 ;; Board GridPosn -> Tile
 ;; Gets the tile at a position in the board
 (define (board-get-at board pos)
-  (list-ref (list-ref (board-rows board) (car pos)) (cdr pos)))
+  (list-ref (list-ref board (car pos)) (cdr pos)))
 
 ;; Board -> PositiveInteger
 ;; Gets the number of rows in a board
 (define (num-rows board)
-  (length (board-rows board)))
+  (length board))
 
 
 ;; Board -> PositiveInteger
 ;; Gets the number of columns in a board
 (define (num-cols board)
-  (length (first (board-rows board))))
+  (length (first board)))
 
 
 ;; --------------------------------------------------------------------
@@ -165,12 +165,12 @@
   (define row4 (list tile40 tile41 tile42 tile43 tile44 tile45 tile46))
   (define row5 (list tile50 tile51 tile52 tile53 tile54 tile55 tile56))
   (define row6 (list tile60 tile61 tile62 tile63 tile64 tile65 tile66))
-  (define board1 (board (list row0 row1 row2 row3 row4 row5 row6)))
+  (define board1 (list row0 row1 row2 row3 row4 row5 row6))
 
   (define row0_2 (list tile00 tile01 tile02))
   (define row1_2 (list tile10 tile11 tile12))
   (define row2_2 (list tile20 tile21 tile22))
-  (define board2 (board (list row0_2 row1_2 row2_2))))
+  (define board2 (list row0_2 row1_2 row2_2)))
 
 (module+ test
   (require rackunit)
@@ -206,12 +206,35 @@
 (module+ test
   (check-equal? (get-col board1 0) (list tile00 tile10 tile20 tile30 tile40 tile50 tile60)))
 
+;; test replace-row
+(module+ test
+  (check-equal? (replace-row board2 0 (list tile66 tile66 tile66))
+                (list (list tile66 tile66 tile66)
+                      (list tile10 tile11 tile12)
+                      (list tile20 tile21 tile22)))
+  (check-equal? (replace-row board2 1 (list tile66 tile66 tile66))
+                (list (list tile00 tile01 tile02)
+                      (list tile66 tile66 tile66)
+                      (list tile20 tile21 tile22)))
+  (check-equal? (replace-row board2 2 (list tile66 tile66 tile66))
+                (list (list tile00 tile01 tile02)
+                      (list tile10 tile11 tile12)
+                      (list tile66 tile66 tile66))))
+
 ;; test replace-col
 (module+ test
   (check-equal? (replace-col board2 0 (list tile66 tile66 tile66))
-                (board (list (list tile66 tile01 tile02)
-                             (list tile66 tile11 tile12)
-                             (list tile66 tile21 tile22)))))
+                (list (list tile66 tile01 tile02)
+                      (list tile66 tile11 tile12)
+                      (list tile66 tile21 tile22)))
+  (check-equal? (replace-col board2 1 (list tile66 tile66 tile66))
+                (list (list tile00 tile66 tile02)
+                      (list tile10 tile66 tile12)
+                      (list tile20 tile66 tile22)))
+  (check-equal? (replace-col board2 2 (list tile66 tile66 tile66))
+                (list (list tile00 tile01 tile66)
+                      (list tile10 tile11 tile66)
+                      (list tile20 tile21 tile66))))
 
 ;; test num-rows
 (module+ test
