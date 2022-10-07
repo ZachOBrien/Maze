@@ -43,17 +43,49 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; Board Natural Tile -> (Board Tile)
-;; Shift a board row right
+;; Shift a board row right and insert new tile
 (define (board-shift-row-right board row-idx tile)
   (define old-row (get-row board row-idx))
-  (define new-row (cons tile (drop-right old-row 1)))
   (define extra-tile (last old-row))
-  (values (replace-row board row-idx new-row) extra-tile))
+  (values (replace-row board row-idx (push-from-front old-row tile)) extra-tile))
 
 
-;; 
-(define (board-shift-row-left) 0)
+;; Board Natural Tile -> (Board Tile)
+;; Shift a board row left and insert new tile
+(define (board-shift-row-left board row-idx tile)
+  (define old-row (get-row board row-idx))
+  (define extra-tile (first old-row))
+  (values (replace-row board row-idx (push-from-back old-row tile)) extra-tile))
 
+
+;; Board Natural Tile -> (Board Tile)
+;; Shift a board column down and insert new tile
+(define (board-shift-col-down board col-idx tile)
+  (define old-col (get-col board col-idx))
+  (define extra-tile (last old-col))
+  (values (replace-col board col-idx (push-from-front old-col tile)) extra-tile))
+
+
+;; Board Natural Tile -> (Board Tile)
+;; Shift a board column up and insert new tile
+(define (board-shift-col-up board col-idx tile)
+  (define old-col (get-col board col-idx))
+  (define extra-tile (first old-col))
+  (values (replace-col board col-idx (push-from-back old-col tile)) extra-tile))
+
+
+;; [Listof Any] Any -> [Listof Any]
+;; Puts the given item at the front of the list
+;;  and cuts off the back item
+(define (push-from-front lst item)
+  (cons item (drop-right lst 1)))
+
+
+;; [Listof Any] Any -> [Listof Any]
+;; Puts the given item at the back of the list
+;;  and cuts off the front item
+(define (push-from-back lst item)
+  (append (rest lst) (list item)))
 
 
 ;; Board GridPosn -> [Listof GridPosn]
@@ -219,11 +251,80 @@
 
 
 ;; test board-shift-row-left
+(module+ test
+  (test-case
+   "Board shift row left on top row correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-row-left board2 0 tile-extra)])
+     (check-equal? new-extra-tile tile00)
+     (check-equal?
+      new-board
+      (list (list tile01 tile02 tile-extra)
+            (list tile10 tile11 tile12)
+            (list tile20 tile21 tile22)))))
+  (test-case
+   "Board shift row left on bottom row correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-row-left board2 2 tile-extra)])
+     (check-equal? new-extra-tile tile20)
+     (check-equal?
+      new-board
+      (list (list tile00 tile01 tile02)
+            (list tile10 tile11 tile12)
+            (list tile21 tile22 tile-extra))))))
 
 ;; test board-shift-col-up
+(module+ test
+  (test-case
+   "Board shift column up on left column correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-col-up board2 0 tile-extra)])
+     (check-equal? new-extra-tile tile00)
+     (check-equal?
+      new-board
+      (list (list tile10     tile01 tile02)
+            (list tile20     tile11 tile12)
+            (list tile-extra tile21 tile22)))))
+  (test-case
+   "Board shift column up on right column correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-col-up board2 2 tile-extra)])
+     (check-equal? new-extra-tile tile02)
+     (check-equal?
+      new-board
+      (list (list tile00 tile01 tile12)
+            (list tile10 tile11 tile22)
+            (list tile20 tile21 tile-extra))))))
+
 
 ;; test board-shift-col-down
-
+(module+ test
+  (test-case
+   "Board shift column down on left column correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-col-down board2 0 tile-extra)])
+     (check-equal? new-extra-tile tile20)
+     (check-equal?
+      new-board
+      (list (list tile-extra tile01 tile02)
+            (list tile00     tile11 tile12)
+            (list tile10     tile21 tile22)))))
+  (test-case
+   "Board shift column down on right column correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-col-down board2 2 tile-extra)])
+     (check-equal? new-extra-tile tile22)
+     (check-equal?
+      new-board
+      (list (list tile00 tile01 tile-extra)
+            (list tile10 tile11 tile02)
+            (list tile20 tile21 tile12))))))
 
 ;; test board-get-neighbors
 (module+ test
