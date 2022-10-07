@@ -42,6 +42,19 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
+;; Board Natural Tile -> (Board Tile)
+;; Shift a board row right
+(define (board-shift-row-right board row-idx tile)
+  (define old-row (get-row board row-idx))
+  (define new-row (cons tile (drop-right old-row 1)))
+  (define extra-tile (last old-row))
+  (values (replace-row board row-idx new-row) extra-tile))
+
+
+;; 
+(define (board-shift-row-left) 0)
+
+
 
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Returns the positions of all tiles reachable from the given position
@@ -176,6 +189,41 @@
   (require rackunit)
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples)))
+
+
+;; test board-shift-row-right
+(module+ test
+  (test-case
+   "Board shift row right on top row correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-row-right board2 0 tile-extra)])
+     (check-equal? new-extra-tile tile02)
+     (check-equal?
+      new-board
+      (list (list tile-extra tile00 tile01)
+            (list tile10     tile11 tile12)
+            (list tile20     tile21 tile22)))))
+  (test-case
+   "Board shift row right on bottom row correctly"
+   (let-values
+     ([(new-board new-extra-tile)
+      (board-shift-row-right board2 2 tile-extra)])
+     (check-equal? new-extra-tile tile22)
+     (check-equal?
+      new-board
+      (list (list tile00 tile01 tile02)
+            (list tile10 tile11 tile12)
+            (list tile-extra tile20 tile21))))))
+     
+
+
+;; test board-shift-row-left
+
+;; test board-shift-col-up
+
+;; test board-shift-col-down
+
 
 ;; test board-get-neighbors
 (module+ test
