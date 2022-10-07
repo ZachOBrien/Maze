@@ -115,13 +115,13 @@
 (define (get-col board idx)
   (map (λ (row) (list-ref row idx)) board))
 
-;; replace-row
 ;; Board Natural [Listof Tile] -> Board
 ;; Replaces the row at the index in the board with the given row
 (define (replace-row board idx row)
   (list-set board idx row))
 
-;; replace-col
+;; Board Natural [Listof Tile] -> Board
+;; Replaces the column at the index in the board with the given column
 (define (replace-col old-board idx col)
   (for/list ([row old-board]
              [new-tile col])
