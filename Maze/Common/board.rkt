@@ -29,6 +29,7 @@
 (require "gem.rkt")
 (require racket/match)
 (require racket/list)
+(require racket/function)
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -83,12 +84,27 @@
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Returns the positions of all tiles reachable from the given position
 (define (board-all-reachable-from board pos)
-  (define (board-all-reachable-from-acc board pos queue visited)
-    (define connected-neighbors
-      (filter (lambda (p) (board-adjacent-connected board pos p))
-              (board-get-neighbors board pos)))
-    (cond
+  (board-all-reachable-from-acc board (list pos) '()))
 
+
+;; Board [Listof GridPosn] [Listof GridPosn] -> [Listof GridPosn]
+;; Finds a connected pathway through the board using breadth-first search
+(define (board-all-reachable-from-acc board queue visited)
+  (cond
+    [(empty? queue) (reverse visited)]
+    [else (define current-pos (first queue))
+          (board-all-reachable-from-acc board
+                                        (append (rest queue) (get-connected-unvisited-neighbors board current-pos visited))
+                                        (cons current-pos visited))]))
+
+
+;; Board GridPosn [Listof GridPosn] -> [Listof GridPosn]
+(define (get-connected-unvisited-neighbors board current-pos visited)
+  (filter (λ (p)
+                 (and
+                  (not (member p visited))
+                  (board-adjacent-connected? board current-pos p)))
+          (board-get-directly-connected-neighbors board current-pos)))
 
 
 
@@ -128,21 +144,6 @@
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its top edge
-#;
-(define (open-on-top connector orientation)
-  (define up-con (list (cons 'straight 0)
-                       (cons 'straight 180)
-                       (cons 'elbow 0)
-                       (cons 'elbow 270)
-                       (cons 'tri 90)
-                       (cons 'tri 270)
-                       (cons 'tri 180)
-                       (cons 'cross 0)
-                       (cons 'cross 180)
-                       (cons 'cross 270)
-                       (cons 'cross 90)))
-  (if (member (cons connector orientation) up-con) #t #f))
-
 (define (open-on-top connector orientation)
   (match* (connector orientation)
     [('cross _)     #t]
@@ -150,55 +151,43 @@
     [('elbow o)    (or (= 0 o) (= 270 o))]
     [('straight o) (or (= 0 o) (= 180 o))]))
 
+
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its bottom edge
 (define (open-on-bottom connector orientation)
-  (define down-con (list (cons 'straight 0)
-                         (cons 'straight 180)
-                         (cons 'elbow 180)
-                         (cons 'elbow 90)
-                         (cons 'tri 90)
-                         (cons 'tri 270)
-                         (cons 'tri 0)
-                         (cons 'cross 0)
-                         (cons 'cross 180)
-                         (cons 'cross 270)
-                         (cons 'cross 90)))
-  (if (member (cons connector orientation) down-con) #t #f))
+  (match* (connector orientation)
+    [('cross _)     #t]
+    [('tri o)      (not (= 180 o))]
+    [('elbow o)    (or (= 90 o) (= 180 o))]
+    [('straight o) (or (= 0 o) (= 180 o))]))
 
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its left edge
 (define (open-on-left connector orientation)
-  (define left-con (list (cons 'straight 90)
-                         (cons 'straight 270)
-                         (cons 'elbow 180)
-                         (cons 'elbow 270)
-                         (cons 'tri 180)
-                         (cons 'tri 90)
-                         (cons 'tri 0)
-                         (cons 'cross 0)
-                         (cons 'cross 180)
-                         (cons 'cross 270)
-                         (cons 'cross 90)))
-  (if (member (cons connector orientation) left-con) #t #f))
+  (match* (connector orientation)
+    [('cross _)     #t]
+    [('tri o)      (not (= 270 o))]
+    [('elbow o)    (or (= 180 o) (= 270 o))]
+    [('straight o) (or (= 90 o) (= 270 o))]))
 
 
 ;; Connector Orientation -> Boolean
 ;; Returns true if a tile with this connector and orientation is open on its right edge
 (define (open-on-right connector orientation)
-  (define right-con (list (cons 'straight 90)
-                          (cons 'straight 270)
-                          (cons 'elbow 0)
-                          (cons 'elbow 90)
-                          (cons 'tri 180)
-                          (cons 'tri 270)
-                          (cons 'tri 0)
-                          (cons 'cross 0)
-                          (cons 'cross 180)
-                          (cons 'cross 270)
-                          (cons 'cross 90)))
-  (if (member (cons connector orientation) right-con) #t #f))
+  (match* (connector orientation)
+    [('cross _)     #t]
+    [('tri o)      (not (= 90 o))]
+    [('elbow o)    (or (= 0 o) (= 90 o))]
+    [('straight o) (or (= 90 o) (= 270 o))]))
+
+
+;; Board GridPosn -> [Listof GridPosn]
+;; Retrieves a list of GridPosns for tiles which are directly connected
+;; to the tile at the given GridPosn
+(define (board-get-directly-connected-neighbors board pos)
+  (filter (λ (p) (board-adjacent-connected? board pos p))
+          (board-get-neighbors board pos)))
 
 
 ;; Board GridPosn -> [Listof GridPosn]
@@ -336,7 +325,34 @@
 
 
 ;; test board-all-reachable-from
-
+(module+ test
+  (check-equal? (board-all-reachable-from board1 (cons 0 2))
+                (list (cons 0 2)))
+  (check-equal? (board-all-reachable-from board1 (cons 0 6))
+                (list (cons 0 6) (cons 1 6)))
+  (check-equal? (board-all-reachable-from board1 (cons 1 6))
+                (list (cons 1 6) (cons 0 6)))
+  (check-equal? (board-all-reachable-from board1 (cons 1 6))
+                (list (cons 1 6) (cons 0 6)))
+  (check-equal? (board-all-reachable-from board1 (cons 0 0))
+                (list
+                 (cons 0 0)
+                 (cons 0 1)
+                 (cons 1 1)
+                 (cons 1 0)
+                 (cons 2 1)
+                 (cons 2 0)
+                 (cons 3 0)
+                 (cons 4 0)
+                 (cons 5 0)
+                 (cons 4 1)
+                 (cons 4 2)
+                 (cons 3 2)
+                 (cons 5 2)
+                 (cons 3 1)
+                 (cons 5 1)
+                 (cons 6 1))))
+         
 
 ;; test board-adjacent-connected?
 (module+ test
