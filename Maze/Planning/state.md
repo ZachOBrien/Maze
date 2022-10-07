@@ -35,7 +35,8 @@ This `GameState` class will implement an interface which provides the following 
 | get a player's position | `get-player-position : (PlayerID . -> . GridPosn)` |
 | get the extra tile | `get-extra-tile : ( . -> . Tile)`|
 | get whose turn it is | `get-current-player : ( . -> . PlayerID)` |
+| remove a player | `remove-player : (Natural . -> . )`|
 | winner? | `get-winner : ( . -> (U PlayerId #f))` |
 | get the last turn | `get-previous-action : ( . -> . PlayerAction)` | 
-| get connected tiles | `all-reachable-from : (GridPosn . -> . [Listof [Listof GridPosn]])` |
+| check if there is a valid path from one location to another | `reachable-from? : (GridPosn GridPosn . -> . Boolean)` |
 | shift a row or column | `execute-player-action : (PlayerAction . -> . )` |
