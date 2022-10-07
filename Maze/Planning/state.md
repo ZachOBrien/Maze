@@ -31,12 +31,12 @@ This `GameState` class will implement an interface which provides the following 
 
 | Purpose | Signature |
 |--------|---------|
-| get the current board | `get-board : ( . -> . Board)`|
-| get a player's position | `get-player-position : (PlayerID . -> . GridPosn)` |
-| get the extra tile | `get-extra-tile : ( . -> . Tile)`|
-| get whose turn it is | `get-current-player : ( . -> . PlayerID)` |
-| remove a player | `remove-player : (Natural . -> . )`|
-| winner? | `get-winner : ( . -> (U PlayerId #f))` |
-| get the last turn | `get-previous-action : ( . -> . PlayerAction)` | 
-| check if there is a valid path from one location to another | `reachable-from? : (GridPosn GridPosn . -> . Boolean)` |
-| shift a row or column | `execute-player-action : (PlayerAction . -> . )` |
+| Get the current board | `get-board : ( . -> . Board)`|
+| Get a player's position | `get-player-position : (PlayerID . -> . GridPosn)` |
+| Get the extra tile | `get-extra-tile : ( . -> . Tile)`|
+| Get whose turn it is | `get-current-player : ( . -> . PlayerID)` |
+| Remove a player | `remove-player : (Natural . -> . )`|
+| Check if any player has won yet | `get-winner : ( . -> (U PlayerId #f))` |
+| Get the last turn | `get-previous-action : ( . -> . PlayerAction)` | 
+| Check if there is a valid path from one location to another | `reachable-from? : (GridPosn GridPosn . -> . Boolean)` |
+| Shift a row or column | `execute-player-action : (PlayerAction . -> . )` |
