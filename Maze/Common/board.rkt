@@ -99,6 +99,7 @@
 
 
 ;; Board GridPosn [Listof GridPosn] -> [Listof GridPosn]
+;; Gets all directly connected, unvisited neighbors of a tile at current-pos
 (define (get-connected-unvisited-neighbors board current-pos visited)
   (filter (λ (p)
                  (and
