@@ -12,7 +12,17 @@
 (provide
  (contract-out
   [board?       contract?]
-  [grid-posn?   contract?]))
+  [grid-posn?   contract?]
+  ; Shift a row right and insert a new tile
+  [board-shift-row-right (-> board? natural-number/c tile? (values board? tile?))]
+  ; Shift a row left and insert a new tile
+  [board-shift-row-left  (-> board? natural-number/c tile? (values board? tile?))]
+  ; Shift a column down and insert a new tile
+  [board-shift-col-down  (-> board? natural-number/c tile? (values board? tile?))]
+  ; Shift a column up and insert a new tile
+  [board-shift-col-up    (-> board? natural-number/c tile? (values board? tile?))]
+  ; Get a list of the board positions reachable from a given board position
+  [board-all-reachable-from (-> board? grid-posn? (listof grid-posn?))]))
 
 
 ;; --------------------------------------------------------------------
@@ -43,7 +53,6 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; Board Natural Tile -> (Board Tile)
-;; Shift a board row right and insert new tile
 (define (board-shift-row-right board row-idx tile)
   (define old-row (get-row board row-idx))
   (define extra-tile (last old-row))
@@ -51,7 +60,6 @@
 
 
 ;; Board Natural Tile -> (Board Tile)
-;; Shift a board row left and insert new tile
 (define (board-shift-row-left board row-idx tile)
   (define old-row (get-row board row-idx))
   (define extra-tile (first old-row))
@@ -59,7 +67,6 @@
 
 
 ;; Board Natural Tile -> (Board Tile)
-;; Shift a board column down and insert new tile
 (define (board-shift-col-down board col-idx tile)
   (define old-col (get-col board col-idx))
   (define extra-tile (last old-col))
@@ -67,7 +74,6 @@
 
 
 ;; Board Natural Tile -> (Board Tile)
-;; Shift a board column up and insert new tile
 (define (board-shift-col-up board col-idx tile)
   (define old-col (get-col board col-idx))
   (define extra-tile (first old-col))
@@ -89,7 +95,6 @@
 
 
 ;; Board GridPosn -> [Listof GridPosn]
-;; Returns the positions of all tiles reachable from the given position
 (define (board-all-reachable-from board pos)
   (all-reachable-from-acc board (list pos) '()))
 
@@ -436,4 +441,3 @@
   (check-equal? (board-get-at board1 (cons 0 0)) tile00)
   (check-not-equal? (board-get-at board1 (cons 3 1)) tile00)
   (check-equal? (board-get-at board1 (cons 6 6)) tile66))
-
