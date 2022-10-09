@@ -1,0 +1,79 @@
+#! /usr/bin/env racket
+
+#lang racket/base
+
+(require json)
+(require racket/list)
+(require racket/match)
+
+(require "../Maze/Common/tile.rkt")
+
+(module+ test
+  (require rackunit))
+
+
+;; InputPort -> (values HashTable HashTable)
+;; Reads a board object and coordinate object from STDIN
+(define (read-board-and-coordinate input-port)
+  (define board (read-json input-port))
+  (define coordinate (read-json input-port))
+  (values board coordinate))
+
+
+;; String -> (values Connector Orientation)
+;; Converts any orientation of connector string to the canonical string and its orientation
+(define string-connector-conversion
+  (hash "│" (cons 'straight 0)
+        "─" (cons 'straight 90)
+        "┐" (cons 'elbow 180)
+        "└" (cons 'elbow 0)
+        "┌" (cons 'elbow 90)
+        "┘" (cons 'elbow 270)
+        "┬" (cons 'tri 0)
+        "├" (cons 'tri 270)
+        "┴" (cons 'tri 180)
+        "┤" (cons 'tri 90)
+        "┼" (cons 'cross 0)))
+
+   
+;; String [Listof String] -> Tile
+;; Converts a connector in string form and a list of gems in string form to a tile
+(define (conn-and-gem->tile conn gems)
+  (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
+  (tile-make connector orientation (map string->symbol gems)))
+
+
+;; (Any -> Any) [Listof [Listof Any]] [Listof [Listof Any]] -> [Listof [Listof Any]]
+;; Combine two matrices by applying proc to each matrix element-wise
+(define (combine-matrices-elementwise proc matrix1 matrix2)
+  (for/list ([row_m1 matrix1]
+             [row_m2 matrix2])
+    (for/list ([val_m1 row_m1]
+               [val_m2 row_m2])
+      (proc val_m1 val_m2))))
+
+(module+ test
+  (define A (list '(1 2 3)
+                  '(4 5 6)
+                  '(7 8 9)))
+  (define I (list '(1 0 0)
+                  '(0 1 0)
+                  '(0 0 1)))
+  (check-equal?
+   (combine-matrices-elementwise + A A)
+   (list '(2 4 6)
+         '(8 10 12)
+         '(14 16 18)))
+  (check-equal?
+   (combine-matrices-elementwise * A I)
+   (list '(1 0 0)
+         '(0 5 0)
+         '(0 0 9))))
+
+
+;; Hashtable -> Board
+;; Creates a matrix of tiles given a hashtable with matrices of connectors and treasures
+(define (hash->board ht)
+  (define connectors (hash-ref ht 'connectors))
+  (define treasures (hash-ref ht 'treasures))
+  (combine-matrices-elementwise conn-and-gem->tile connectors treasures))
