@@ -62,6 +62,8 @@
      (* 100 (equal-secondary-hash-code (tile-gems tile)))
      (* 1 (equal-secondary-hash-code (tile-connector tile)))))
 
+;; Tile Port (U #t #f 0 1) -> String
+;; Allows for Tiles to be printed, written, or displayed
 (define (tile-print tile port mode)
   (define recur (case mode
                  [(#t) write]
@@ -77,8 +79,6 @@
      (list->string (tile-gems tile))
      "]"))
   (recur tile-string port))
-
-;  (when mode (write-string ">" port)))
 
 ;; A Tile is a structure:
 ;;    (tile Connector Orientation [Listof Gem])
