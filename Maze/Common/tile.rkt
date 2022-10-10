@@ -329,4 +329,7 @@
    (tile-make 'straight 0 (list 'aplite 'aplite)))
   (check-equal?
    (tile-make 'straight 0 (list 'aplite 'beryl))
+   (tile-make 'straight 0 (list 'aplite 'beryl)))
+    (check-equal?
+   (tile-make 'straight 0 (list 'beryl 'aplite))
    (tile-make 'straight 0 (list 'aplite 'beryl))))
