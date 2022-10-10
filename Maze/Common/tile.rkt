@@ -62,6 +62,24 @@
      (* 100 (equal-secondary-hash-code (tile-gems tile)))
      (* 1 (equal-secondary-hash-code (tile-connector tile)))))
 
+(define (tile-print tile port mode)
+  (define recur (case mode
+                 [(#t) write]
+                 [(#f) display]
+                 [else (lambda (p port) (print p port mode))]))
+  (define tile-string
+    (string-append
+     "["
+     (symbol->string (tile-connector tile))
+     ", "
+     (number->string (tile-orientation tile))
+     ", "
+     (list->string (tile-gems tile))
+     "]"))
+  (recur tile-string port))
+
+;  (when mode (write-string ">" port)))
+
 ;; A Tile is a structure:
 ;;    (tile Connector Orientation [Listof Gem])
 ;; interpretation: Represents a tile in the game of labyrinth
@@ -69,7 +87,9 @@
   #:methods gen:equal+hash
   [(define equal-proc tile=?)
    (define hash-proc  tile-hash-code)
-   (define hash2-proc tile-secondary-hash-code)])
+   (define hash2-proc tile-secondary-hash-code)]
+  #:methods gen:custom-write
+  [(define write-proc tile-print)])
 
 (define (tile-make connector orientation gems)
   (tile connector orientation gems))
