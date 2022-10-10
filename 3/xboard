@@ -97,10 +97,7 @@
 ;; GridPosn GridPosn -> Boolean
 ;; Compares two GridPosns in row-then-column order
 (define (compare-row-col pos1 pos2)
-  (define row1 (car pos1))
-  (define row2 (car pos2))
-  (define col1 (cdr pos1))
-  (define col2 (cdr pos2))
+  (define-values (row1 col1 row2 col2) (values (car pos1) (cdr pos1) (car pos2) (cdr pos2)))
   (cond
     [(= row1 row2) (<= col1 col2)]
     [(< row1 row2) #t]
