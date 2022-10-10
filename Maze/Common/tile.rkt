@@ -27,6 +27,7 @@
 
 (require racket/match)
 (require racket/list)
+(require racket/set)
 (require racket/function)
 
 (require "gem.rkt")
@@ -42,6 +43,14 @@
 (define (tile-make connector orientation gems)
   (tile connector orientation gems))
 
+(define (tile=? tile1 tile2)
+  (and (eq? (tile-connector tile1)
+          (tile-connector tile2))
+       (= (tile-orientation tile1)
+          (tile-orientation tile2))
+       (equal?
+        (list->set (tile-gems tile1))
+        (list->set (tile-gems tile2)))))
 
 ;; A Connector is one of:
 ;;   - 'straight
@@ -62,7 +71,6 @@
 ; interpretation: A direction a tile could be facing
 (define orientations (list 0 90 180 270))
 (define orientation? (apply or/c orientations))
-
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -266,6 +274,8 @@
   (check-true (open-on-bottom? 'cross 180))
   (check-true (open-on-bottom? 'cross 270)))
 
+(module+ test
+  (check-true (tile=? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty))))
 
 ;; test open-on-left
 (module+ test
