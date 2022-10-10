@@ -36,14 +36,10 @@
 ;; DATA DEFINITIONS
 
 
-;; A Tile is a structure:
-;;    (tile Connector Orientation [Listof Gem])
-;; interpretation: Represents a tile in the game of labyrinth
-(struct tile [connector orientation gems])
-(define (tile-make connector orientation gems)
-  (tile connector orientation gems))
 
-(define (tile=? tile1 tile2)
+;; Tile Tile (-> Any Any Boolean) -> Boolean
+;; Check if two tiles are equal
+(define (tile=? tile1 tile2 recursive-equal?)
   (and (eq? (tile-connector tile1)
           (tile-connector tile2))
        (= (tile-orientation tile1)
@@ -51,6 +47,33 @@
        (equal?
         (list->set (tile-gems tile1))
         (list->set (tile-gems tile2)))))
+
+;; Tile (-> Any Integer) -> Integer
+;; Computes a hash code for a given Tile
+(define (tile-hash-code tile recursive-equal-hash)
+  (+ (* 1000 (equal-hash-code (tile-connector tile)))
+     (* 100 (tile-orientation tile))
+     (* 1 (equal-hash-code (tile-gems tile)))))
+
+;; Tile (-> Any Integer) -> Integer
+;; Computes a secondary hash for a given Tile
+(define (tile-secondary-hash-code tile recursive-equal-hash)
+  (+ (* 1000 (tile-orientation tile))
+     (* 100 (equal-secondary-hash-code (tile-gems tile)))
+     (* 1 (equal-secondary-hash-code (tile-connector tile)))))
+
+;; A Tile is a structure:
+;;    (tile Connector Orientation [Listof Gem])
+;; interpretation: Represents a tile in the game of labyrinth
+(struct tile [connector orientation gems]
+  #:methods gen:equal+hash
+  [(define equal-proc tile=?)
+   (define hash-proc  tile-hash-code)
+   (define hash2-proc tile-secondary-hash-code)])
+
+(define (tile-make connector orientation gems)
+  (tile connector orientation gems))
+
 
 ;; A Connector is one of:
 ;;   - 'straight
@@ -298,12 +321,12 @@
 
 ;; test tile=?
 (module+ test
-  (check-true (tile=? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty)))
-  (check-false (tile=? (tile-make 'straight 0 empty) (tile-make 'straight 90 empty)))
-  (check-false (tile=? (tile-make 'elbow 0 empty) (tile-make 'straight 0 empty)))
-  (check-false (tile=?
-                (tile-make 'straight 0 (list 'aplite 'beryl))
-                (tile-make 'straight 0 (list 'aplite 'aplite))))
-  (check-true (tile=?
-               (tile-make 'straight 0 (list 'aplite 'beryl))
-               (tile-make 'straight 0 (list 'aplite 'beryl)))))
+  (check-equal? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty))
+  (check-not-equal? (tile-make 'straight 0 empty) (tile-make 'straight 90 empty))
+  (check-not-equal? (tile-make 'elbow 0 empty) (tile-make 'straight 0 empty))
+  (check-not-equal? 
+   (tile-make 'straight 0 (list 'aplite 'beryl))
+   (tile-make 'straight 0 (list 'aplite 'aplite)))
+  (check-equal?
+   (tile-make 'straight 0 (list 'aplite 'beryl))
+   (tile-make 'straight 0 (list 'aplite 'beryl))))
