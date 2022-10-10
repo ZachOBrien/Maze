@@ -274,9 +274,6 @@
   (check-true (open-on-bottom? 'cross 180))
   (check-true (open-on-bottom? 'cross 270)))
 
-(module+ test
-  (check-true (tile=? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty))))
-
 ;; test open-on-left
 (module+ test
   (check-false (open-on-left? 'straight 0))
@@ -298,3 +295,15 @@
   (check-true (open-on-left? 'cross 90))
   (check-true (open-on-left? 'cross 180))
   (check-true (open-on-left? 'cross 270)))
+
+;; test tile=?
+(module+ test
+  (check-true (tile=? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty)))
+  (check-false (tile=? (tile-make 'straight 0 empty) (tile-make 'straight 90 empty)))
+  (check-false (tile=? (tile-make 'elbow 0 empty) (tile-make 'straight 0 empty)))
+  (check-false (tile=?
+                (tile-make 'straight 0 (list 'aplite 'beryl))
+                (tile-make 'straight 0 (list 'aplite 'aplite))))
+  (check-true (tile=?
+               (tile-make 'straight 0 (list 'aplite 'beryl))
+               (tile-make 'straight 0 (list 'aplite 'beryl)))))
