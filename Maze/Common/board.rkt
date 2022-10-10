@@ -104,6 +104,7 @@
 (define (all-reachable-from-acc board queue visited)
   (cond
     [(empty? queue) (reverse visited)]
+    [(member (first queue) visited) (all-reachable-from-acc board (rest queue) visited)]
     [else (define current-pos (first queue))
           (all-reachable-from-acc board
                                   (append
@@ -220,7 +221,13 @@
   (define row0_2 (list tile00 tile01 tile02))
   (define row1_2 (list tile10 tile11 tile12))
   (define row2_2 (list tile20 tile21 tile22))
-  (define board2 (list row0_2 row1_2 row2_2)))
+  (define board2 (list row0_2 row1_2 row2_2))
+
+  ; A small board which has a cycle amongst the tile paths
+  (define row0_3 (list tile03 tile01 tile11))
+  (define row1_3 (list tile02 tile04 tile22))
+  (define row2_3 (list tile33 tile44 tile55))
+  (define board3 (list row0_3 row1_3 row2_3)))
 
 (module+ test
   (require rackunit)
@@ -426,7 +433,9 @@
                  (cons 5 2)
                  (cons 3 1)
                  (cons 5 1)
-                 (cons 6 1))))
+                 (cons 6 1)))
+  (check-equal? (board-all-reachable-from board3 (cons 0 0))
+                (list (cons 0 0) (cons 1 0) (cons 0 1) (cons 1 1))))
          
 
 ;; test board-adjacent-connected?
