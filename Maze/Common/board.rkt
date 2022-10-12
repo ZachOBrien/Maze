@@ -109,18 +109,8 @@
           (all-reachable-from-acc board
                                   (append
                                    (rest queue)
-                                   (get-connected-unvisited-neighbors board current-pos visited))
+                                   (board-get-directly-connected-neighbors board current-pos))
                                   (cons current-pos visited))]))
-
-
-;; Board GridPosn [Listof GridPosn] -> [Listof GridPosn]
-;; Gets all directly connected, unvisited neighbors of a tile at current-pos
-(define (get-connected-unvisited-neighbors board current-pos visited)
-  (filter (λ (p)
-                 (and
-                  (not (member p visited))
-                  (board-adjacent-connected? board current-pos p)))
-          (board-get-directly-connected-neighbors board current-pos)))
 
 
 ;; Board GridPosn GridPosn -> Boolean
