@@ -15,6 +15,10 @@
   [player? contract?]
   ; Create a new Player
   [player-new (-> player-id? grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]
+  ; Get a player's ID
+  [get-player-id (-> player? player-id?)]
+  ; Get a player's current position
+  [get-player-curr-pos (-> player? grid-posn?)]
   ; Check if a player is on a position
   [player-on-pos? (-> player? grid-posn? boolean?)]
   ; Move a player to a new position
@@ -72,6 +76,16 @@
    (equal? (player-dob p1) (player-dob p2))
    (equal? (player-color p1) (player-color p2))))
 
+
+;; Player -> PlayerID
+;; Get a player's ID
+(define (get-player-id p)
+  (player-id p))
+
+;; Player -> GridPosn
+;; Get a player's current position
+(define (get-player-curr-pos p)
+  (player-curr-pos p))
 
 ;; Player GridPosn -> Boolean
 ;; Returns True if the player is on the given position

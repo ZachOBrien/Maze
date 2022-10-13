@@ -76,47 +76,52 @@
 ;; Carry out a player's move by shifting a row or column, inserting a tile, and moving
 ;; the player onto the newly inserted tile if they were pushed off the board during the shift
 (define (execute-move state mv)
-  ...)
+  0)
 
 
 ;; Gamestate GridPosn -> Boolean
-;; Check if a player can reach a position from their current position
+;; Check if the current player can reach a position from their current position
 (define (player-can-reach-pos? state pos)
-  ...)
+  (define curr-board (gamestate-board state))
+  (define curr-player-pos (get-player-curr-pos (get-player state (gamestate-current-player state))))
+  (define reachable (board-all-reachable-from (gamestate-board state) curr-player-pos))
+  (if (member pos reachable) #t #f))
 
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their goal tile
 (define (player-on-goal? state)
-  ...)
+  0)
 
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their home tile
 (define (player-on-home? state)
-  ...)
+  0)
 
 
 ;; Gamestate -> Gamestate
 ;; Remove the currently active player from the game
 (define (remove-player state)
-  ...)
+  0)
 
 
 ;; Gamestate 
 ; End the current player's turn and switch to the next player's turn
 (define (end-current-turn state)
-  ...)
+  0)
+
+
+;; Gamestate PlayerID -> Player
+(define (get-player state pid)
+  (first (filter (λ (player) (= pid (get-player-id player)))) (gamestate-players state)))
 
 
 ;; --------------------------------------------------------------------
 ;; TESTS
 
 (module+ examples
-  (provide (all-defined-out))
-  (define player0
-    (player
-     0 (cons 0 0) (cons 6 6) (list 'apatite 'aplite) (seconds->date (current-seconds)) "blue")))
+  (provide (all-defined-out)))
 
 (module+ test
   (require rackunit)
