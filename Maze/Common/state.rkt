@@ -11,9 +11,26 @@
 
 (provide
  (contract-out
-  [move? contract?]
+  [move?       contract?]
+  [gamestate?  contract?]
   ; Create a new Move
-  [move-new (-> shift-direction? natural-number/c orientation? grid-posn? move?)]))
+  [move-new (-> shift-direction? natural-number/c orientation? grid-posn? move?)]
+  ; Create a new Gamestate
+  [gamestate-new
+   (-> board? tile? (non-empty-listof player?) (non-empty-listof player-id?) gamestate?)]
+  ; Carry out a player's move by shifting a row or column, inserting a tile, and moving
+  ; the player onto the newly inserted tile if they were pushed off the board during the shift
+  [execute-move (-> gamestate? move? gamestate?)]
+  ; Check if a player can reach a position from their current position
+  [player-can-reach-pos? (-> gamestate? grid-posn? boolean?)]
+  ; Check if a player is currently placed on their goal tile
+  [player-on-goal? (-> gamestate? boolean?)]
+  ; Check if a player is currently placed on their home tile
+  [player-on-home? (-> gamestate? boolean?)]
+  ; Remove the currently active player from the game
+  [remove-player (-> gamestate? gamestate?)]
+  ; End the current player's turn and switch to the next player's turn
+  [end-current-turn (-> gamestate? gamestate?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -40,80 +57,68 @@
 
 
 ;; A Gamestate is a structure:
-;;     (struct 
+;;    (struct Board Tile [NonEmptyListof Player] [NonEmptyListof PlayerID] PlayerID (-> Move Boolean))
+;; interpretation: A Gamestate has a board, an extra tile, players, the order in which the players
+;;                 take turns, the ID of the currently acting player, and a function representing
+;;                 whether a move would reverse the previously made move
+(struct gamestate [board extra-tile players player-turn-order current-player reverses-prev-move])
+
+;; Board Tile [NonEmptyListof Player] [NonEmptyListof PlayerID] -> Gamestate
+;; Create a new gamestate
+(define (gamestate-new board extra-tile players player-turn-order)
+  (gamestate board extra-tile players player-turn-order (first player-turn-order) (λ (mv) #f)))
+
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
-(define/contract gamestate%
-  (class/c
-   ;; Shift a row or column, insert a tile, and move the player onto the newly
-   ;; inserted tile if needed
-   [execute-move (->m move? (is-a?/c gamestate%))]
-   ;; Check if a player can reach a position from their current position
-   [player-can-reach-pos? (->m grid-posn? boolean?)]
-   ;; Check if a player is currently placed on their goal tile
-   [player-on-goal? (->m boolean?)]
-   ;; Check if a player is currently placed on their home tile
-   [player-on-home? (->m boolean?)]
-   ;; Remove the currently active player from the game
-   [remove-player (->m (is-a?/c gamestate%))]
-   ;; End the current player's turn and switch to the next player's turn
-   [end-current-turn (->m (is-a?/c gamestate%))])
-  (class object%
-    (super-new)
-
-    (init init-board
-          init-extra-tile
-          init-players
-          init-player-order
-          [init-previous-move (λ (move) #f)])
-
-    (define board init-board)
-    (define extra-tile init-extra-tile)
-    (define players init-players)
-    (define player-turn-order init-player-order)
-    (define current-player (first player-turn-order))
-    (define previous-move-check init-previous-move)
-
-    (define (copy
-             [new-board board]
-             [new-extra-tile extra-tile]
-             [new-players players]
-             [new-player-turn-order]
-
-    
-    (define/public (execute-move mv)
-      (define inserted-tile-pos (get-inserted-tile-pos board (move-shift-dir mv) (move-index mv)))
-      (define pushed-tile-pos (get-pushed-tile-pos board (move-shift-dir mv) (move-index mv)))
-      (define moved-players
-        (for ([p players])
-          (if (player-on-pos? p pushed-tile-pos)
-              (player-move-to p open-space-pos)
-              p)))
-
-      (define/values (board extra-tile) (board-shift-and-insert
-                                         board
-                                         (move-shift-dir mv)
-                                         (move-index mv)
-                                         (rotate-tile extra-tile (move-orientation mv))))
-      (
-    
-      
-
-    
-    (define/public (player-can-reach-pos? pos) #t)
-
-    (define/public (player-on-goal?) #t)
-
-    (define/public (player-on-home?) #t)
-
-    (define/public (remove-player) this)
-
-    (define/public (end-current-turn) this)
-    
-
-    ))
+;; Gamestate Move -> Gamestate
+;; Carry out a player's move by shifting a row or column, inserting a tile, and moving
+;; the player onto the newly inserted tile if they were pushed off the board during the shift
+(define (execute-move state mv)
+  ...)
 
 
+;; Gamestate GridPosn -> Boolean
+;; Check if a player can reach a position from their current position
+(define (player-can-reach-pos? state pos)
+  ...)
+
+
+;; Gamestate -> Boolean
+;; Check if a player is currently placed on their goal tile
+(define (player-on-goal? state)
+  ...)
+
+
+;; Gamestate -> Boolean
+;; Check if a player is currently placed on their home tile
+(define (player-on-home? state)
+  ...)
+
+
+;; Gamestate -> Gamestate
+;; Remove the currently active player from the game
+(define (remove-player state)
+  ...)
+
+
+;; Gamestate 
+; End the current player's turn and switch to the next player's turn
+(define (end-current-turn state)
+  ...)
+
+
+;; --------------------------------------------------------------------
+;; TESTS
+
+(module+ examples
+  (provide (all-defined-out))
+  (define player0
+    (player
+     0 (cons 0 0) (cons 6 6) (list 'apatite 'aplite) (seconds->date (current-seconds)) "blue")))
+
+(module+ test
+  (require rackunit)
+  (require (submod ".." examples)))
                                  
