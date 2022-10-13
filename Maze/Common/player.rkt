@@ -13,11 +13,12 @@
  (contract-out
   [player-id? contract?]
   [player? contract?]
-  [move?   contract?]
-  ;; Create a new Player
-  [player-new (-> player-id? grid-posn? grid-posn? (listof gem?) date? (is-a?/c color%) player?)]
-  ;; Create a new Move
-  [move-new (-> shift-direction? natural-number/c orientation? grid-posn? move?)]))
+  ; Create a new Player
+  [player-new (-> player-id? grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]
+  ; Check if a player is on a position
+  [player-on-pos? (-> player? grid-posn? boolean?)]
+  ; Move a player to a new position
+  [player-move-to (-> player? grid-posn? player?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -36,8 +37,17 @@
 ;; interpretation: A player's unique ID
 (define player-id? natural-number/c)
 
+;; An AvatarColor is one of:
+;; - "red"
+;; - "green"
+;; - "yellow"
+;; - "blue"
+;; interpretation: The color of a player's avatar
+(define avatar-color? (or/c "red" "green" "yellow" "blue"))
+
+
 ;; A Player is a structure:
-;;    (struct PlayerID GridPosn GridPosn [Listof Gem] Date Color%)
+;;    (struct PlayerID GridPosn GridPosn [Listof Gem] Date AvatarColor)
 ;; interpretation: A player has an ID, a current position, home position, goal treasure,
 ;;                 birthday, and avatar color
 (struct player [id curr-pos home-pos goal-treasures dob color])
@@ -48,14 +58,67 @@
   (player id curr-pos home-pos goal-treasures dob color))
 
 
-;; A Move is a structure:
-;;    (struct
-;; interpretation: A move made by a player. A move has a ShiftDirection, the index of
-;;                 a row/col to shift, the orientation of the newly inserted tile,
-;;                 and the position the player will move to
-(struct move [shift-dir index orientation pos])
+;; --------------------------------------------------------------------
+;; FUNCTIONALITY
 
-;; ShiftDirection Natural Orientation GridPosn -> Move
-(define (move-new shift-dir index orientation pos)
-  (move shift-dir index orientation pos))
-  
+;; Player Player -> Boolean
+;; Are the two players the same?
+(define (player=? p1 p2)
+  (and
+   (= (player-id p1) (player-id p2))
+   (equal? (player-curr-pos p1) (player-curr-pos p2))
+   (equal? (player-home-pos p1) (player-home-pos p2))
+   (equal? (player-goal-treasures p1) (player-goal-treasures p2))
+   (equal? (player-dob p1) (player-dob p2))
+   (equal? (player-color p1) (player-color p2))))
+
+
+;; Player GridPosn -> Boolean
+;; Returns True if the player is on the given position
+(define (player-on-pos? p pos)
+  (equal? (player-curr-pos p) pos))
+
+
+;; Player GridPosn -> Player
+;; Move a player to the given gridposn
+(define (player-move-to p pos)
+  (struct-copy player p [curr-pos pos]))
+
+
+;; --------------------------------------------------------------------
+;; TESTS
+
+(module+ examples
+  (provide (all-defined-out))
+  (define player0
+    (player
+     0 (cons 0 0) (cons 6 6) (list 'apatite 'aplite) (seconds->date (current-seconds)) "blue")))
+
+(module+ test
+  (require rackunit)
+  (require (submod ".." examples)))
+
+;; Test player-on-pos
+(module+ test
+  (check-true (player-on-pos? player0 (cons 0 0))))
+
+;; Test player-move-to
+(module+ test
+  (check-true (player=?
+               (player-move-to player0 (cons 3 3))
+               (player
+                0
+                (cons 3 3)
+                (cons 6 6)
+                (list 'apatite 'aplite)
+                (seconds->date (current-seconds))
+                "blue")))
+  (check-true (player=?
+               (player-move-to player0 (cons 6 6))
+               (player
+                0
+                (cons 6 6)
+                (cons 6 6)
+                (list 'apatite 'aplite)
+                (seconds->date (current-seconds))
+                "blue"))))
