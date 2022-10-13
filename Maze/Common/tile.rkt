@@ -16,9 +16,11 @@
   [orientation? contract?]
   ; Constructs a new tile
   [tile-make (-> connector? orientation? (listof gem?) tile?)]
-  ;; Returns true if you can travel from one tile to its adjacent neighbor vertically
+  ; Rotates a tile
+  [tile-rotate (-> tile? orientation? tile?)]
+  ; Returns true if you can travel from one tile to its adjacent neighbor vertically
   [tile-connected-vertical?   (-> tile? tile? boolean?)]
-  ;; Returns true if you can travel from one tile to its adjacent neighbor horizontally
+  ; Returns true if you can travel from one tile to its adjacent neighbor horizontally
   [tile-connected-horizontal? (-> tile? tile? boolean?)]))
 
 
@@ -115,6 +117,12 @@
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
+
+;; Tile Orientation -> Tile
+(define (tile-rotate t rotation)
+  (tile-make (tile-connector t)
+             (modulo (+ (tile-orientation t) rotation) 360)
+             (tile-gems t)))
 
 ;; Tile Tile -> Boolean
 (define (tile-connected-horizontal? left right)
@@ -235,6 +243,14 @@
 (module+ test
   (require rackunit)
   (require (submod ".." examples)))
+
+;; test tile-rotate
+(module+ test
+  (check-equal? (tile-rotate tile00 90) (tile 'straight 180 empty))
+  (check-equal? (tile-rotate tile00 180) (tile 'straight 270 empty))
+  (check-equal? (tile-rotate tile00 270) (tile 'straight 0 empty))
+  (check-equal? (tile-rotate tile00 0) (tile 'straight 90 empty))
+  (check-equal? (tile-rotate tile66 270) (tile 'elbow 180 empty)))
 
 ;; test tile-connected-horizontal
 (module+ test
