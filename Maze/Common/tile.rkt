@@ -35,8 +35,6 @@
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
-
-
 ;; Tile Tile (-> Any Any Boolean) -> Boolean
 ;; Check if two tiles are equal
 (define (tile=? tile1 tile2 recursive-equal?)
