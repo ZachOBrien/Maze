@@ -45,7 +45,8 @@
 
 ;; A GridPosn is a pair:
 ;;   (cons Natural Natural)
-;; interpretation: A position on a grid in terms of [row index, column index]
+;; interpretation: A position on a grid in terms of [row index, column index].
+;;                 The topmost row and leftmost column have index 0.
 (define grid-posn? (cons/c natural-number/c natural-number/c))
 
 
