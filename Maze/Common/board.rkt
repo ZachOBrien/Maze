@@ -17,7 +17,11 @@
   ; Shift a row or column at an index and insert a new tile
   [board-shift-and-insert (-> board? shift-direction? natural-number/c tile? (values board? tile?))]
   ; Get a list of the board positions reachable from a given board position
-  [board-all-reachable-from (-> board? grid-posn? (listof grid-posn?))]))
+  [board-all-reachable-from (-> board? grid-posn? (listof grid-posn?))]
+  ; Get the position of the tile that is newly inserted as a result of a shift and insert
+  [get-inserted-tile-pos (-> board? shift-direction? natural-number/c grid-posn?)]
+  ; Get the position of the tile that was pushed off the board during a shift and insert
+  [get-pushed-tile-pos (-> board? shift-direction? natural-number/c grid-posn?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -109,12 +113,28 @@
 (define (push-to-back lst item)
   (append (rest lst) (list item)))
 
+;; Board ShiftDirection Natural -> GridPosn
+;; Gets the position left open once a row or column is shifted
+(define (get-inserted-tile-pos board dir idx)
+  (match dir
+    ['up (cons (sub1 (num-rows board)) idx)]
+    ['down (cons 0 idx)]
+    ['left (cons idx (sub1 (num-cols board)))]
+    ['right (cons idx 0)]))
+
+;; Board ShiftDirection Natural -> GridPosn
+;; Gets the position pushed off once a row or column is shifted
+(define (get-pushed-tile-pos board dir idx)
+  (match dir
+    ['down (cons (sub1 (num-rows board)) idx)]
+    ['up (cons 0 idx)]
+    ['right (cons idx (sub1 (num-cols board)))]
+    ['left (cons idx 0)]))
 
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Get a list of the board positions reachable from a given board position
 (define (board-all-reachable-from board pos)
   (all-reachable-from-acc board (list pos) '()))
-
 
 ;; Board [Listof GridPosn] [Listof GridPosn] -> [Listof GridPosn]
 ;; Finds a connected pathway through the board using breadth-first search
@@ -129,7 +149,6 @@
                                    (board-get-connected-neighbors board current-pos))
                                   (cons current-pos visited))]))
 
-
 ;; Board GridPosn GridPosn -> Boolean
 ;; Returns true if the two adjacent tiles are connected
 (define (board-adjacent-connected? board pos1 pos2)
@@ -143,14 +162,12 @@
     [(and (= row1 row2) (= col1 (add1 col2))) (tile-connected-horizontal? tile2 tile1)]
     [else #f]))
 
-
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Retrieves a list of GridPosns for tiles which are directly connected
 ;; to the tile at the given GridPosn
 (define (board-get-connected-neighbors board pos)
   (filter (λ (p) (board-adjacent-connected? board pos p))
           (board-get-neighbors board pos)))
-
 
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Retrieves a list of GridPosns representing a specific position's neighbors
@@ -207,7 +224,6 @@
 (define (num-cols board)
   (length (first board)))
 
-
 ;; --------------------------------------------------------------------
 ;; TESTS
 
@@ -238,7 +254,6 @@
   (require rackunit)
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples)))
-
 
 ;; Test shifts-row?
 (module+ test
@@ -356,6 +371,27 @@
             (list tile10 tile11 tile02)
             (list tile20 tile21 tile12))))))
 
+;; test get-open-pos
+(module+ test
+  (check-equal? (get-inserted-tile-pos board1 'up 0) (cons 6 0))
+  (check-equal? (get-inserted-tile-pos board1 'up 6) (cons 6 6))
+  (check-equal? (get-inserted-tile-pos board1 'down 0) (cons 0 0))
+  (check-equal? (get-inserted-tile-pos board1 'down 6) (cons 0 6))
+  (check-equal? (get-inserted-tile-pos board1 'right 0) (cons 0 0))
+  (check-equal? (get-inserted-tile-pos board1 'right 6) (cons 6 0))
+  (check-equal? (get-inserted-tile-pos board1 'left 0) (cons 0 6))
+  (check-equal? (get-inserted-tile-pos board1 'left 6) (cons 6 6)))
+
+;; test get-pushed-pos
+(module+ test
+  (check-equal? (get-pushed-tile-pos board1 'up 0) (cons 0 0))
+  (check-equal? (get-pushed-tile-pos board1 'up 6) (cons 0 6))
+  (check-equal? (get-pushed-tile-pos board1 'down 0) (cons 6 0))
+  (check-equal? (get-pushed-tile-pos board1 'down 6) (cons 6 6))
+  (check-equal? (get-pushed-tile-pos board1 'right 0) (cons 0 6))
+  (check-equal? (get-pushed-tile-pos board1 'right 6) (cons 6 6))
+  (check-equal? (get-pushed-tile-pos board1 'left 0) (cons 0 0 ))
+  (check-equal? (get-pushed-tile-pos board1 'left 6) (cons 6 0)))
 
 ;; test board-get-neighbors
 (module+ test
