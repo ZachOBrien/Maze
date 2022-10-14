@@ -137,18 +137,24 @@
   (define pushed-tile-pos (get-pushed-tile-pos
                            (gamestate-board state) (move-shift-dir mv) (move-index mv)))
   (define moved-players
-    (for ([plyr (gamestate-players state)])
+    (for/list ([plyr (gamestate-players state)])
       (if (player-on-pos? plyr pushed-tile-pos)
           (player-move-to plyr inserted-tile-pos)
           plyr)))
+
   ; Move the active player
   (define current-player (get-player state (gamestate-current-player state)))
   (define active-player-after-move (player-move-to current-player (move-pos mv)))
+  (define final-players
+    (for/list ([plyr moved-players])
+      (if (= (player-id current-player) (player-id plyr))
+          active-player-after-move
+          plyr)))
 
   (struct-copy gamestate state
                [board new-board]
                [extra-tile new-extra-tile]
-               [players moved-players]))
+               [players final-players]))
 
 
 ;; Gamestate GridPosn -> Boolean
@@ -298,43 +304,51 @@
   ; first bottom right
   (define gamestate5 (gamestate-new board1 tile-extra players5 player-turn-order5))
 
+  (define move00 (move-new 'up 0 0 (cons 1 1)))
+  (define move10 (move-new 'down 6 0 (cons 1 1)))
+  (define move20 (move-new 'left 0 0 (cons 1 1)))
+  (define move30 (move-new 'right 6 0 (cons 1 1)))
   (define move0 (move-new 'up 0 0 (cons 1 1)))
   (define move1 (move-new 'down 6 90 (cons 1 1)))
   (define move2 (move-new 'left 0 180 (cons 1 1)))
   (define move3 (move-new 'right 6 270 (cons 1 1)))
-  (define move5 (move-new 'up 4 0 (cons 1 1)))
-  (define move6 (move-new 'down 3 90 (cons 1 1)))
-  (define move7 (move-new 'left 5 180 (cons 1 1)))
+  (define move5 (move-new 'up 4 0 (cons 2 0)))
+  (define move6 (move-new 'down 3 90 (cons 3 0)))
+  (define move7 (move-new 'left 5 180 (cons 1 2)))
   (define move8 (move-new 'right 2 270 (cons 1 1))))
 
 (module+ test
   (require rackunit)
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod "tile.rkt" examples)))
 
-;; test execute-move
-#;
+;; test execute-move shifts rows and cols
 (module+ test
   ; test shifting rows
-  (check-equal? (list-ref (gamestate-board (execute-move gamestate0 move2)) 0)
+  (check-equal? (list-ref (gamestate-board (execute-move gamestate0 move20)) 0)
                 (list tile01 tile02 tile03 tile04 tile05 tile06 tile-extra))
-  (check-equal? (list-ref (gamestate-board (execute-move gamestate0 move3)) 0)
+  (check-equal? (list-ref (gamestate-board (execute-move gamestate0 move30)) 6)
                 (list tile-extra tile60 tile61 tile62 tile63 tile64 tile65))
   ; test shifting cols
-  (check-equal? (map (λ (row) (list-ref row 0)) (gamestate-board (execute-move gamestate0 move0)))
+  (check-equal? (map (λ (row) (list-ref row 0)) (gamestate-board (execute-move gamestate0 move00)))
                 (list tile10 tile20 tile30 tile40 tile50 tile60 tile-extra))
-  (check-equal? (map (λ (row) (list-ref row 0)) (gamestate-board (execute-move gamestate0 move1)))
-                (list tile-extra tile06 tile16 tile26 tile36 tile46 tile56))
+  (check-equal? (map (λ (row) (list-ref row 6)) (gamestate-board (execute-move gamestate0 move10)))
+                (list tile-extra tile06 tile16 tile26 tile36 tile46 tile56)))
 
+;; test execute-move rotates and inserts tile
+(module+ test
   ; test rotating+inserting tile
   (check-equal? (list-ref (list-ref (gamestate-board (execute-move gamestate0 move0)) 6) 0)
                 tile-extra)
   (check-equal? (list-ref (list-ref (gamestate-board (execute-move gamestate0 move1)) 0) 6)
-                (make-tile 'straight 270 empty))
+                (tile-make 'straight 270 empty))
   (check-equal? (list-ref (list-ref (gamestate-board (execute-move gamestate0 move2)) 0) 6)
-                (make-tile 'straight 0 empty))
-  (check-equal? (list-ref (list-ref (gamestate-board (execute-move gamestate0 move3)) 6) 6)
-                (make-tile 'straight 90 empty))
+                (tile-make 'straight 0 empty))
+  (check-equal? (list-ref (list-ref (gamestate-board (execute-move gamestate0 move3)) 6) 0)
+                (tile-make 'straight 90 empty)))
 
+;; test players are moved onto newly inserted tile if they need to be
+(module+ test
   ; test moving players on moved tile
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate3 move0)) 1)
@@ -347,8 +361,10 @@
                (cons 0 6)))
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate3 move3)) 4)
-               (cons 6 0)))
- 
+               (cons 6 0))))
+
+;; test player is moved to the right tile
+(module+ test
   ; test moving player
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate0 move5)) 0)
@@ -385,7 +401,6 @@
   (check-false (player-on-home? gamestate2)))
 
 ;; test remove-player
-#;
 (module+ test
   (check-equal? (gamestate-player-turn-order (remove-player gamestate0))
                 (list 1 2 3 4))
