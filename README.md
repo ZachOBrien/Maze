@@ -1,9 +1,29 @@
-# CS4500 - Colin Rozzi and Zach OBrien
+# Maze
 
-Source code repository for Collin Rozzi and Zach OBrien's CS4500 assignments.
+Colin Rozzi, Zach OBrien
 
-## Development Environment Set Up
+## Set Up Development Environment
 
-All code in this repository supports **Python 3.6.8**. No other versions of Python are guaranteed to be supported.
+Install Racket version 8.6
 
-Currently, no projects have any dependencies.
+Install `raco`
+
+## Run Unit Test Suite
+
+```
+# Run all unit tests 
+Maze/xtest
+```
+
+```
+# Run unit tests for a specific module
+raco test [PATH-TO-MODULE]
+```
+
+## Repository Structure
+|File/Directory Name | Purpose|  
+|---------------|--------|
+|Maze/Common/ | Data and functionality for board, tile, and gem|
+|Maze/Planning/| Plans for each milestone|
+|Maze/xtest| Shell script to run all unit tests|
+
