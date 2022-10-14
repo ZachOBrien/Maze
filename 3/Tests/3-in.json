@@ -1,0 +1,79 @@
+{
+  "connectors" : [["┬", "┼", "┤", "└", "┌", "└", "┐"],
+                  ["┬", "├", "└", "┼", "┌", "│", "├"],
+                  ["┬", "┼", "│", "└", "│", "│", "┬"],
+                  ["└", "┘", "┼", "┼", "┘", "├", "┬"],
+                  ["─", "─", "┐", "└", "└", "┘", "┤"],
+                  ["┌", "┼", "┼", "┐", "─", "┐", "┐"],
+                  ["│", "┼", "┐", "└", "┼", "┘", "┐"]],
+  "treasures": [
+      [
+          ["lapis-lazuli", "apatite"],
+          ["padparadscha-sapphire", "pink-emerald-cut"],
+          ["ruby", "bulls-eye"],
+          ["blue-ceylon-sapphire", "lemon-quartz-briolette"],
+          ["jasper", "prasiolite"],
+          ["blue-spinel-heart", "morganite-oval"],
+          ["padparadscha-sapphire", "super-seven"]
+      ],
+      [
+          ["jasper", "chrysoberyl-cushion"],
+          ["emerald", "spinel"],
+          ["lemon-quartz-briolette", "white-square"],
+          ["azurite", "ruby-diamond-profile"],
+          ["hackmanite", "golden-diamond-cut"],
+          ["lemon-quartz-briolette", "ammolite"],
+          ["spinel", "white-square"]
+      ],
+      [
+          ["orange-radiant", "apricot-square-radiant"],
+          ["garnet", "ametrine"],
+          ["purple-cabochon", "golden-diamond-cut"],
+          ["pink-round", "magnesite"],
+          ["green-beryl", "aquamarine"],
+          ["padparadscha-oval", "bulls-eye"],
+          ["black-onyx", "tourmaline-laser-cut"]
+      ],
+      [
+          ["emerald", "super-seven"],
+          ["raw-beryl", "jasper"],
+          ["pink-emerald-cut", "morganite-oval"],
+          ["star-cabochon", "moss-agate"],
+          ["ammolite", "hematite"],
+          ["green-princess-cut", "grandidierite"],
+          ["morganite-oval", "jaspilite"]
+      ],
+      [
+          ["azurite", "lapis-lazuli"],
+          ["cordierite", "purple-spinel-trillion"],
+          ["padparadscha-sapphire", "rock-quartz"],
+          ["amethyst", "apatite"],
+          ["heliotrope", "green-beryl-antique"],
+          ["orange-radiant", "tourmaline-laser-cut"],
+          ["aplite", "aventurine"]
+      ],
+      [
+          ["green-beryl-antique", "morganite-oval"],
+          ["tanzanite-trillion", "lemon-quartz-briolette"],
+          ["prasiolite", "magnesite"],
+          ["raw-beryl", "heliotrope"],
+          ["red-spinel-square-emerald-cut", "pink-opal"],
+          ["orange-radiant", "beryl"],
+          ["prehnite", "moonstone"]
+      ],
+      [
+          ["moonstone", "blue-spinel-heart"],
+          ["green-beryl", "ruby-diamond-profile"],
+          ["black-spinel-cushion", "green-beryl"],
+          ["australian-marquise", "citrine-checkerboard"],
+          ["orange-radiant", "peridot"],
+          ["prehnite", "purple-square-cushion"],
+          ["grossular-garnet", "ruby"]
+      ]
+  ]
+}
+
+{
+  "row#": 3,
+  "column#": 5
+}

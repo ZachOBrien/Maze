@@ -16,9 +16,13 @@
   [orientation? contract?]
   ; Constructs a new tile
   [tile-make (-> connector? orientation? (listof gem?) tile?)]
-  ;; Returns true if you can travel from one tile to its adjacent neighbor vertically
+  ; Rotates a tile
+  [tile-rotate (-> tile? orientation? tile?)]
+  ; Check if a tile holds exactly some gems
+  [tile-has-gems? (-> tile? (listof gem?) boolean?)]
+  ; Returns true if you can travel from one tile to its adjacent neighbor vertically
   [tile-connected-vertical?   (-> tile? tile? boolean?)]
-  ;; Returns true if you can travel from one tile to its adjacent neighbor horizontally
+  ; Returns true if you can travel from one tile to its adjacent neighbor horizontally
   [tile-connected-horizontal? (-> tile? tile? boolean?)]))
 
 
@@ -27,6 +31,7 @@
 
 (require racket/match)
 (require racket/list)
+(require racket/set)
 (require racket/function)
 
 (require "gem.rkt")
@@ -34,11 +39,60 @@
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
+;; Tile Tile (-> Any Any Boolean) -> Boolean
+;; Check if two tiles are equal
+(define (tile=? tile1 tile2 recursive-equal?)
+  (and (eq? (tile-connector tile1)
+          (tile-connector tile2))
+       (= (tile-orientation tile1)
+          (tile-orientation tile2))
+       (equal?
+        (list->set (tile-gems tile1))
+        (list->set (tile-gems tile2)))))
+
+;; Tile (-> Any Integer) -> Integer
+;; Computes a hash code for a given Tile
+(define (tile-hash-code tile recursive-equal-hash)
+  (+ (* 1000 (equal-hash-code (tile-connector tile)))
+     (* 100 (tile-orientation tile))
+     (* 1 (equal-hash-code (tile-gems tile)))))
+
+;; Tile (-> Any Integer) -> Integer
+;; Computes a secondary hash for a given Tile
+(define (tile-secondary-hash-code tile recursive-equal-hash)
+  (+ (* 1000 (tile-orientation tile))
+     (* 100 (equal-secondary-hash-code (tile-gems tile)))
+     (* 1 (equal-secondary-hash-code (tile-connector tile)))))
+
+;; Tile Port (U #t #f 0 1) -> String
+;; Allows for Tiles to be printed, written, or displayed
+(define (tile-print tile port mode)
+  (define recur (case mode
+                 [(#t) write]
+                 [(#f) display]
+                 [else (lambda (p port) (print p port mode))]))
+  (define tile-string
+    (string-append
+     "["
+     (symbol->string (tile-connector tile))
+     ", "
+     (number->string (tile-orientation tile))
+     ", "
+     (list->string (tile-gems tile))
+     "]"))
+  (recur tile-string port))
 
 ;; A Tile is a structure:
 ;;    (tile Connector Orientation [Listof Gem])
 ;; interpretation: Represents a tile in the game of labyrinth
-(struct tile [connector orientation gems])
+(struct tile [connector orientation gems]
+  #:methods gen:equal+hash
+  [(define equal-proc tile=?)
+   (define hash-proc  tile-hash-code)
+   (define hash2-proc tile-secondary-hash-code)]
+  #:methods gen:custom-write
+  [(define write-proc tile-print)])
+
 (define (tile-make connector orientation gems)
   (tile connector orientation gems))
 
@@ -63,9 +117,19 @@
 (define orientations (list 0 90 180 270))
 (define orientation? (apply or/c orientations))
 
-
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
+
+;; Tile [Listof Gem] -> Boolean
+;; Check if a tile holds specific gems
+(define (tile-has-gems? tile gems)
+  (equal? (list->set (tile-gems tile)) (list->set gems)))
+
+;; Tile Orientation -> Tile
+(define (tile-rotate t rotation)
+  (tile-make (tile-connector t)
+             (modulo (+ (tile-orientation t) rotation) 360)
+             (tile-gems t)))
 
 ;; Tile Tile -> Boolean
 (define (tile-connected-horizontal? left right)
@@ -133,7 +197,7 @@
   (define tile06 (tile 'tri 270 empty))
 
   (define tile10 (tile 'tri 180 empty))
-  (define tile11 (tile 'tri 90 empty))
+  (define tile11 (tile 'tri 90 (list 'blue-ceylon-sapphire 'bulls-eye)))
   (define tile12 (tile 'cross 0 empty))
   (define tile13 (tile 'straight 0 empty))
   (define tile14 (tile 'straight 270 empty))
@@ -186,6 +250,20 @@
 (module+ test
   (require rackunit)
   (require (submod ".." examples)))
+
+;; test tile-has-gems?
+(module+ test
+  (check-true (tile-has-gems? tile11 (list 'blue-ceylon-sapphire 'bulls-eye)))
+  (check-true (tile-has-gems? tile11 (list 'bulls-eye 'blue-ceylon-sapphire)))
+  (check-false (tile-has-gems? tile11 (list 'alexandrite 'blue-ceylon-sapphire))))
+
+;; test tile-rotate
+(module+ test
+  (check-equal? (tile-rotate tile00 90) (tile 'straight 180 empty))
+  (check-equal? (tile-rotate tile00 180) (tile 'straight 270 empty))
+  (check-equal? (tile-rotate tile00 270) (tile 'straight 0 empty))
+  (check-equal? (tile-rotate tile00 0) (tile 'straight 90 empty))
+  (check-equal? (tile-rotate tile66 270) (tile 'elbow 180 empty)))
 
 ;; test tile-connected-horizontal
 (module+ test
@@ -266,7 +344,6 @@
   (check-true (open-on-bottom? 'cross 180))
   (check-true (open-on-bottom? 'cross 270)))
 
-
 ;; test open-on-left
 (module+ test
   (check-false (open-on-left? 'straight 0))
@@ -288,3 +365,18 @@
   (check-true (open-on-left? 'cross 90))
   (check-true (open-on-left? 'cross 180))
   (check-true (open-on-left? 'cross 270)))
+
+;; test tile=?
+(module+ test
+  (check-equal? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty))
+  (check-not-equal? (tile-make 'straight 0 empty) (tile-make 'straight 90 empty))
+  (check-not-equal? (tile-make 'elbow 0 empty) (tile-make 'straight 0 empty))
+  (check-not-equal? 
+   (tile-make 'straight 0 (list 'aplite 'beryl))
+   (tile-make 'straight 0 (list 'aplite 'aplite)))
+  (check-equal?
+   (tile-make 'straight 0 (list 'aplite 'beryl))
+   (tile-make 'straight 0 (list 'aplite 'beryl)))
+    (check-equal?
+   (tile-make 'straight 0 (list 'beryl 'aplite))
+   (tile-make 'straight 0 (list 'aplite 'beryl))))
