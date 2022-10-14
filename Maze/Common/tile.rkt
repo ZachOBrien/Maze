@@ -18,6 +18,8 @@
   [tile-make (-> connector? orientation? (listof gem?) tile?)]
   ; Rotates a tile
   [tile-rotate (-> tile? orientation? tile?)]
+  ; Check if a tile holds exactly some gems
+  [tile-has-gems? (-> tile? (listof gem?) boolean?)]
   ; Returns true if you can travel from one tile to its adjacent neighbor vertically
   [tile-connected-vertical?   (-> tile? tile? boolean?)]
   ; Returns true if you can travel from one tile to its adjacent neighbor horizontally
@@ -118,6 +120,11 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
+;; Tile [Listof Gem] -> Boolean
+;; Check if a tile holds specific gems
+(define (tile-has-gems? tile gems)
+  (equal? (list->set (tile-gems tile)) (list->set gems)))
+
 ;; Tile Orientation -> Tile
 (define (tile-rotate t rotation)
   (tile-make (tile-connector t)
@@ -190,7 +197,7 @@
   (define tile06 (tile 'tri 270 empty))
 
   (define tile10 (tile 'tri 180 empty))
-  (define tile11 (tile 'tri 90 empty))
+  (define tile11 (tile 'tri 90 (list 'blue-ceylon-sapphire 'bulls-eye)))
   (define tile12 (tile 'cross 0 empty))
   (define tile13 (tile 'straight 0 empty))
   (define tile14 (tile 'straight 270 empty))
@@ -243,6 +250,12 @@
 (module+ test
   (require rackunit)
   (require (submod ".." examples)))
+
+;; test tile-has-gems?
+(module+ test
+  (check-true (tile-has-gems? tile11 (list 'blue-ceylon-sapphire 'bulls-eye)))
+  (check-true (tile-has-gems? tile11 (list 'bulls-eye 'blue-ceylon-sapphire)))
+  (check-false (tile-has-gems? tile11 (list 'alexandrite 'blue-ceylon-sapphire))))
 
 ;; test tile-rotate
 (module+ test

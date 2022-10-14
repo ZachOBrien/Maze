@@ -18,6 +18,8 @@
   [board-shift-and-insert (-> board? shift-direction? natural-number/c tile? (values board? tile?))]
   ; Get a list of the board positions reachable from a given board position
   [board-all-reachable-from (-> board? grid-posn? (listof grid-posn?))]
+  ; Retrieve the tile at a specific position on the board
+  [board-get-tile-at (-> board? grid-posn? tile?)]
   ; Get the position of the tile that is newly inserted as a result of a shift and insert
   [get-inserted-tile-pos (-> board? shift-direction? natural-number/c grid-posn?)]
   ; Get the position of the tile that was pushed off the board during a shift and insert
@@ -152,8 +154,8 @@
 ;; Board GridPosn GridPosn -> Boolean
 ;; Returns true if the two adjacent tiles are connected
 (define (board-adjacent-connected? board pos1 pos2)
-  (define tile1 (board-get-at board pos1))
-  (define tile2 (board-get-at board pos2))
+  (define tile1 (board-get-tile-at board pos1))
+  (define tile2 (board-get-tile-at board pos2))
   (define-values (row1 col1 row2 col2) (values (car pos1) (cdr pos1) (car pos2) (cdr pos2)))
   (cond
     [(and (= col1 col2) (= row1 (sub1 row2))) (tile-connected-vertical? tile1 tile2)]
@@ -211,7 +213,7 @@
 
 ;; Board GridPosn -> Tile
 ;; Gets the tile at a position in the board
-(define (board-get-at board pos)
+(define (board-get-tile-at board pos)
   (list-ref (list-ref board (car pos)) (cdr pos)))
 
 ;; Board -> PositiveInteger
@@ -504,6 +506,6 @@
 
 ;; test board-get-at
 (module+ test
-  (check-equal? (board-get-at board1 (cons 0 0)) tile00)
-  (check-not-equal? (board-get-at board1 (cons 3 1)) tile00)
-  (check-equal? (board-get-at board1 (cons 6 6)) tile66))
+  (check-equal? (board-get-tile-at board1 (cons 0 0)) tile00)
+  (check-not-equal? (board-get-tile-at board1 (cons 3 1)) tile00)
+  (check-equal? (board-get-tile-at board1 (cons 6 6)) tile66))
