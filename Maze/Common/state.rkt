@@ -27,7 +27,7 @@
   [player-on-goal? (-> gamestate? boolean?)]
   ; Check if a player is currently placed on their home tile
   [player-on-home? (-> gamestate? boolean?)]
-  ; Remove the currently active player from the game
+  ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
   ; End the current player's turn and switch to the next player's turn
   [end-current-turn (-> gamestate? gamestate?)]))
@@ -124,37 +124,48 @@
 ;; the player onto the newly inserted tile if they were pushed off the board during the shift
 (define (execute-move state mv)
   ; Update the board
-  (define-values (new-board new-extra-tile) (board-shift-and-insert
-                                             (gamestate-board state)
-                                             (move-shift-dir mv)
-                                             (move-index mv)
-                                             (tile-rotate
-                                              (gamestate-extra-tile state)
-                                              (move-orientation mv))))
-  ; Swing players around to new tile if they got pushed off
-  (define inserted-tile-pos (get-inserted-tile-pos
-                             (gamestate-board state) (move-shift-dir mv) (move-index mv)))
-  (define pushed-tile-pos (get-pushed-tile-pos
-                           (gamestate-board state) (move-shift-dir mv) (move-index mv)))
-  (define moved-players
-    (for/list ([plyr (gamestate-players state)])
-      (if (player-on-pos? plyr pushed-tile-pos)
-          (player-move-to plyr inserted-tile-pos)
-          plyr)))
-
-  ; Move the active player
-  (define current-player (get-player state (gamestate-current-player state)))
-  (define active-player-after-move (player-move-to current-player (move-pos mv)))
-  (define final-players
-    (for/list ([plyr moved-players])
-      (if (= (player-id current-player) (player-id plyr))
-          active-player-after-move
-          plyr)))
-
+  (define-values (new-board new-extra-tile) (get-next-board-and-extra-tile state mv))
+  (define players-after-shift (move-players-on-pushed-tile state mv))
+  (define final-players (move-player players-after-shift (get-current-player state) mv))
   (struct-copy gamestate state
                [board new-board]
                [extra-tile new-extra-tile]
                [players final-players]))
+
+
+;; Gamestate Move -> (Board Tile)
+;; Get board and extra tile which result from making a shift
+(define (get-next-board-and-extra-tile state mv)
+  (board-shift-and-insert
+   (gamestate-board state)
+   (move-shift-dir mv)
+   (move-index mv)
+   (tile-rotate
+    (gamestate-extra-tile state)
+    (move-orientation mv))))
+  
+
+;; Gamestate Move -> [Listof Player]
+;; Move players who were pushed off the board onto the newly inserted tile
+(define (move-players-on-pushed-tile state mv)
+  (define inserted-tile-pos (get-inserted-tile-pos
+                             (gamestate-board state) (move-shift-dir mv) (move-index mv)))
+  (define pushed-tile-pos (get-pushed-tile-pos
+                           (gamestate-board state) (move-shift-dir mv) (move-index mv)))
+  (for/list ([plyr (gamestate-players state)])
+    (if (player-on-pos? plyr pushed-tile-pos)
+        (player-move-to plyr inserted-tile-pos)
+        plyr)))
+
+;; Gamestate Move -> [Listof Player]
+;; Move the currently active player to a new tile according to their specified move
+(define (move-player players curr-player mv)
+  (define active-player-after-move (player-move-to curr-player (move-pos mv)))
+  (for/list ([plyr players])
+    (if (= (player-id curr-player) (player-id plyr))
+        active-player-after-move
+        plyr)))
+  
 
 
 ;; Gamestate GridPosn -> Boolean
@@ -182,10 +193,16 @@
 
 
 ;; Gamestate -> Gamestate
-;; Remove the currently active player from the game
+;; Remove the currently active player from the game and ends their turn
 (define (remove-player state)
-  0)
-
+  (define temp-current-player (gamestate-current-player state))
+  (define state-after-turn-ended (end-current-turn state))
+  (struct-copy gamestate state-after-turn-ended
+               [player-turn-order
+                (filter
+                 (λ (player-id) (not (= player-id temp-current-player)))
+                 (gamestate-player-turn-order state))]))
+  
 
 ;; Gamestate -> Gamestate
 ; End the current player's turn and switch to the next player's turn
