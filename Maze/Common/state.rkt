@@ -130,7 +130,8 @@
   (struct-copy gamestate state
                [board new-board]
                [extra-tile new-extra-tile]
-               [players final-players]))
+               [players final-players]
+               [reverses-prev-move (make-reverses-move? mv)]))
 
 
 ;; Gamestate Move -> (Board Tile)
@@ -224,6 +225,21 @@
 ;; Get the current player
 (define (get-current-player state)
   (get-player state (gamestate-current-player state)))
+
+;; Move -> (Move -> Boolean)
+;; Make a function that returns true if another move is passed in that undos that move
+(define (make-reverses-move? mv1)
+  (λ (mv2) (and (= (move-index mv1)
+                   (move-index mv2))
+                (opposite-direction?
+                 (move-shift-dir mv1)
+                 (move-shift-dir mv2)))))
+
+;; ShiftDirection ShiftDirection -> Boolean
+;; True if given directions are opposite
+(define (opposite-direction? dir1 dir2)
+  (or (equal? (set dir1 dir2) (set 'left 'right))
+      (equal? (set dir1 dir2) (set 'up 'down))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -459,3 +475,29 @@
                 (list 'apatite 'aplite)
                 (seconds->date (current-seconds))
                 "blue"))))
+
+;; test opposite-direction?
+(module+ test
+  (check-true (opposite-direction? 'up 'down))
+  (check-true (opposite-direction? 'down 'up))
+  (check-true (opposite-direction? 'right 'left))
+  (check-true (opposite-direction? 'left 'right))
+  (check-false (opposite-direction? 'up 'right))
+  (check-false (opposite-direction? 'down 'left))
+  (check-false (opposite-direction? 'left 'up))
+  (check-false (opposite-direction? 'right 'down)))
+
+;; test make-undo-last-move-check
+(module+ test
+  (check-false ((make-reverses-move? (move-new 'up 0 0 (cons 1 1)))
+                (move-new 'up 0 0 (cons 1 1))))
+  (check-true ((make-reverses-move? (move-new 'up 0 0 (cons 1 1)))
+               (move-new 'down 0 0 (cons 1 1))))
+  (check-false ((make-reverses-move? (move-new 'up 1 0 (cons 1 1)))
+                (move-new 'down 0 0 (cons 1 1))))
+  (check-false ((make-reverses-move? (move-new 'right 0 0 (cons 1 1)))
+                (move-new 'right 0 0 (cons 1 1))))
+  (check-true ((make-reverses-move? (move-new 'right 0 0 (cons 1 1)))
+               (move-new 'left 0 0 (cons 1 1))))
+  (check-false ((make-reverses-move? (move-new 'left 1 0 (cons 1 1)))
+                (move-new 'right 0 0 (cons 1 1)))))
