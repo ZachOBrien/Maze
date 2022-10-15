@@ -350,8 +350,8 @@
   (define move2 (move-new 'left 0 180 (cons 1 1)))
   (define move3 (move-new 'right 6 270 (cons 1 1)))
   (define move5 (move-new 'up 4 0 (cons 2 0)))
-  (define move6 (move-new 'down 3 90 (cons 3 0)))
-  (define move7 (move-new 'left 5 180 (cons 1 2)))
+  (define move6 (move-new 'down 4 90 (cons 3 0)))
+  (define move7 (move-new 'left 6 180 (cons 1 2)))
   (define move8 (move-new 'right 2 270 (cons 1 1))))
 
 (module+ test

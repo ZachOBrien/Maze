@@ -9,13 +9,36 @@
 
 (require racket/contract)
 
+;; Board -> (Natural -> Boolean)
+;; Creates a function to check for valid shift index in the given board
+(define (valid-shift-index? board)
+  (and/c natural-number/c
+         (<=/c (sub1 (length board)))
+         even?))
+
+;; [SquareListof Any] -> Boolean
+;; Checks if the square list has odd dimensions
+(define (odd-dims? square-lst)
+  (odd? (length (first square-lst))))
+
+;; [Listof [Listof Any]] -> Boolean
+;; Checks if the list of lists is square
+(define (square? lst)
+  (and (apply = (map length lst))
+       (= (length lst) (length (first lst)))))
+
 (provide
  (contract-out
   [board?           contract?]
   [grid-posn?       contract?]
   [shift-direction? contract?]
   ; Shift a row or column at an index and insert a new tile
-  [board-shift-and-insert (-> board? shift-direction? natural-number/c tile? (values board? tile?))]
+  [board-shift-and-insert (->i
+                           ([b board?]
+                            [s shift-direction?]
+                            [i (b) (valid-shift-index? b)]
+                            [t tile?])
+                            (values (rb board?) (rt tile?)))]
   ; Get a list of the board positions reachable from a given board position
   [board-all-reachable-from (-> board? grid-posn? (listof grid-posn?))]
   ; Retrieve the tile at a specific position on the board
@@ -39,10 +62,13 @@
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
+
+
 ;; A Board is a [Listof [Listof Tile]]
 ;; interpretation: A square matrix of Maze game tiles with dimensions of odd length
-(define board? (listof (listof tile?)))
-
+(define board? (and/c (non-empty-listof (non-empty-listof tile?))
+                      square?
+                      odd-dims?))
 
 ;; A GridPosn is a pair:
 ;;   (cons Natural Natural)
@@ -251,12 +277,43 @@
   (define row0_3 (list tile03 tile01 tile11))
   (define row1_3 (list tile02 tile04 tile22))
   (define row2_3 (list tile33 tile44 tile55))
-  (define board3 (list row0_3 row1_3 row2_3)))
+  (define board3 (list row0_3 row1_3 row2_3))
 
+  (define board4 (list row0 row1))
+  (define board5 (list row0 row1 row2 row3))
+
+  (define row7 (list tile00 tile01 tile02 tile03))
+  (define row8 (list tile00 tile01 tile02 tile03))
+  (define row9 (list tile00 tile01 tile02 tile03))
+  (define row10 (list tile00 tile01 tile02 tile03))
+
+  (define board6 (list row7 row8 row9 row10)))
+  
 (module+ test
   (require rackunit)
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples)))
+
+;; Test valid-shift-index?
+(module+ test
+  (check-true ((valid-shift-index? board1) 0))
+  (check-true ((valid-shift-index? board1) 2))
+  (check-true ((valid-shift-index? board1) 6))
+  (check-false ((valid-shift-index? board1) 1))
+  (check-false ((valid-shift-index? board1) 3)))
+
+;; Test square?
+(module+ test
+  (check-true (square? board1))
+  (check-true (square? board2))
+  (check-true (square? board3))
+  (check-false (square? board4))
+  (check-false (square? board5)))
+
+;; Test odd-dims?
+(module+ test
+  (check-false (odd-dims? board6))
+  (check-true (odd-dims? board1)))
 
 ;; Test shifts-row?
 (module+ test
