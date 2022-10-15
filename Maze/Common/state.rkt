@@ -17,7 +17,7 @@
   [move-new (-> shift-direction? natural-number/c orientation? grid-posn? move?)]
   ; Create a new Gamestate
   [gamestate-new
-   (-> board? tile? (non-empty-listof player?) (non-empty-listof player-id?) gamestate?)]
+   (-> board? tile? (non-empty-listof player?) gamestate?)]
   ; Carry out a player's move by shifting a row or column, inserting a tile, and moving
   ; the player onto the newly inserted tile if they were pushed off the board during the shift
   [execute-move (-> gamestate? move? gamestate?)]
@@ -41,8 +41,6 @@
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
-
-
 
 ;; A PlayerID is a Natural
 ;; interpretation: A player's unique ID
@@ -68,6 +66,17 @@
 (define (player-new id curr-pos home-pos goal-treasures dob color)
   (player id curr-pos home-pos goal-treasures dob color))
 
+;; Player Player -> Boolean
+;; Are the two players the same?
+(define (player=? p1 p2)
+  (and
+   (= (player-id p1) (player-id p2))
+   (equal? (player-curr-pos p1) (player-curr-pos p2))
+   (equal? (player-home-pos p1) (player-home-pos p2))
+   (equal? (player-goal-treasures p1) (player-goal-treasures p2))
+   (equal? (player-dob p1) (player-dob p2))
+   (equal? (player-color p1) (player-color p2))))
+
 
 ;; A Move is a structure:
 ;;    (struct ShfitDirection Natural Orientation GridPosn)
@@ -83,37 +92,15 @@
 
 ;; A Gamestate is a structure:
 ;;    (struct Board Tile [NonEmptyListof Player] [NonEmptyListof PlayerID] PlayerID (-> Move Boolean))
-;; interpretation: A Gamestate has a board, an extra tile, players, the order in which the players
-;;                 take turns, the ID of the currently acting player, and a function representing
-;;                 whether a move would reverse the previously made move
-(struct gamestate [board extra-tile players player-turn-order current-player reverses-prev-move])
+;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
+;;                 take turns, the ID of the currently acting player, and a function which checks
+;;                 if a move would undo the previous move
+(struct gamestate [board extra-tile players current-player-id reverses-prev-move])
 
 ;; Board Tile [NonEmptyListof Player] [NonEmptyListof PlayerID] -> Gamestate
 ;; Create a new gamestate
-(define (gamestate-new board extra-tile players player-turn-order)
-  (gamestate board extra-tile players player-turn-order (first player-turn-order) (λ (mv) #f)))
-
-
-;; Player Player -> Boolean
-;; Are the two players the same?
-(define (player=? p1 p2)
-  (and
-   (= (player-id p1) (player-id p2))
-   (equal? (player-curr-pos p1) (player-curr-pos p2))
-   (equal? (player-home-pos p1) (player-home-pos p2))
-   (equal? (player-goal-treasures p1) (player-goal-treasures p2))
-   (equal? (player-dob p1) (player-dob p2))
-   (equal? (player-color p1) (player-color p2))))
-
-;; Player GridPosn -> Boolean
-;; Returns True if the player is on the given position
-(define (player-on-pos? p pos)
-  (equal? (player-curr-pos p) pos))
-
-;; Player GridPosn -> Player
-;; Move a player to the given gridposn
-(define (player-move-to p pos)
-  (struct-copy player p [curr-pos pos]))
+(define (gamestate-new board extra-tile players)
+  (gamestate board extra-tile players (player-id (first players)) (λ (mv) #f)))
 
 
 ;; --------------------------------------------------------------------
@@ -158,6 +145,7 @@
         (player-move-to plyr inserted-tile-pos)
         plyr)))
 
+
 ;; Gamestate Move -> [Listof Player]
 ;; Move the currently active player to a new tile according to their specified move
 (define (move-player players curr-player mv)
@@ -167,7 +155,6 @@
         active-player-after-move
         plyr)))
   
-
 
 ;; Gamestate GridPosn -> Boolean
 ;; Check if the current player can reach a position from their current position
@@ -194,37 +181,46 @@
 
 
 ;; Gamestate -> Gamestate
-;; Remove the currently active player from the game and ends their turn
+;; Removes the currently active player from the game and ends their turn
 (define (remove-player state)
-  (define temp-current-player (gamestate-current-player state))
+  (define kicked-player-id (gamestate-current-player-id state))
   (define state-after-turn-ended (end-current-turn state))
   (struct-copy gamestate state-after-turn-ended
-               [player-turn-order
+               [players
                 (filter
-                 (λ (player-id) (not (= player-id temp-current-player)))
-                 (gamestate-player-turn-order state))]))
-  
+                 (λ (plyr) (not (= (player-id plyr) kicked-player-id)))
+                 (gamestate-players state))]))
+
 
 ;; Gamestate -> Gamestate
 ; End the current player's turn and switch to the next player's turn
 (define (end-current-turn state)
-  (define turn-order (gamestate-player-turn-order state))
-  (define curr-turn-index (index-of turn-order (gamestate-current-player state)))
-  (define next-player-id (list-ref turn-order (modulo (add1 curr-turn-index) (length turn-order))))
+  (define turn-order (gamestate-players state))
+  (define curr-turn-index (indexof-player
+                           (gamestate-players state)
+                           (gamestate-current-player-id state)))
+  (define next-player (list-ref turn-order (modulo (add1 curr-turn-index) (length turn-order))))
   (struct-copy gamestate state
-               [current-player next-player-id]))
+               [current-player-id (player-id next-player)]))
+
+
+;; [Listof Player] PlayerID -> Natural
+;; Get the index of the player with ID `pid`
+(define (indexof-player players pid)
+  (index-of (map (λ (plyr) (player-id plyr)) players) pid))
 
 
 ;; Gamestate PlayerID -> Player
 ;; Retrieve a player by player ID
-(define (get-player state pid)
-  (first (filter (λ (player) (= pid (player-id player))) (gamestate-players state))))
+(define (get-player-by-id state pid)
+  (first (filter (λ (plyr) (= pid (player-id plyr))) (gamestate-players state))))
 
 
 ;; Gamestate -> Player
 ;; Get the current player
 (define (get-current-player state)
-  (get-player state (gamestate-current-player state)))
+  (get-player-by-id state (gamestate-current-player-id state)))
+
 
 ;; Move -> (Move -> Boolean)
 ;; Make a function that returns true if another move is passed in that undos that move
@@ -235,11 +231,25 @@
                  (move-shift-dir mv1)
                  (move-shift-dir mv2)))))
 
+
 ;; ShiftDirection ShiftDirection -> Boolean
 ;; True if given directions are opposite
 (define (opposite-direction? dir1 dir2)
   (or (equal? (set dir1 dir2) (set 'left 'right))
       (equal? (set dir1 dir2) (set 'up 'down))))
+
+
+;; Player GridPosn -> Boolean
+;; Returns True if the player is on the given position
+(define (player-on-pos? p pos)
+  (equal? (player-curr-pos p) pos))
+
+
+;; Player GridPosn -> Player
+;; Move a player to the given gridposn
+(define (player-move-to p pos)
+  (struct-copy player p [curr-pos pos]))
+
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -308,34 +318,28 @@
      (seconds->date (+ (current-seconds) 7))
      "yellow"))
   (define players0 (list player0 player1 player2 player3 player4))
-  (define player-turn-order0 (list 0 1 2 3 4))
   ; player0 (a) not on goal or home
   ; first top left
-  (define gamestate0 (gamestate-new board1 tile-extra players0 player-turn-order0))
+  (define gamestate0 (gamestate-new board1 tile-extra players0))
 
   (define players1 (list player3 player4))
-  (define player-turn-order1 (list 3 4))
   ; player1 (a) not on goal on home
-  (define gamestate1 (gamestate-new board1 tile-extra players1 player-turn-order1))
+  (define gamestate1 (gamestate-new board1 tile-extra players1))
 
   (define players2 (list player1 player2 player3 player4))
-  (define player-turn-order2 (list 1 2 3 4))
   ; on goal not home
-  (define gamestate2 (gamestate-new board1 tile-extra players2 player-turn-order2))
+  (define gamestate2 (gamestate-new board1 tile-extra players2))
 
   (define players3 (list player1 player0 player5 player6 player7))
-  (define player-turn-order3 (list 1 0 5 6 7))
-  (define gamestate3 (gamestate-new board1 tile-extra players3 player-turn-order3))
+  (define gamestate3 (gamestate-new board1 tile-extra players3))
 
   (define players4 (list player6 player5 player7))
-  (define player-turn-order4 (list 6 5 7))
   ; first bottom left
-  (define gamestate4 (gamestate-new board1 tile-extra players4 player-turn-order4))
+  (define gamestate4 (gamestate-new board1 tile-extra players4))
 
   (define players5 (list player6 player5 player7))
-  (define player-turn-order5 (list 7 5 6))
   ; first bottom right
-  (define gamestate5 (gamestate-new board1 tile-extra players5 player-turn-order5))
+  (define gamestate5 (gamestate-new board1 tile-extra players5))
 
   (define move00 (move-new 'up 0 0 (cons 1 1)))
   (define move10 (move-new 'down 6 0 (cons 1 1)))
@@ -435,21 +439,18 @@
 
 ;; test remove-player
 (module+ test
-  (check-equal? (gamestate-player-turn-order (remove-player gamestate0))
-                (list 1 2 3 4))
-  (check-equal? (gamestate-player-turn-order (remove-player gamestate1))
-                (list 4))
-  (check-equal? (gamestate-player-turn-order (remove-player gamestate2))
-                (list 2 3 4)))
+  (check-equal? (gamestate-players (remove-player gamestate0))
+                (list player1 player2 player3 player4))
+  (check-equal? (gamestate-players (remove-player gamestate1))
+                (list player4))
+  (check-equal? (gamestate-players (remove-player gamestate2))
+                (list player2 player3 player4)))
 
 ;; test end-current-turn
 (module+ test
-  (check-equal? (gamestate-current-player (end-current-turn gamestate0))
-               1)
-  (check-equal? (gamestate-current-player (end-current-turn gamestate1))
-               4)
-  (check-equal? (gamestate-current-player (end-current-turn gamestate2))
-               2))
+  (check-equal? (gamestate-current-player-id (end-current-turn gamestate0)) 1)
+  (check-equal? (gamestate-current-player-id (end-current-turn gamestate1)) 4)
+  (check-equal? (gamestate-current-player-id (end-current-turn gamestate2)) 2))
 
 ;; Test player-on-pos
 (module+ test
@@ -475,6 +476,12 @@
                 (list 'apatite 'aplite)
                 (seconds->date (current-seconds))
                 "blue"))))
+
+;; test indexof-player
+(module+ test
+  (check-equal? (indexof-player players5 6) 0)
+  (check-equal? (indexof-player players5 5) 1)
+  (check-equal? (indexof-player players5 7) 2))
 
 ;; test opposite-direction?
 (module+ test
