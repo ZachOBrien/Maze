@@ -17,7 +17,7 @@
   [move-new (-> shift-direction? natural-number/c orientation? grid-posn? move?)]
   ; Create a new Gamestate
   [gamestate-new
-   (-> board? tile? (non-empty-listof player?) gamestate?)]
+   (-> board? tile? (non-empty-listof player?) (or/c #f last-action?) gamestate?)]
   ; Carry out a player's move by shifting a row or column, inserting a tile, and moving
   ; the player onto the newly inserted tile if they were pushed off the board during the shift
   [execute-move (-> gamestate? move? gamestate?)]
@@ -30,13 +30,16 @@
   ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
   ; End the current player's turn and switch to the next player's turn
-  [end-current-turn (-> gamestate? gamestate?)]))
+  [end-current-turn (-> gamestate? gamestate?)]
+  ; Create a new player
+  [player-new (-> grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
 
 (require "tile.rkt")
 (require "board.rkt")
+(require "gem.rkt")
 
 
 ;; --------------------------------------------------------------------
@@ -50,53 +53,116 @@
 ;; interpretation: The color of a player's avatar
 (define avatar-color? (or/c "red" "green" "yellow" "blue"))
 
+;; Player Player -> Boolean
+;; Are the two players the same?
+(define (player=? p1 p2 rec)
+  (and (rec (player-curr-pos p1) (player-curr-pos p2))
+       (rec (player-home-pos p1) (player-home-pos p2))
+       (rec (player-goal-treasures p1) (player-goal-treasures p2))
+       (rec (player-dob p1) (player-dob p2))
+       (rec (player-color p1) (player-color p2))))
+
+(define (player-hash-code pl rec)
+  (+ (* 10000 (rec (player-curr-pos pl)))
+     (* 1000  (rec (player-home-pos pl)))
+     (* 100   (rec (player-goal-treasures pl)))
+     (* 10    (rec (player-dob pl)))
+     (* 1     (rec (player-color pl)))))
+
+(define (player-secondary-hash-code pl rec)
+  (+ (* 10000 (rec (player-color pl)))
+     (* 1000  (rec (player-dob pl)))
+     (* 100   (rec (player-goal-treasures pl)))
+     (* 10    (rec (player-home-pos pl)))
+     (* 1     (rec (player-curr-pos pl)))))
 
 ;; A Player is a structure:
 ;;    (struct GridPosn GridPosn [Listof Gem] Date AvatarColor)
 ;; interpretation: A player has a current position, home position, goal treasure,
 ;;                 birthday, and avatar color
-(struct player [curr-pos home-pos goal-treasures dob color])
+(struct player [curr-pos home-pos goal-treasures dob color]
+  #:methods gen:equal+hash
+  [(define equal-proc player=?)
+   (define hash-proc  player-hash-code)
+   (define hash2-proc player-secondary-hash-code)])
 
 ;; GridPosn GridPosn [Listof Gem] Date AvatarColor -> Player
 ;; Create a new player
 (define (player-new curr-pos home-pos goal-treasures dob color)
   (player curr-pos home-pos goal-treasures dob color))
 
-;; Player Player -> Boolean
-;; Are the two players the same?
-(define (player=? p1 p2)
-  (and
-   (equal? (player-curr-pos p1) (player-curr-pos p2))
-   (equal? (player-home-pos p1) (player-home-pos p2))
-   (equal? (player-goal-treasures p1) (player-goal-treasures p2))
-   (equal? (player-dob p1) (player-dob p2))
-   (equal? (player-color p1) (player-color p2))))
+(define (move=? m1 m2 rec)
+  (and (rec (move-shift-dir m1)   (move-shift-dir m2))
+       (rec (move-index m1)       (move-index m2))
+       (rec (move-orientation m1) (move-orientation m2))
+       (rec (move-pos m1)         (move-pos m2))))
 
+(define (move-hash-code mv rec)
+  (+ (* 1000 (rec (move-shift-dir mv)))
+     (* 100  (rec (move-index mv)))
+     (* 10   (rec (move-orientation mv)))
+     (* 1    (rec (move-pos mv)))))
+
+(define (move-secondary-hash-code mv rec)
+  (+ (* 1000 (rec (move-pos mv)))
+     (* 100  (rec (move-orientation mv)))
+     (* 10   (rec (move-index mv)))
+     (* 1    (rec (move-shift-dir mv)))))
 
 ;; A Move is a structure:
-;;    (struct ShfitDirection Natural Orientation GridPosn)
+;;    (struct ShiftDirection Natural Orientation GridPosn)
 ;; interpretation: A move made by a player. A move has a ShiftDirection, the index of
 ;;                 a row/col to shift, the orientation of the newly inserted tile,
 ;;                 and the position the player will move to
-(struct move [shift-dir index orientation pos])
+(struct move [shift-dir index orientation pos]
+  #:methods gen:equal+hash
+  [(define equal-proc move=?)
+   (define hash-proc  move-hash-code)
+   (define hash2-proc move-secondary-hash-code)])
 
 ;; ShiftDirection Natural Orientation GridPosn -> Move
+;; Create a move
 (define (move-new shift-dir index orientation pos)
   (move shift-dir index orientation pos))
 
+;; A LastAction is a pair:
+;;    (Natural . ShiftDirection)
+;; interpretation: The index and direciton of the last shift made.
+(define last-action? (cons/c natural-number/c shift-direction?))
+
+(define (gamestate=? gs1 gs2 rec)
+  (and (rec (gamestate-board gs1)      (gamestate-board gs2))
+       (rec (gamestate-extra-tile gs1) (gamestate-extra-tile gs2))
+       (rec (gamestate-players gs1)    (gamestate-players gs2))
+       (rec (gamestate-last-move gs1)  (gamestate-last-move gs2))))
+
+(define (gamestate-hash-code gs rec)
+  (+ (* 1000 (rec (gamestate-last-move gs)))
+     (* 100  (rec (gamestate-players gs)))
+     (* 10   (rec (gamestate-extra-tile gs)))
+     (* 1    (rec (gamestate-board gs)))))
+
+(define (gamestate-secondary-hash-code gs rec)
+  (+ (* 1000 (rec (gamestate-board gs)))
+     (* 100  (rec (gamestate-extra-tile gs)))
+     (* 10   (rec (gamestate-players gs)))
+     (* 1    (rec (gamestate-last-move gs)))))
 
 ;; A Gamestate is a structure:
-;;    (struct Board Tile [NonEmptyListof Player] (-> Move Boolean))
+;;    (struct Board Tile [NonEmptyListof Player] (U LastAction #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
 ;;                 and a function which checks if a move would undo the previous move
-(struct gamestate [board extra-tile players reverses-prev-move])
+(struct gamestate [board extra-tile players last-move]
+  #:methods gen:equal+hash
+  [(define equal-proc gamestate=?)
+   (define hash-proc  gamestate-hash-code)
+   (define hash2-proc gamestate-secondary-hash-code)])
 
 ;; Board Tile [NonEmptyListof Player] -> Gamestate
 ;; Create a new gamestate
-(define (gamestate-new board extra-tile players)
-  (gamestate board extra-tile players (λ (mv) #f)))
-
+(define (gamestate-new board extra-tile players last-move)
+  (gamestate board extra-tile players last-move))
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -113,7 +179,7 @@
                [board new-board]
                [extra-tile new-extra-tile]
                [players final-players]
-               [reverses-prev-move (make-reverses-move? mv)]))
+               [last-move mv]))
 
 
 ;; Gamestate Move -> (Board Tile)
@@ -196,6 +262,7 @@
 
 ;; Move -> (Move -> Boolean)
 ;; Make a function that returns true if another move is passed in that undos that move
+#;
 (define (make-reverses-move? mv1)
   (λ (mv2) (and (= (move-index mv1)
                    (move-index mv2))
@@ -235,80 +302,79 @@
      (cons 0 0)
      (cons 6 6)
      (list 'apatite 'aplite)
-     (seconds->date (current-seconds))
+     (seconds->date 0)
      "blue"))
   (define player1
     (player
      (cons 1 1)
      (cons 5 5)
      (list 'blue-ceylon-sapphire 'bulls-eye)
-     (seconds->date (+ (current-seconds) 1))
+     (seconds->date 1)
      "red"))
   (define player2
     (player
      (cons 2 2)
      (cons 4 4)
      (list 'chrysolite 'citrine)
-     (seconds->date (+ (current-seconds) 2))
+     (seconds->date 2)
      "green"))
   (define player3
     (player
      (cons 3 3)
      (cons 3 3)
      (list 'jasper 'mexican-opal)
-     (seconds->date (+ (current-seconds) 3))
+     (seconds->date 3)
      "yellow"))
   (define player4
     (player
      (cons 4 4)
      (cons 2 2)
      (list 'peridot 'purple-oval)
-     (seconds->date (+ (current-seconds) 4))
+     (seconds->date 4)
      "blue"))
   (define player5
     (player
      (cons 0 6)
      (cons 5 5)
      (list 'blue-ceylon-sapphire 'bulls-eye)
-     (seconds->date (+ (current-seconds) 5))
+     (seconds->date 5)
      "red"))
   (define player6
     (player
      (cons 6 0)
      (cons 4 4)
      (list 'chrysolite 'citrine)
-     (seconds->date (+ (current-seconds) 6))
+     (seconds->date 6)
      "green"))
   (define player7
     (player
      (cons 6 6)
      (cons 3 3)
      (list 'jasper 'mexican-opal)
-     (seconds->date (+ (current-seconds) 7))
+     (seconds->date 7)
      "yellow"))
   (define players0 (list player0 player1 player2 player3 player4))
   ; player0 (a) not on goal or home
   ; first top left
-  (define gamestate0 (gamestate-new board1 tile-extra players0))
+  (define gamestate0 (gamestate-new board1 tile-extra players0 #f))
 
   (define players1 (list player3 player4))
   ; player1 (a) not on goal on home
-  (define gamestate1 (gamestate-new board1 tile-extra players1))
-
+  (define gamestate1 (gamestate-new board1 tile-extra players1 #f))
   (define players2 (list player1 player2 player3 player4))
   ; on goal not home
-  (define gamestate2 (gamestate-new board1 tile-extra players2))
+  (define gamestate2 (gamestate-new board1 tile-extra players2 #f))
 
   (define players3 (list player1 player0 player5 player6 player7))
-  (define gamestate3 (gamestate-new board1 tile-extra players3))
+  (define gamestate3 (gamestate-new board1 tile-extra players3 #f))
 
   (define players4 (list player6 player5 player7))
   ; first bottom left
-  (define gamestate4 (gamestate-new board1 tile-extra players4))
+  (define gamestate4 (gamestate-new board1 tile-extra players4 #f))
 
   (define players5 (list player6 player5 player7))
   ; first bottom right
-  (define gamestate5 (gamestate-new board1 tile-extra players5))
+  (define gamestate5 (gamestate-new board1 tile-extra players5 #f))
 
   (define move00 (move-new 'up 0 0 (cons 1 1)))
   (define move10 (move-new 'down 6 0 (cons 1 1)))
@@ -417,9 +483,9 @@
 
 ;; test end-current-turn
 (module+ test
-  (check-true (player=? (get-current-player (end-current-turn gamestate0)) player1))
-  (check-true (player=? (get-current-player (end-current-turn gamestate1)) player4))
-  (check-true (player=? (get-current-player (end-current-turn gamestate2)) player2)))
+  (check-equal? (get-current-player (end-current-turn gamestate0)) player1)
+  (check-equal? (get-current-player (end-current-turn gamestate1)) player4)
+  (check-equal? (get-current-player (end-current-turn gamestate2)) player2))
 
 ;; Test player-on-pos
 (module+ test
@@ -427,22 +493,20 @@
 
 ;; Test player-move-to
 (module+ test
-  (check-true (player=?
-               (player-move-to player0 (cons 3 3))
-               (player
-                (cons 3 3)
-                (cons 6 6)
-                (list 'apatite 'aplite)
-                (seconds->date (current-seconds))
-                "blue")))
-  (check-true (player=?
-               (player-move-to player0 (cons 6 6))
-               (player
-                (cons 6 6)
-                (cons 6 6)
-                (list 'apatite 'aplite)
-                (seconds->date (current-seconds))
-                "blue"))))
+  (check-equal? (player-move-to player0 (cons 3 3))
+                (player
+                 (cons 3 3)
+                 (cons 6 6)
+                 (list 'apatite 'aplite)
+                 (seconds->date (current-seconds))
+                 "blue"))
+  (check-equal? (player-move-to player0 (cons 6 6))
+                (player
+                 (cons 6 6)
+                 (cons 6 6)
+                 (list 'apatite 'aplite)
+                 (seconds->date (current-seconds))
+                 "blue")))
 
 
 ;; test opposite-direction?
@@ -455,18 +519,3 @@
   (check-false (opposite-direction? 'down 'left))
   (check-false (opposite-direction? 'left 'up))
   (check-false (opposite-direction? 'right 'down)))
-
-;; test make-undo-last-move-check
-(module+ test
-  (check-false ((make-reverses-move? (move-new 'up 0 0 (cons 1 1)))
-                (move-new 'up 0 0 (cons 1 1))))
-  (check-true ((make-reverses-move? (move-new 'up 0 0 (cons 1 1)))
-               (move-new 'down 0 0 (cons 1 1))))
-  (check-false ((make-reverses-move? (move-new 'up 1 0 (cons 1 1)))
-                (move-new 'down 0 0 (cons 1 1))))
-  (check-false ((make-reverses-move? (move-new 'right 0 0 (cons 1 1)))
-                (move-new 'right 0 0 (cons 1 1))))
-  (check-true ((make-reverses-move? (move-new 'right 0 0 (cons 1 1)))
-               (move-new 'left 0 0 (cons 1 1))))
-  (check-false ((make-reverses-move? (move-new 'left 1 0 (cons 1 1)))
-                (move-new 'right 0 0 (cons 1 1)))))

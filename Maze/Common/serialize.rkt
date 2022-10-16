@@ -16,6 +16,7 @@
 
 (require "tile.rkt")
 (require "board.rkt")
+(require "state.rkt")
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -105,6 +106,94 @@
         'column# (cdr pos)))
 
 
+;; HashTable -> Tile
+;; Create the spare tile from a HashTable
+(define (hash->spare-tile ht)
+  (define conn (hash-ref ht 'tilekey))
+  (define treasures (list (string->symbol (hash-ref ht '1-image))
+                          (string->symbol (hash-ref ht '2-image))))
+  (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
+  (tile-make connector orientation treasures))
+
+(module+ test
+  (check-equal? (hash->spare-tile (hash 'tilekey "┌"
+                                        '1-image "goldstone"
+                                        '2-image "heliotrope"))
+                (tile-make 'elbow 90 (list 'goldstone 'heliotrope)))
+  (check-equal? (hash->spare-tile (hash 'tilekey "┼"
+                                        '1-image "diamond"
+                                        '2-image "unakite"))
+                (tile-make 'cross 0 (list 'diamond 'unakite)))
+  
+  (check-equal? (hash->spare-tile (hash 'tilekey "─"
+                                        '1-image "raw-beryl"
+                                        '2-image "pink-opal"))
+                (tile-make 'straight 90 (list 'raw-beryl 'pink-opal)))
+  
+  (check-equal? (hash->spare-tile (hash 'tilekey "┴"
+                                        '1-image "hematite"
+                                        '2-image "jasper"))
+                (tile-make 'tri 180 (list 'hematite 'jasper))))
+
+
+;; Hashtable -> GridPosn
+;; Converts a hashtable to a gridposn
+(define (hash->gridposn ht)
+  (cons (hash-ref ht 'row#) (hash-ref ht 'column#)))
+
+
+;; HashTable -> Player
+;; Create a player from a HashTable
+(define (hash->player ht)
+  (player-new (hash->gridposn (hash-ref ht 'current))
+              (hash->gridposn (hash-ref ht 'home))
+              empty
+              (seconds->date 0)
+              (hash-ref ht 'color)))
+
+(module+ test
+  (check-equal? (hash->player (hash 'current (hash 'row# 0 'column# 0)
+                                    'home (hash 'row# 2 'column# 2)
+                                    'color "blue"))
+                (player-new (cons 0 0) (cons 2 2) empty (seconds->date 0) "blue"))
+  (check-equal? (hash->player (hash 'current (hash 'row# 6 'column# 1)
+                                    'home (hash 'row# 3 'column# 4)
+                                    'color "red"))
+                (player-new (cons 6 1) (cons 3 4) empty (seconds->date 0) "red")))
+
+;; (U [Listof Any] 'null) -> Move
+;; Makes a move from the list
+(define (json-action->move action)
+  (if (equal? action 'null)
+      #f
+      (cons (first action)
+            (string->symbol (string-downcase (first (rest action)))))))
+
+(module+ test
+  (check-equal? (json-action->move (list 0 "UP"))
+                (cons 0 'up))
+  (check-not-equal? (json-action->move (list 4 "RIGHT"))
+                    (cons 4 'left))
+  (check-not-equal? (json-action->move (list 0 "UP"))
+                    (cons 0 'right))
+  (check-not-equal? (json-action->move (list 0 "UP"))
+                    (cons 2 'down))
+  (check-equal? (json-action->move (list 0 "UP"))
+                (cons 0 'up))
+  (check-equal? (json-action->move 'null)
+                #f))
+
+
+;; HashTable -> Gamestate
+;; Makes a gamestate from a hashtable
+(define (hash->gamestate ht)
+  (gamestate-new
+   (hash->board (hash-ref ht 'board))
+   (hash->spare-tile (hash-ref ht 'spare))
+   (map hash->player (hash-ref ht 'plmt))
+   (json-action->move (hash-ref ht 'last))))
+   
+
 (module+ examples
   (define example-board
     (list
@@ -164,6 +253,8 @@
       (tile-make 'elbow 90 (list 'pink-opal 'red-diamond))
       (tile-make 'elbow 270 (list 'pink-opal 'red-diamond))
       (tile-make 'tri 0 (list 'pink-opal 'red-diamond)))))
+
+  (define spare-tile (tile-make 'elbow 270 (list 'lapis-lazuli 'pink-opal)))
 
   (define example-treasures
     (list
@@ -227,11 +318,35 @@
           '("│" "─" "┐" "└" "┌" "┘" "┬")
           '("│" "─" "┐" "└" "┌" "┘" "┬")))
 
-  (define example-hash
+  (define example-players1
+    (list (hash 'current (hash 'row# 0 'column# 0) 'home (hash 'row# 6 'column# 6) 'color "blue")
+          (hash 'current (hash 'row# 1 'column# 1) 'home (hash 'row# 5 'column# 5) 'color "red")
+          (hash 'current (hash 'row# 2 'column# 2) 'home (hash 'row# 4 'column# 4) 'color "green")
+          (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
+
+  (define expected-players1
+    (list (player-new (cons 0 0) (cons 6 6) empty (seconds->date 0) "blue")
+          (player-new (cons 1 1) (cons 5 5) empty (seconds->date 0) "red")
+          (player-new (cons 2 2) (cons 4 4) empty (seconds->date 0) "green")
+          (player-new (cons 3 3) (cons 3 3) empty (seconds->date 0) "yellow")))
+
+  (define example-board-hash
     (hash 'connectors example-connectors
           'treasures example-treasures)))
 
+(module+ test
+  (require (submod ".." examples))
+  (check-equal? (hash->board example-board-hash) example-board))
 
 (module+ test
   (require (submod ".." examples))
-  (check-equal? (hash->board example-hash) example-board))
+  (check-equal? (hash->gamestate (hash 'board example-board-hash
+                                       'spare (hash 'tilekey "┘"
+                                                    '1-image "lapis-lazuli"
+                                                    '2-image "pink-opal")
+                                       'plmt example-players1
+                                       'last (list 0 "LEFT")))
+                (gamestate-new example-board
+                               spare-tile
+                               expected-players1
+                               (cons 0 'left))))

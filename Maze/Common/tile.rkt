@@ -42,27 +42,26 @@
 ;; Tile Tile (-> Any Any Boolean) -> Boolean
 ;; Check if two tiles are equal
 (define (tile=? tile1 tile2 recursive-equal?)
-  (and (eq? (tile-connector tile1)
-          (tile-connector tile2))
-       (= (tile-orientation tile1)
-          (tile-orientation tile2))
-       (equal?
-        (list->set (tile-gems tile1))
-        (list->set (tile-gems tile2)))))
+  (and (recursive-equal? (tile-connector tile1)
+                         (tile-connector tile2))
+       (recursive-equal? (tile-orientation tile1)
+                         (tile-orientation tile2))
+       (recursive-equal? (list->set (tile-gems tile1))
+                         (list->set (tile-gems tile2)))))
 
 ;; Tile (-> Any Integer) -> Integer
 ;; Computes a hash code for a given Tile
-(define (tile-hash-code tile recursive-equal-hash)
-  (+ (* 1000 (equal-hash-code (tile-connector tile)))
-     (* 100 (tile-orientation tile))
-     (* 1 (equal-hash-code (tile-gems tile)))))
+(define (tile-hash-code tile rec)
+  (+ (* 1000 (rec (tile-connector tile)))
+     (* 100 (rec (tile-orientation tile)))
+     (* 1 (rec (tile-gems tile)))))
 
 ;; Tile (-> Any Integer) -> Integer
 ;; Computes a secondary hash for a given Tile
-(define (tile-secondary-hash-code tile recursive-equal-hash)
-  (+ (* 1000 (tile-orientation tile))
-     (* 100 (equal-secondary-hash-code (tile-gems tile)))
-     (* 1 (equal-secondary-hash-code (tile-connector tile)))))
+(define (tile-secondary-hash-code tile rec)
+  (+ (* 1000 (rec (tile-orientation tile)))
+     (* 100 (rec (tile-gems tile)))
+     (* 1 (rec (tile-connector tile)))))
 
 ;; Tile Port (U #t #f 0 1) -> String
 ;; Allows for Tiles to be printed, written, or displayed
@@ -78,7 +77,7 @@
      ", "
      (number->string (tile-orientation tile))
      ", "
-     (list->string (tile-gems tile))
+     (apply string-append (map symbol->string (tile-gems tile)))
      "]"))
   (recur tile-string port))
 
