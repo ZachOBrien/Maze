@@ -152,7 +152,7 @@
 ;;    (struct Board Tile [NonEmptyListof Player] (U LastAction #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
-;;                 and a function which checks if a move would undo the previous move
+;;                 and the last move made
 (struct gamestate [board extra-tile players last-move]
   #:methods gen:equal+hash
   [(define equal-proc gamestate=?)
@@ -218,7 +218,6 @@
 ;; Gamestate GridPosn -> Boolean
 ;; Check if the current player can reach a position from their current position
 (define (player-can-reach-pos? state pos)
-  (define curr-board (gamestate-board state))
   (define curr-player-pos (player-curr-pos (get-current-player state)))
   (define reachable (board-all-reachable-from (gamestate-board state) curr-player-pos))
   (if (member pos reachable) #t #f))
