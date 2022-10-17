@@ -175,11 +175,7 @@
   (define-values (new-board new-extra-tile) (get-next-board-and-extra-tile state mv))
   (define players-after-shift (move-players-on-pushed-tile state mv))
   (define final-players (move-player players-after-shift (get-current-player state) mv))
-  (struct-copy gamestate state
-               [board new-board]
-               [extra-tile new-extra-tile]
-               [players final-players]
-               [last-move mv]))
+  (gamestate new-board new-extra-tile final-players mv))
 
 
 ;; Gamestate Move -> (Board Tile)

@@ -108,11 +108,28 @@
 
 
 ;; An Orientation is one of:
-;  - 0
-;  - 90
-;  - 180
-;  - 270
-; interpretation: A direction a tile could be facing
+;;   - 0
+;;   - 90
+;;   - 180
+;;   - 270
+;; interpretation: A direction a tile could be facing. Connector shapes
+;;                 have the following orientations:
+;; "│" 0
+;; "─" 90
+;; "│" 180
+;; "─" 270
+;;
+;; "└" 0
+;; "┌" 90
+;; "┐" 180
+;; "┘" 270
+;;
+;; "┬" 0
+;; "┤" 90
+;; "┴" 180
+;; "├" 270
+;;
+;; "┼" 0
 (define orientations (list 0 90 180 270))
 (define orientation? (apply or/c orientations))
 
