@@ -260,17 +260,6 @@
   (first (gamestate-players state)))
 
 
-;; Move -> (Move -> Boolean)
-;; Make a function that returns true if another move is passed in that undos that move
-#;
-(define (make-reverses-move? mv1)
-  (λ (mv2) (and (= (move-index mv1)
-                   (move-index mv2))
-                (opposite-direction?
-                 (move-shift-dir mv1)
-                 (move-shift-dir mv2)))))
-
-
 ;; ShiftDirection ShiftDirection -> Boolean
 ;; True if given directions are opposite
 (define (opposite-direction? dir1 dir2)
@@ -353,6 +342,13 @@
      (list 'jasper 'mexican-opal)
      (seconds->date 7)
      "yellow"))
+  (define player8
+    (player
+     (cons 5 5)
+     (cons 3 3)
+     (list 'jasper 'mexican-opal)
+     (seconds->date 8)
+     "yellow"))
   (define players0 (list player0 player1 player2 player3 player4))
   ; player0 (a) not on goal or home
   ; first top left
@@ -374,7 +370,11 @@
 
   (define players5 (list player6 player5 player7))
   ; first bottom right
-  (define gamestate5 (gamestate-new board1 tile-extra players5 #f))
+  (define gamestate6 (gamestate-new board1 tile-extra players5 #f))
+
+  (define players6 (list player8 player5 player7))
+  ; first bottom right
+  (define gamestate7 (gamestate-new board1 tile-extra players6 #f))
 
   (define move00 (move-new 'up 0 0 (cons 1 1)))
   (define move10 (move-new 'down 6 0 (cons 1 1)))
@@ -388,6 +388,13 @@
   (define move6 (move-new 'down 4 90 (cons 3 0)))
   (define move7 (move-new 'left 6 180 (cons 1 2)))
   (define move8 (move-new 'right 2 270 (cons 1 1))))
+
+  (define move9 (move-new 'up 0 0 (cons 1 1)))
+
+  (define move11 (move-new 'left 4 90 (cons 4 5)))
+
+  (define move12 (move-new 'left 0 180 (cons 1 1)))
+  (define move13 (move-new 'right 6 270 (cons 1 1)))
 
 (module+ test
   (require rackunit)
@@ -442,7 +449,7 @@
                (list-ref (gamestate-players (execute-move gamestate0 move5)) 0)
                (cons 2 0)))
   (check-true (player-on-pos?
-               (list-ref (gamestate-players (execute-move gamestate0 move6)) 0)
+               (list-ref (gamestate-players (execute-move gamestate7 move6)) 0)
                (cons 3 0)))
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate0 move7)) 0)
@@ -450,6 +457,13 @@
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate0 move8)) 0)
                (cons 1 1))))
+
+;; test player is moved to correct tile after shift moves row/col
+(module+ test
+  (check-equal? (player-curr-pos (first (gamestate-players (execute-move gamestate0 move9))))
+              (cons 1 1))
+  (check-equal? (player-curr-pos (first (gamestate-players (execute-move gamestate7 move11))))
+               (cons 4 5)))
 
 
 ;; test player-can-reach-pos?
@@ -498,16 +512,15 @@
                  (cons 3 3)
                  (cons 6 6)
                  (list 'apatite 'aplite)
-                 (seconds->date (current-seconds))
+                 (seconds->date 0)
                  "blue"))
   (check-equal? (player-move-to player0 (cons 6 6))
                 (player
                  (cons 6 6)
                  (cons 6 6)
                  (list 'apatite 'aplite)
-                 (seconds->date (current-seconds))
+                 (seconds->date 0)
                  "blue")))
-
 
 ;; test opposite-direction?
 (module+ test
