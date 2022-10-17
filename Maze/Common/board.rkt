@@ -13,7 +13,7 @@
 ;; Creates a function to check for valid shift index in the given board
 (define (valid-shift-index? board)
   (and/c natural-number/c
-         (<=/c (sub1 (length board)))
+         (</c (length board))
          even?))
 
 ;; [SquareListof Any] -> Boolean
@@ -43,10 +43,16 @@
   [board-all-reachable-from (-> board? grid-posn? (listof grid-posn?))]
   ; Retrieve the tile at a specific position on the board
   [board-get-tile-at (-> board? grid-posn? tile?)]
-  ; Get the position of the tile that is newly inserted as a result of a shift and insert
-  [get-inserted-tile-pos (-> board? shift-direction? natural-number/c grid-posn?)]
-  ; Get the position of the tile that was pushed off the board during a shift and insert
-  [get-pushed-tile-pos (-> board? shift-direction? natural-number/c grid-posn?)]))
+  ;; True if direction shifts row/col forward, false if back
+  [shifts-forward? (-> shift-direction? boolean?)]
+  ;; True if the shift direction shifts a row, False if it shifts a column
+  [shifts-row? (-> shift-direction? boolean?)]
+  ;; True if the shift direction shifts a column, False if it shifts a row
+  [shifts-col? (-> shift-direction? boolean?)]
+  ;; Number of rows in a board
+  [num-rows (-> board? (and/c integer? positive?))]
+  ;; Number of columns in a board
+  [num-cols (-> board? (and/c integer? positive?))]))
 
 
 ;; --------------------------------------------------------------------
@@ -114,21 +120,31 @@
 ;; [Listof Tile] ShiftDirection -> Tile
 ;; Retrieves the tile which would be pushed off the board as a result of a shift
 (define (get-extra-tile-from-shift tiles dir)
-  (if ((or/c 'right 'down) dir)
+  (if (shifts-forward? dir)
       (last tiles)
       (first tiles)))
 
 ;; [Listof Tile] ShiftDirection Tile -> [Listof Tile]
 ;; Shifts tiles by pushing a new tile onto the front or back of a list of tiles
 (define (get-tiles-after-shift tiles dir new-tile)
-  (if ((or/c 'right 'down) dir)
+  (if (shifts-forward? dir)
       (push-to-front tiles new-tile)
       (push-to-back tiles new-tile)))
+
+;; ShiftDirection -> Boolean
+;; True if direction shifts row/col forward, false if back
+(define (shifts-forward? dir)
+  ((or/c 'right 'down) dir))
 
 ;; ShiftDirection -> Boolean
 ;; True if the shift direction shifts a row, False if it shifts a column
 (define (shifts-row? dir)
   ((or/c 'left 'right) dir))
+
+;; ShiftDirection -> Boolean
+;; True if the shift direction shifts a column, False if it shifts a row
+(define (shifts-col? dir)
+  ((or/c 'up 'down) dir))
 
 ;; [Listof Any] Any -> [Listof Any]
 ;; Puts the given item at the front of the list
@@ -141,24 +157,6 @@
 ;;  and cuts off the front item
 (define (push-to-back lst item)
   (append (rest lst) (list item)))
-
-;; Board ShiftDirection Natural -> GridPosn
-;; Gets the position left open once a row or column is shifted
-(define (get-inserted-tile-pos board dir idx)
-  (match dir
-    ['up (cons (sub1 (num-rows board)) idx)]
-    ['down (cons 0 idx)]
-    ['left (cons idx (sub1 (num-cols board)))]
-    ['right (cons idx 0)]))
-
-;; Board ShiftDirection Natural -> GridPosn
-;; Gets the position pushed off once a row or column is shifted
-(define (get-pushed-tile-pos board dir idx)
-  (match dir
-    ['down (cons (sub1 (num-rows board)) idx)]
-    ['up (cons 0 idx)]
-    ['right (cons idx (sub1 (num-cols board)))]
-    ['left (cons idx 0)]))
 
 ;; Board GridPosn -> [Listof GridPosn]
 ;; Get a list of the board positions reachable from a given board position
@@ -430,28 +428,6 @@
       (list (list tile00 tile01 tile-extra)
             (list tile10 tile11 tile02)
             (list tile20 tile21 tile12))))))
-
-;; test get-open-pos
-(module+ test
-  (check-equal? (get-inserted-tile-pos board1 'up 0) (cons 6 0))
-  (check-equal? (get-inserted-tile-pos board1 'up 6) (cons 6 6))
-  (check-equal? (get-inserted-tile-pos board1 'down 0) (cons 0 0))
-  (check-equal? (get-inserted-tile-pos board1 'down 6) (cons 0 6))
-  (check-equal? (get-inserted-tile-pos board1 'right 0) (cons 0 0))
-  (check-equal? (get-inserted-tile-pos board1 'right 6) (cons 6 0))
-  (check-equal? (get-inserted-tile-pos board1 'left 0) (cons 0 6))
-  (check-equal? (get-inserted-tile-pos board1 'left 6) (cons 6 6)))
-
-;; test get-pushed-pos
-(module+ test
-  (check-equal? (get-pushed-tile-pos board1 'up 0) (cons 0 0))
-  (check-equal? (get-pushed-tile-pos board1 'up 6) (cons 0 6))
-  (check-equal? (get-pushed-tile-pos board1 'down 0) (cons 6 0))
-  (check-equal? (get-pushed-tile-pos board1 'down 6) (cons 6 6))
-  (check-equal? (get-pushed-tile-pos board1 'right 0) (cons 0 6))
-  (check-equal? (get-pushed-tile-pos board1 'right 6) (cons 6 6))
-  (check-equal? (get-pushed-tile-pos board1 'left 0) (cons 0 0 ))
-  (check-equal? (get-pushed-tile-pos board1 'left 6) (cons 6 0)))
 
 ;; test board-get-neighbors
 (module+ test

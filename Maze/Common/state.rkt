@@ -45,6 +45,8 @@
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
+(define DEFAULT-SHIFT-STEP 1)
+
 ;; An AvatarColor is one of:
 ;; - "red"
 ;; - "green"
@@ -84,7 +86,8 @@
   #:methods gen:equal+hash
   [(define equal-proc player=?)
    (define hash-proc  player-hash-code)
-   (define hash2-proc player-secondary-hash-code)])
+   (define hash2-proc player-secondary-hash-code)]
+  #:transparent)
 
 ;; GridPosn GridPosn [Listof Gem] Date AvatarColor -> Player
 ;; Create a new player
@@ -173,7 +176,11 @@
 ;; to their chosen position
 (define (execute-move state mv)
   (define-values (new-board new-extra-tile) (get-next-board-and-extra-tile state mv))
-  (define players-after-shift (move-players-on-pushed-tile state mv))
+  (define players-after-shift
+    (shift-players (gamestate-players state)
+                   (gamestate-board state)
+                   (move-shift-dir mv)
+                   (move-index mv)))
   (define final-players (move-player players-after-shift (get-current-player state) mv))
   (gamestate new-board new-extra-tile final-players mv))
 
@@ -188,19 +195,42 @@
    (tile-rotate
     (gamestate-extra-tile state)
     (move-orientation mv))))
-  
 
-;; Gamestate Move -> [Listof Player]
-;; Move players who were pushed off the board onto the newly inserted tile
-(define (move-players-on-pushed-tile state mv)
-  (define inserted-tile-pos (get-inserted-tile-pos
-                             (gamestate-board state) (move-shift-dir mv) (move-index mv)))
-  (define pushed-tile-pos (get-pushed-tile-pos
-                           (gamestate-board state) (move-shift-dir mv) (move-index mv)))
-  (for/list ([plyr (gamestate-players state)])
-    (if (player-on-pos? plyr pushed-tile-pos)
-        (player-move-to plyr inserted-tile-pos)
+
+;; [Listof Player] Board ShiftDirection Natural -> [Listof Player]
+;; Move players that were on a row or column that was shifted
+(define (shift-players players board dir idx)
+  (define shift-step (if (shifts-forward? dir) DEFAULT-SHIFT-STEP (* -1 DEFAULT-SHIFT-STEP)))
+  (for/list ([plyr players])
+    (if (player-shifted? dir idx plyr)
+        (shift-player plyr board dir shift-step)
         plyr)))
+
+
+;; Player Board ShiftDirection Natural
+;; Shifts a player along a row or column
+(define (shift-player plyr board dir shift-step)
+  (define player-row-pos (car (player-curr-pos plyr)))
+  (define player-col-pos (cdr (player-curr-pos plyr)))
+  (define new-pos (if (shifts-row? dir)    
+                      (cons player-row-pos
+                            (get-shifted-position player-col-pos shift-step (num-cols board)))
+                      (cons (get-shifted-position player-row-pos shift-step (num-rows board))
+                            player-col-pos)))
+  (struct-copy player plyr [curr-pos new-pos]))
+
+
+;; Natural Natural Natural -> Natural
+;; Get the new index of a tile after a shift
+(define (get-shifted-position start-idx shift num-tiles)
+  (modulo (+ start-idx shift) num-tiles))
+
+
+;; Gamestate ShiftDirection Natural Player -> Boolean
+;; Create a function to check if a player is on a shifted row/col
+(define (player-shifted? dir idx plyr)
+  (cond [(shifts-row? dir) (= (car (player-curr-pos plyr)) idx)]
+        [(shifts-col? dir) (= (cdr (player-curr-pos plyr)) idx)]))
 
 
 ;; Gamestate Move -> [Listof Player]
@@ -272,6 +302,7 @@
 ;; Move a player to the given gridposn
 (define (player-move-to p pos)
   (struct-copy player p [curr-pos pos]))
+  
 
 
 ;; --------------------------------------------------------------------
@@ -320,7 +351,7 @@
     (player
      (cons 0 6)
      (cons 5 5)
-     (list 'blue-ceylon-sapphire 'bulls-eye)
+     (list 'beryl 'bulls-eye)
      (seconds->date 5)
      "red"))
   (define player6
@@ -359,17 +390,11 @@
   (define players3 (list player1 player0 player5 player6 player7))
   (define gamestate3 (gamestate-new board1 tile-extra players3 #f))
 
-  (define players4 (list player6 player5 player7))
-  ; first bottom left
-  (define gamestate4 (gamestate-new board1 tile-extra players4 #f))
+  (define players4 (list player0 player1 player2 player5))
+  (define gamestate4 (gamestate board1 tile-extra players4 #f))
 
-  (define players5 (list player6 player5 player7))
-  ; first bottom right
-  (define gamestate6 (gamestate-new board1 tile-extra players5 #f))
-
-  (define players6 (list player8 player5 player7))
-  ; first bottom right
-  (define gamestate7 (gamestate-new board1 tile-extra players6 #f))
+  (define players5 (list player8 player5 player7))
+  (define gamestate5 (gamestate-new board1 tile-extra players5 #f))
 
   (define move00 (move-new 'up 0 0 (cons 1 1)))
   (define move10 (move-new 'down 6 0 (cons 1 1)))
@@ -421,9 +446,29 @@
   (check-equal? (list-ref (list-ref (gamestate-board (execute-move gamestate0 move3)) 6) 0)
                 (tile-make 'straight 90 empty)))
 
-;; test players are moved onto newly inserted tile if they need to be
+;; test players on a shifted row/col are moved accordingly
 (module+ test
-  ; test moving players on moved tile
+  ; test moving players on moved row
+  (check-equal? (shift-players
+                 (gamestate-players gamestate4)
+                 (gamestate-board gamestate4)
+                 'right
+                 0)
+                (list
+                 (player-new (cons 0 1) (cons 6 6) (list 'apatite 'aplite) (seconds->date 0) "blue")
+                 player1
+                 player2
+                 (player-new (cons 0 0) (cons 5 5) (list 'beryl 'bulls-eye) (seconds->date 5) "red")))
+  (check-equal? (shift-players
+                 (gamestate-players gamestate4)
+                 (gamestate-board gamestate4)
+                 'left
+                 0)
+                (list
+                 (player-new (cons 0 6) (cons 6 6) (list 'apatite 'aplite) (seconds->date 0) "blue")
+                 player1
+                 player2
+                 (player-new (cons 0 5) (cons 5 5) (list 'beryl 'bulls-eye) (seconds->date 5) "red")))
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate3 move0)) 1)
                (cons 6 0)))
@@ -444,7 +489,7 @@
                (list-ref (gamestate-players (execute-move gamestate0 move5)) 0)
                (cons 2 0)))
   (check-true (player-on-pos?
-               (list-ref (gamestate-players (execute-move gamestate7 move6)) 0)
+               (list-ref (gamestate-players (execute-move gamestate5 move6)) 0)
                (cons 3 0)))
   (check-true (player-on-pos?
                (list-ref (gamestate-players (execute-move gamestate0 move7)) 0)
@@ -457,7 +502,7 @@
 (module+ test
   (check-equal? (player-curr-pos (first (gamestate-players (execute-move gamestate0 move9))))
               (cons 1 1))
-  (check-equal? (player-curr-pos (first (gamestate-players (execute-move gamestate7 move11))))
+  (check-equal? (player-curr-pos (first (gamestate-players (execute-move gamestate5 move11))))
                (cons 4 5)))
 
 
