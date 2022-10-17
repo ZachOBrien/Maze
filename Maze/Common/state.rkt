@@ -168,10 +168,10 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; Gamestate Move -> Gamestate
-;; Carry out a player's move by shifting a row or column, inserting a tile, and moving
-;; the player onto the newly inserted tile if they were pushed off the board during the shift
+;; Carry out a player's move by shifting a row or column, inserting a tile, moving players
+;; that were pushed off the board onto the newly inserted tile, and moving the player
+;; to their chosen position
 (define (execute-move state mv)
-  ; Update the board
   (define-values (new-board new-extra-tile) (get-next-board-and-extra-tile state mv))
   (define players-after-shift (move-players-on-pushed-tile state mv))
   (define final-players (move-player players-after-shift (get-current-player state) mv))
