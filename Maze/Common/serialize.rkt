@@ -8,8 +8,21 @@
 
 (provide
  (contract-out
+  ;; Convert a hashtable to a Boards
   [hash->board (-> hash? board?)]
-  [gridposn->hash (-> grid-posn? hash?)]))
+  ;; Convert a GridPosn to a hashtable
+  [gridposn->hash (-> grid-posn? hash?)]
+  ;; Convert a hashtable to a Tile
+  [hash->spare-tile (-> hash? tile?)]
+  ;; Convert a hashtable to a Gamestate
+  [hash->gamestate (-> hash? gamestate?)]
+  ;; Convert a hashtable to a GridPosn
+  [hash->gridposn (-> hash? gridposn?)]
+  ;; Convert a hashtable to a Player
+  [hash->player (-> hash? player?)]
+  ;; Convert a json action to a Move
+  [json-action->move (-> (or/c (listof any/c) 'null) move?)
+
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
