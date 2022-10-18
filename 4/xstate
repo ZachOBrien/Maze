@@ -41,9 +41,9 @@
   (define-values (state-ht index-ip dir-ip degree-ip) (read-json-input (current-input-port)))
   (define state (hash->gamestate state-ht))
   (define index index-ip)
-  (define dir (convert-direction dir-ip))
+  (define dir (string-direction->symbol dir-ip))
   (define degree degree-ip)
-  (define state-after-shift (gamestate-shift-and-insert state index dir degree))
+  (define state-after-shift (gamestate-shift-and-insert state dir index degree))
 
   (write-json
-   (map gridposn->hash (sort (all-reachable-from state) compare-row-col))))
+   (map gridposn->hash (sort (all-reachable-from-active state-after-shift) compare-row-col))))

@@ -74,15 +74,15 @@
         ]
     },
     "spare" : {
-        "tilekey" : "┴",
+        "tilekey" : "└",
         "1-image" : "peridot",
         "2-image" : "aquamarine"
     },
     "plmt" : [
         {
              "current" : {
-                 "row#"    : 0,
-                 "column#" : 1
+                 "row#"    : 4,
+                 "column#" : 6
              },
              "home"    : {
                  "row#"    : 3,
@@ -126,4 +126,4 @@
     ],
     "last": [4, "UP"]
 }
-0 "DOWN" 90
+4 "RIGHT" 0

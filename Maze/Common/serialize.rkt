@@ -17,11 +17,12 @@
   ;; Convert a hashtable to a Gamestate
   [hash->gamestate (-> hash? gamestate?)]
   ;; Convert a hashtable to a GridPosn
-  [hash->gridposn (-> hash? gridposn?)]
+  [hash->gridposn (-> hash? grid-posn?)]
   ;; Convert a hashtable to a Player
   [hash->player (-> hash? player?)]
   ;; Convert a json action to a Move
-  [json-action->move (-> (or/c (listof any/c) 'null) move?)
+  [json-action->last-action (-> (or/c (listof any/c) 'null) last-action?)]
+  [string-direction->symbol (-> string? symbol?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -176,26 +177,30 @@
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list
-(define (json-action->move action)
+(define (json-action->last-action action)
   (if (equal? action 'null)
       #f
       (cons (first action)
-            (string->symbol (string-downcase (first (rest action)))))))
+            (string-direction->symbol (first (rest action))))))
 
 (module+ test
-  (check-equal? (json-action->move (list 0 "UP"))
+  (check-equal? (json-action->last-action (list 0 "UP"))
                 (cons 0 'up))
-  (check-not-equal? (json-action->move (list 4 "RIGHT"))
+  (check-not-equal? (json-action->last-action (list 4 "RIGHT"))
                     (cons 4 'left))
-  (check-not-equal? (json-action->move (list 0 "UP"))
+  (check-not-equal? (json-action->last-action (list 0 "UP"))
                     (cons 0 'right))
-  (check-not-equal? (json-action->move (list 0 "UP"))
+  (check-not-equal? (json-action->last-action (list 0 "UP"))
                     (cons 2 'down))
-  (check-equal? (json-action->move (list 0 "UP"))
+  (check-equal? (json-action->last-action (list 0 "UP"))
                 (cons 0 'up))
-  (check-equal? (json-action->move 'null)
+  (check-equal? (json-action->last-action 'null)
                 #f))
 
+;; String -> Symbol
+;; Convert a string direciton to a symbol direciton
+(define (string-direction->symbol str)
+  (string->symbol (string-downcase str)))
 
 ;; HashTable -> Gamestate
 ;; Makes a gamestate from a hashtable
@@ -204,7 +209,7 @@
    (hash->board (hash-ref ht 'board))
    (hash->spare-tile (hash-ref ht 'spare))
    (map hash->player (hash-ref ht 'plmt))
-   (json-action->move (hash-ref ht 'last))))
+   (json-action->last-action (hash-ref ht 'last))))
    
 
 (module+ examples

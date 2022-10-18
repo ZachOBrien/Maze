@@ -15,21 +15,7 @@
   (values board-ht coordinate))
 
 
-;; GridPosn GridPosn -> Boolean
-;; Compares two GridPosns in row-then-column order
-(define (compare-row-col pos1 pos2)
-  (define-values (row1 col1 row2 col2) (values (car pos1) (cdr pos1) (car pos2) (cdr pos2)))
-  (cond
-    [(= row1 row2) (<= col1 col2)]
-    [(< row1 row2) #t]
-    [(> row1 row2) #f]))
 
-(module+ test
-  (require rackunit)
-  (check-true (compare-row-col (cons 0 0) (cons 0 0)))
-  (check-true (compare-row-col (cons 0 0) (cons 0 1)))
-  (check-false (compare-row-col (cons 0 1) (cons 0 0)))
-  (check-false (compare-row-col (cons 1 0) (cons 0 1))))
 
 
 ;; Reads a board and position from STDIN, computes all positions reachable from

@@ -12,6 +12,8 @@
 (provide
  (contract-out
   [gamestate?  contract?]
+  [player? contract?]
+  [last-action? contract?]
   ; Create a new Gamestate
   [gamestate-new
    (-> board? tile? (non-empty-listof player?) (or/c #f last-action?) gamestate?)]
@@ -31,7 +33,9 @@
   ; End the current player's turn and switch to the next player's turn
   [end-current-turn (-> gamestate? gamestate?)]
   ; Create a new player
-  [player-new (-> grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]))
+  [player-new (-> grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]
+  ;; All reachable from current player current position
+  [all-reachable-from-active (-> gamestate? (listof grid-posn?))]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -46,13 +50,30 @@
 
 (define DEFAULT-SHIFT-STEP 1)
 
-;; An AvatarColor is one of:
-;; - "red"
-;; - "green"
-;; - "yellow"
-;; - "blue"
+
+;;A AvatarColor is one of:
+;;  - a String that matches the regular expression:
+;;      "^[A-F|\d][A-F|\d][A-F|\d][A-F|\d][A-F|\d][A-F|\d]$"
+;;  - "purple",
+;;  - "orange",
+;;  - "pink",
+;;  - "red",
+;;  - "blue",
+;;  - "green",
+;;  - "yellow",
+;;  - "white",
+;;  - "black".
 ;; interpretation: The color of a player's avatar
-(define avatar-color? (or/c "red" "green" "yellow" "blue"))
+;; SOURCED FROM SPEC: https://course.ccs.neu.edu/cs4500f22/4.html#%28tech._color%29
+(define avatar-colors (list "red" "green" "yellow" "blue" "purple" "orange" "pink" "white" "black"))
+
+;; String -> Boolean
+;; Check whether the given hex matches the hex regex
+(define (hex-color-code? hex)
+  (list? (regexp-match-positions #px"^[A-F|\\d][A-F|\\d][A-F|\\d][A-F|\\d][A-F|\\d][A-F|\\d]$" hex)))
+
+(define avatar-color? (apply or/c (cons hex-color-code? avatar-colors)))
+  
 
 ;; Player Player -> Boolean
 ;; Are the two players the same?
@@ -197,10 +218,14 @@
 ;; Gamestate GridPosn -> Boolean
 ;; Check if the current player can reach a position from their current position
 (define (player-can-reach-pos? state pos)
-  (define curr-player-pos (player-curr-pos (get-current-player state)))
-  (define reachable (board-all-reachable-from (gamestate-board state) curr-player-pos))
+  (define reachable (all-reachable-from-active state))
   (if (member pos reachable) #t #f))
 
+
+;; Gamestate -> [Listof Grid-Posn]
+;; Find all positions reachable from the current active player's position
+(define (all-reachable-from-active state)
+  (board-all-reachable-from (gamestate-board state) (player-curr-pos (get-current-player state))))
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their goal tile
@@ -518,3 +543,12 @@
   (check-false (opposite-direction? 'down 'left))
   (check-false (opposite-direction? 'left 'up))
   (check-false (opposite-direction? 'right 'down)))
+
+;; test hex-color-code?
+(module+ test
+  (check-true (hex-color-code? "A5B4C1"))
+  (check-false (hex-color-code? "G5B4C1"))
+  (check-false (hex-color-code? "A5B4C"))
+  (check-false (hex-color-code? "a5B4C1"))
+  (check-true (hex-color-code? "000000"))
+  (check-true (hex-color-code? "B49E23")))
