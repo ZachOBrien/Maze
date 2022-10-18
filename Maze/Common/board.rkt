@@ -52,8 +52,10 @@
   ;; Number of rows in a board
   [num-rows (-> board? (and/c integer? positive?))]
   ;; Number of columns in a board
-  [num-cols (-> board? (and/c integer? positive?))]))
-
+  [num-cols (-> board? (and/c integer? positive?))]
+  ;; Compares two GridPosns in row-then-column order
+  [compare-row-col (-> grid-posn? grid-posn? boolean?)]))
+     
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES

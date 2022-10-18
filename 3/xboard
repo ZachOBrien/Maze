@@ -15,9 +15,6 @@
   (values board-ht coordinate))
 
 
-
-
-
 ;; Reads a board and position from STDIN, computes all positions reachable from
 ;; the given position, and writes these positions to STDOUT as JSON
 (module+ main
