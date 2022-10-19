@@ -58,11 +58,35 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 
+(define (get-all-positions board)
+  (
+
+(define (get-goal-tile-pos player)
+  (
+
 ;; PlayerState -> Move
 ;; Determine the player's move using the riemann strategy
-(define (riemann-strategy state) 0)
+(define (riemann-strategy state)
+  
+  (define goal-tile ...)
+  (define candidates ...)
+
+  (define all-boards ...)
+
+  (findf (lambda (candid) (findf (can-reach-goal? candid board) all-boards)) can candidates)
+
+  (iterate-over-list (member? result) candidates all-boards)
+
 
 
 ;; PlayerState -> Move
 ;; Determine the player's move using the euclidean strategy
-(define (euclidean-strategy state) 0)
+(define (euclidean-strategy state)
+  (define goal-tile ...)
+  (define candidates ...)
+  
+  (define ordered_candidates (sort candidates -laksjdf-compare-row-col)
+
+  (define all-boards ...)
+
+  (iterate-over-list (member? result) candidates all-boards)
