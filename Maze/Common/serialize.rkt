@@ -161,19 +161,19 @@
 (define (hash->player ht)
   (player-new (hash->gridposn (hash-ref ht 'current))
               (hash->gridposn (hash-ref ht 'home))
-              empty
-              (seconds->date 0)
+              (cons 1 1)
+              #f
               (hash-ref ht 'color)))
 
 (module+ test
   (check-equal? (hash->player (hash 'current (hash 'row# 0 'column# 0)
                                     'home (hash 'row# 2 'column# 2)
                                     'color "blue"))
-                (player-new (cons 0 0) (cons 2 2) empty (seconds->date 0) "blue"))
+                (player-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
   (check-equal? (hash->player (hash 'current (hash 'row# 6 'column# 1)
                                     'home (hash 'row# 3 'column# 4)
                                     'color "red"))
-                (player-new (cons 6 1) (cons 3 4) empty (seconds->date 0) "red")))
+                (player-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list
@@ -343,10 +343,10 @@
           (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
 
   (define expected-players1
-    (list (player-new (cons 0 0) (cons 6 6) empty (seconds->date 0) "blue")
-          (player-new (cons 1 1) (cons 5 5) empty (seconds->date 0) "red")
-          (player-new (cons 2 2) (cons 4 4) empty (seconds->date 0) "green")
-          (player-new (cons 3 3) (cons 3 3) empty (seconds->date 0) "yellow")))
+    (list (player-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
+          (player-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
+          (player-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
+          (player-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
 
   (define example-board-hash
     (hash 'connectors example-connectors

@@ -15,9 +15,7 @@
   [strategy?      contract?]
   [player-state?  contract?]
   ; Gets all positions possible in the state
-  [get-all-positions (-> board? (listof grid-posn?))]
-  ; Get the active players goal tile
-  [get-goal-tile-pos (-> board? player? (or/c #f grid-posn?))]))
+  [get-all-positions (-> board? (listof grid-posn?))]))
 #;((
   [riemann-strategy   strategy?]
   [euclidean-strategy strategy?]))
@@ -63,13 +61,6 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
-;; Board Player -> Gridposn
-;; Find the goal tile of the active player in the state
-(define (get-goal-tile-pos board plyr)
-  (findf (lambda (pos) (tile-has-gems?
-                        (board-get-tile-at board pos)
-                        (player-get-treasures plyr)))
-         (get-all-positions board)))
 
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a gamestate
@@ -82,10 +73,11 @@
 ;; Board Player -> [Listof GridPosn]
 ;; Order the possible candidates for riemann search
 (define (riemann-ordering board plyr)
-  (define goal-pos (get-goal-tile-pos board plyr))
+  (define goal-pos (player-get-goal-pos plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
+
 
 ;; Board -> [Listof Move]
 ;; Get all possible board shift and inserts
@@ -94,7 +86,8 @@
   (define directions (list 'up 'down 'left 'right))
   (define rotations (list 0 90 180 270))
   (map (λ (x) (apply move x)) (cartesian-product directions indices rotations candidates)))
-    
+
+
 ;; Board Move Tile -> Board
 ;; Apply a move to a board
 (define (apply-move mv board spare)
@@ -163,12 +156,6 @@
                       (cons 4 0) (cons 4 1) (cons 4 2) (cons 4 3) (cons 4 4) (cons 4 5) (cons 4 6)
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6))))
-
-
-;; test get-goal-tile-pos-active-player
-(module+ test
-  (check-equal? (get-goal-tile-pos board1 player1)
-                (cons 1 1)))
 
 ;; test get-all-positions
 (module+ test

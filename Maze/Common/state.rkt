@@ -33,11 +33,11 @@
   ; End the current player's turn and switch to the next player's turn
   [end-current-turn (-> gamestate? gamestate?)]
   ; Create a new player
-  [player-new (-> grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]
+  [player-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player?)]
   ;; All reachable from current player current position
   [all-reachable-from-active (-> gamestate? (listof grid-posn?))]
   ; Get a players goal treasures
-  [player-get-treasures (-> player? (listof gem?))]
+  [player-get-goal-pos (-> player? grid-posn?)]
   ; Get a players current position
   [player-get-curr-pos (-> player? grid-posn?)]))
 
@@ -84,44 +84,43 @@
 (define (player=? p1 p2 rec)
   (and (rec (player-curr-pos p1) (player-curr-pos p2))
        (rec (player-home-pos p1) (player-home-pos p2))
-       (rec (player-goal-treasures p1) (player-goal-treasures p2))
-       (rec (player-dob p1) (player-dob p2))
+       (rec (player-goal-pos p1) (player-goal-pos p2))
+       (rec (player-visited-goal p1) (player-visited-goal p2))
        (rec (player-color p1) (player-color p2))))
 
 (define (player-hash-code pl rec)
   (+ (* 10000 (rec (player-curr-pos pl)))
      (* 1000  (rec (player-home-pos pl)))
-     (* 100   (rec (player-goal-treasures pl)))
-     (* 10    (rec (player-dob pl)))
+     (* 100   (rec (player-goal-pos pl)))
+     (* 10    (rec (player-visited-goal pl)))
      (* 1     (rec (player-color pl)))))
 
 (define (player-secondary-hash-code pl rec)
   (+ (* 10000 (rec (player-color pl)))
-     (* 1000  (rec (player-dob pl)))
-     (* 100   (rec (player-goal-treasures pl)))
+     (* 1000  (rec (player-visited-goal pl)))
+     (* 100   (rec (player-goal-pos pl)))
      (* 10    (rec (player-home-pos pl)))
      (* 1     (rec (player-curr-pos pl)))))
 
 ;; A Player is a structure:
-;;    (struct GridPosn GridPosn [Listof Gem] Date AvatarColor)
-;; interpretation: A player has a current position, home position, goal treasure,
-;;                 birthday, and avatar color
-(struct player [curr-pos home-pos goal-treasures dob color]
+;;    (struct GridPosn GridPosn GridPosn Boolean AvatarColor)
+;; interpretation: A player has a current position, home position, goal position,
+;;                 whether or not they've visited their goal position, and avatar color
+(struct player [curr-pos home-pos goal-pos visited-goal color]
   #:methods gen:equal+hash
   [(define equal-proc player=?)
    (define hash-proc  player-hash-code)
-   (define hash2-proc player-secondary-hash-code)]
-  #:transparent)
+   (define hash2-proc player-secondary-hash-code)])
 
-;; GridPosn GridPosn [Listof Gem] Date AvatarColor -> Player
+;; GridPosn GridPosn [Listof Gem] Boolean AvatarColor -> Player
 ;; Create a new player
-(define (player-new curr-pos home-pos goal-treasures dob color)
-  (player curr-pos home-pos goal-treasures dob color))
+(define (player-new curr-pos home-pos goal-pos visited-goal color)
+  (player curr-pos home-pos goal-pos visited-goal color))
 
 
 ;; A LastAction is a pair:
 ;;    (Natural . ShiftDirection)
-;; interpretation: The index and direciton of the last shift made.
+;; interpretation: The index and direction of the last shift made.
 (define last-action? (cons/c natural-number/c shift-direction?))
 
 (define (gamestate=? gs1 gs2 rec)
@@ -234,9 +233,9 @@
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their goal tile
 (define (player-on-goal? state)
+  
   (define curr-player (get-current-player state))
-  (define curr-player-tile (board-get-tile-at (gamestate-board state) (player-curr-pos curr-player)))
-  (tile-has-gems? curr-player-tile (player-goal-treasures curr-player)))
+  (equal? (player-curr-pos curr-player) (player-goal-pos curr-player)))
 
 
 ;; Gamestate -> Boolean
@@ -288,8 +287,8 @@
 
 ;; Player -> [Listof Gems]
 ;; Get a player's goal treasures
-(define (player-get-treasures plyr)
-  (player-goal-treasures plyr))
+(define (player-get-goal-pos plyr)
+  (player-goal-pos plyr))
 
 
 ;; Player -> GridPosn
@@ -309,63 +308,63 @@
     (player
      (cons 0 0)
      (cons 6 6)
-     (list 'apatite 'aplite)
+     (cons 5 1)
      (seconds->date 0)
      "blue"))
   (define player1
     (player
      (cons 1 1)
      (cons 5 5)
-     (list 'blue-ceylon-sapphire 'bulls-eye)
+     (cons 1 1)
      (seconds->date 1)
      "red"))
   (define player2
     (player
      (cons 2 2)
      (cons 4 4)
-     (list 'chrysolite 'citrine)
+     (cons 1 1)
      (seconds->date 2)
      "green"))
   (define player3
     (player
      (cons 3 3)
      (cons 3 3)
-     (list 'jasper 'mexican-opal)
+     (cons 1 3)
      (seconds->date 3)
      "yellow"))
   (define player4
     (player
      (cons 4 4)
      (cons 2 2)
-     (list 'peridot 'purple-oval)
+     (cons 5 5)
      (seconds->date 4)
      "blue"))
   (define player5
     (player
      (cons 0 6)
      (cons 5 5)
-     (list 'beryl 'bulls-eye)
+     (cons 1 5)
      (seconds->date 5)
      "red"))
   (define player6
     (player
      (cons 6 0)
      (cons 4 4)
-     (list 'chrysolite 'citrine)
+     (cons 3 1)
      (seconds->date 6)
      "green"))
   (define player7
     (player
      (cons 6 6)
      (cons 3 3)
-     (list 'jasper 'mexican-opal)
+     (cons 1 3)
      (seconds->date 7)
      "yellow"))
   (define player8
     (player
      (cons 5 5)
      (cons 3 3)
-     (list 'jasper 'mexican-opal)
+     (cons 5 1)
      (seconds->date 8)
      "yellow"))
   (define players0 (list player0 player1 player2 player3 player4))
@@ -436,20 +435,20 @@
                  'right
                  0)
                 (list
-                 (player-new (cons 0 1) (cons 6 6) (list 'apatite 'aplite) (seconds->date 0) "blue")
+                 (player-new (cons 0 1) (cons 6 6) (cons 5 1) (seconds->date 0) "blue")
                  player1
                  player2
-                 (player-new (cons 0 0) (cons 5 5) (list 'beryl 'bulls-eye) (seconds->date 5) "red")))
+                 (player-new (cons 0 0) (cons 5 5) (cons 1 5) (seconds->date 5) "red")))
   (check-equal? (shift-players
                  (gamestate-players gamestate4)
                  (gamestate-board gamestate4)
                  'left
                  0)
                 (list
-                 (player-new (cons 0 6) (cons 6 6) (list 'apatite 'aplite) (seconds->date 0) "blue")
+                 (player-new (cons 0 6) (cons 6 6) (cons 5 1) (seconds->date 0) "blue")
                  player1
                  player2
-                 (player-new (cons 0 5) (cons 5 5) (list 'beryl 'bulls-eye) (seconds->date 5) "red")))
+                 (player-new (cons 0 5) (cons 5 5) (cons 1 5) (seconds->date 5) "red")))
   (check-true (player-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 'up 0 0)) 1)
                (cons 6 0)))
@@ -505,7 +504,7 @@
 (module+ test
   (check-false (player-on-goal? gamestate0))
   (check-false (player-on-goal? gamestate1))
-  (check-true (player-on-goal? gamestate2)))
+  (check-true  (player-on-goal? gamestate2)))
 
 ;; test player-on-home?
 (module+ test
@@ -538,14 +537,14 @@
                 (player
                  (cons 3 3)
                  (cons 6 6)
-                 (list 'apatite 'aplite)
+                 (cons 5 1)
                  (seconds->date 0)
                  "blue"))
   (check-equal? (player-move-to player0 (cons 6 6))
                 (player
                  (cons 6 6)
                  (cons 6 6)
-                 (list 'apatite 'aplite)
+                 (cons 5 1)
                  (seconds->date 0)
                  "blue")))
 
