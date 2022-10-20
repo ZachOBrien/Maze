@@ -32,6 +32,7 @@
   [board?           contract?]
   [grid-posn?       contract?]
   [shift-direction? contract?]
+  [shift-directions (listof shift-direction?)]
   ; Shift a row or column at an index and insert a new tile
   [board-shift-and-insert (->i
                            ([b board?]
@@ -54,7 +55,9 @@
   ;; Number of columns in a board
   [num-cols (-> board? (and/c integer? positive?))]
   ;; Compares two GridPosns in row-then-column order
-  [compare-row-col (-> grid-posn? grid-posn? boolean?)]))
+  [compare-row-col (-> grid-posn? grid-posn? boolean?)]
+  ;; Get indices which can be shifted
+  [get-valid-shift-indices (-> board? (listof natural-number/c))]))
      
 
 ;; --------------------------------------------------------------------
@@ -69,8 +72,6 @@
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
-
-
 
 ;; A Board is a [Listof [Listof Tile]]
 ;; interpretation: A square matrix of Maze game tiles with dimensions of odd length
@@ -93,7 +94,8 @@
 ;; interpretation: A direction in which a row or column can be shifted.
 ;;                 Columns may only be shifted up and down. Rows may
 ;;                 only be shifted left and right.
-(define shift-direction? (or/c 'up 'down 'left 'right))
+(define shift-directions (list 'up 'down 'left 'right))
+(define shift-direction? (apply or/c shift-directions))
 
 
 ;; --------------------------------------------------------------------
@@ -261,6 +263,11 @@
     [(= row1 row2) (<= col1 col2)]
     [(< row1 row2) #t]
     [(> row1 row2) #f]))
+
+;; Board -> [Listof GridPosn]
+;; Get indices which can be shifted
+(define (get-valid-shift-indices board)
+  (filter (valid-shift-index? board) (range 0 (num-cols board) 2)))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -557,8 +564,10 @@
 
 ;; test compare-row-col
 (module+ test
-  (require rackunit)
   (check-true (compare-row-col (cons 0 0) (cons 0 0)))
   (check-true (compare-row-col (cons 0 0) (cons 0 1)))
   (check-false (compare-row-col (cons 0 1) (cons 0 0)))
   (check-false (compare-row-col (cons 1 0) (cons 0 1))))
+
+(module+ test
+  (check-equal? (get-valid-shift-indices board1) (list 0 2 4 6)))

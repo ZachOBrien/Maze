@@ -20,7 +20,9 @@
   ; Shifts a row or column and inserts a tile in the empty space
   [gamestate-shift-and-insert
    (-> gamestate? shift-direction? natural-number/c orientation? gamestate?)]
-  ;; Move the currently active player to a new position
+  ; Move players that were on a row or column that was shifted
+  [shift-players (-> (listof player?) board? shift-direction? natural-number/c (listof player?))]
+  ; Move the currently active player to a new position
   [gamestate-move-player (-> gamestate? grid-posn? gamestate?)]
   ; Check if a player can reach a position from their current position
   [player-can-reach-pos? (-> gamestate? grid-posn? boolean?)]
@@ -36,10 +38,14 @@
   [player-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player?)]
   ;; All reachable from current player current position
   [all-reachable-from-active (-> gamestate? (listof grid-posn?))]
-  ; Get a players goal treasures
+  ; Get a player's goal position
   [player-get-goal-pos (-> player? grid-posn?)]
-  ; Get a players current position
-  [player-get-curr-pos (-> player? grid-posn?)]))
+  ; Get a player's home position
+  [player-get-home-pos (-> player? grid-posn?)]
+  ; Get a player's current position
+  [player-get-curr-pos (-> player? grid-posn?)]
+  ; True if a player has already visited their goal
+  [player-visited-goal? (-> player? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -284,17 +290,25 @@
 (define (player-move-to p pos)
   (struct-copy player p [curr-pos pos]))
 
-
-;; Player -> [Listof Gems]
-;; Get a player's goal treasures
-(define (player-get-goal-pos plyr)
-  (player-goal-pos plyr))
-
-
 ;; Player -> GridPosn
 ;; Get a player's current position
 (define (player-get-curr-pos plyr)
   (player-curr-pos plyr))
+
+;; Player -> GridPosn
+;; Get a player's goal treasures
+(define (player-get-goal-pos plyr)
+  (player-goal-pos plyr))
+
+;; Player -> GridPosn
+;; Get a player's goal location
+(define (player-get-home-pos plyr)
+  (player-home-pos plyr))
+
+;; Player -> Boolean
+;; True if a player has already visited their goal
+(define (player-visited-goal? plyr)
+  (player-visited-goal plyr))                       
 
 
 ;; --------------------------------------------------------------------
@@ -309,63 +323,63 @@
      (cons 0 0)
      (cons 6 6)
      (cons 5 1)
-     (seconds->date 0)
+     #f
      "blue"))
   (define player1
     (player
      (cons 1 1)
      (cons 5 5)
      (cons 1 1)
-     (seconds->date 1)
+     #f
      "red"))
   (define player2
     (player
      (cons 2 2)
      (cons 4 4)
-     (cons 1 1)
-     (seconds->date 2)
+     (cons 3 3)
+     #f
      "green"))
   (define player3
     (player
      (cons 3 3)
      (cons 3 3)
      (cons 1 3)
-     (seconds->date 3)
+     #f
      "yellow"))
   (define player4
     (player
      (cons 4 4)
      (cons 2 2)
      (cons 5 5)
-     (seconds->date 4)
+     #f
      "blue"))
   (define player5
     (player
      (cons 0 6)
      (cons 5 5)
      (cons 1 5)
-     (seconds->date 5)
+     #f
      "red"))
   (define player6
     (player
      (cons 6 0)
      (cons 4 4)
      (cons 3 1)
-     (seconds->date 6)
+     #f
      "green"))
   (define player7
     (player
      (cons 6 6)
      (cons 3 3)
      (cons 1 3)
-     (seconds->date 7)
+     #f
      "yellow"))
   (define player8
     (player
      (cons 5 5)
      (cons 3 3)
      (cons 5 1)
-     (seconds->date 8)
+     #f
      "yellow"))
   (define players0 (list player0 player1 player2 player3 player4))
   ; player0 (a) not on goal or home
@@ -435,20 +449,20 @@
                  'right
                  0)
                 (list
-                 (player-new (cons 0 1) (cons 6 6) (cons 5 1) (seconds->date 0) "blue")
+                 (player-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
                  player1
                  player2
-                 (player-new (cons 0 0) (cons 5 5) (cons 1 5) (seconds->date 5) "red")))
+                 (player-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
   (check-equal? (shift-players
                  (gamestate-players gamestate4)
                  (gamestate-board gamestate4)
                  'left
                  0)
                 (list
-                 (player-new (cons 0 6) (cons 6 6) (cons 5 1) (seconds->date 0) "blue")
+                 (player-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
                  player1
                  player2
-                 (player-new (cons 0 5) (cons 5 5) (cons 1 5) (seconds->date 5) "red")))
+                 (player-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
   (check-true (player-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 'up 0 0)) 1)
                (cons 6 0)))
@@ -538,14 +552,14 @@
                  (cons 3 3)
                  (cons 6 6)
                  (cons 5 1)
-                 (seconds->date 0)
+                 #f
                  "blue"))
   (check-equal? (player-move-to player0 (cons 6 6))
                 (player
                  (cons 6 6)
                  (cons 6 6)
                  (cons 5 1)
-                 (seconds->date 0)
+                 #f
                  "blue")))
 
 

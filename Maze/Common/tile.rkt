@@ -14,6 +14,7 @@
   [tile?        contract?]
   [connector?   contract?]
   [orientation? contract?]
+  [orientations (listof orientation?)]
   ; Constructs a new tile
   [tile-make (-> connector? orientation? (listof gem?) tile?)]
   ; Rotates a tile

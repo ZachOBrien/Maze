@@ -42,7 +42,7 @@
 ;; interpretation: A Move has a direction to shift a row or column, the index of the
 ;;                 row or column to shift, the number of degrees to rotate the spare
 ;;                 tile, and a position to move the currently active player to after the shift
-(struct move [shift-direction idx orientation pos] #:transparent)
+(struct move [pos shift-direction idx orientation] #:transparent)
 
 
 ;; A PlayerState is a structure:
@@ -61,7 +61,6 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
-
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a gamestate
 (define (get-all-positions board)
@@ -70,22 +69,11 @@
         (cons x y)))))
 
 
-;; Board Player -> [Listof GridPosn]
-;; Order the possible candidates for riemann search
-(define (riemann-ordering board plyr)
-  (define goal-pos (player-get-goal-pos plyr))
-  (cons goal-pos (filter (lambda (pos)
-                           (not (equal? pos goal-pos)))
-                         (get-all-positions board))))
-
-
 ;; Board -> [Listof Move]
 ;; Get all possible board shift and inserts
 (define (all-possible-moves board candidates)
-  (define indices (range 0 (num-cols board) 2))
-  (define directions (list 'up 'down 'left 'right))
-  (define rotations (list 0 90 180 270))
-  (map (λ (x) (apply move x)) (cartesian-product directions indices rotations candidates)))
+  (map (λ (x) (apply move x))
+       (cartesian-product candidates shift-directions (get-valid-shift-indices board) orientations)))
 
 
 ;; Board Move Tile -> Board
@@ -100,40 +88,58 @@
   new-board)
 
 
+;; Board Player -> [Listof GridPosn]
+;; Order the possible candidates for riemann search
+(define (get-riemann-candidates board plyr)
+  (define goal-pos
+    (if (player-visited-goal? plyr)
+        (player-get-home-pos plyr)
+        (player-get-goal-pos plyr)))
+  (cons goal-pos (filter (lambda (pos)
+                           (not (equal? pos goal-pos)))
+                         (get-all-positions board))))
+
 ;; PlayerState -> Move
 ;; Determine the player's move using the riemann strategy
 (define (riemann-strategy state)
   (define curr-pos (player-get-curr-pos (player-state-player state)))
-  (define candidates (riemann-ordering (player-state-board state) (player-state-player state)))
+  (define candidates (get-riemann-candidates (player-state-board state) (player-state-player state)))
   (define possible-moves (all-possible-moves (player-state-board state) candidates))
-
-  (findf (λ (mv) (member
-                  (move-pos mv)
-                  (board-all-reachable-from
-                   (apply-move mv (player-state-board state) (player-state-extra-tile state)) curr-pos)))
-           possible-moves))
+  (findf (λ (mv) (valid-move? state mv)) possible-moves))        
 
 
-;; PlayerState -> Move
-;; Determine the player's move using the euclidean strategy
-#;
-(define (euclidean-strategy state)
-  (define goal-tile ...)
-  (define candidates ...)
+;; PlayerState Move -> Boolean
+;; Returns True if the 
+(define (valid-move? plyr-state mv)
+  (define old-board  (player-state-board plyr-state))
+  (define old-player (player-state-player plyr-state))
   
-  (define ordered_candidates (sort candidates -laksjdf-compare-row-col)
-
-  (define all-boards ...)
-
-  (iterate-over-list (member? result) candidates all-boards)))
-
+  (define-values
+    (new-board new-extra-tile)
+    (board-shift-and-insert
+     old-board
+     (move-shift-direction mv)
+     (move-idx mv)
+     (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
+  
+  (define new-player
+    (first (shift-players (list
+                           (player-state-player plyr-state))
+                          old-board
+                          (move-shift-direction mv)
+                          (move-idx mv))))
+  
+  (member
+   (move-pos mv)
+   (board-all-reachable-from new-board (player-get-curr-pos new-player))))
+  
 
 (module+ examples
   (provide (all-defined-out))
   (require (submod "tile.rkt" examples))
   (require (submod "board.rkt" examples))
   (require (submod "state.rkt" examples))
-  (define player-state-1 (player-state board1 tile-extra player1)))
+  (define player-state-1 (player-state board1 tile-extra player2)))
 
 (module+ test
   (require rackunit)
@@ -147,7 +153,7 @@
 
 
 (module+ test
-  (check-equal? (riemann-ordering board1 player1)
+  (check-equal? (get-riemann-candidates board1 player1)
                 (list (cons 1 1)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0)            (cons 1 2) (cons 1 3) (cons 1 4) (cons 1 5) (cons 1 6)
