@@ -248,7 +248,7 @@
   (define tile50 (tile 'elbow 0 empty))
   (define tile51 (tile 'elbow 90 empty))
   (define tile52 (tile 'elbow 270 empty))
-  (define tile53 (tile 'try 0 empty))
+  (define tile53 (tile 'tri 0 empty))
   (define tile54 (tile 'tri 270 empty))
   (define tile55 (tile 'tri 180 empty))
   (define tile56 (tile 'tri 90 empty))
@@ -261,7 +261,10 @@
   (define tile65 (tile 'elbow 90 empty))
   (define tile66 (tile 'elbow 270 empty))
 
-  (define tile-extra (tile 'straight 180 empty)))
+  (define tile-extra (tile 'straight 180 empty))
+
+  (define tile-horiz (tile 'straight 90 (list 'bulls-eye 'blue-ceylon-sapphire)))
+  (define tile-vert (tile 'straight 0 (list 'alexandrite 'blue-ceylon-sapphire))))
 
 
 (module+ test

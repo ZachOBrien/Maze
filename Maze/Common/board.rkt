@@ -303,7 +303,11 @@
   (define row9 (list tile00 tile01 tile02 tile03))
   (define row10 (list tile00 tile01 tile02 tile03))
 
-  (define board6 (list row7 row8 row9 row10)))
+  (define board6 (list row7 row8 row9 row10))
+
+  (define row-horiz (list tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz))
+  (define row-one-vert (list tile-horiz tile-horiz tile-horiz tile-vert tile-horiz tile-horiz tile-horiz))
+  (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz)))
   
 (module+ test
   (require rackunit)

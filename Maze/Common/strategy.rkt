@@ -38,33 +38,35 @@
 
 ;; Player Player -> Boolean
 ;; Are the two players the same?
-(define (move=? p1 p2 rec)
-  (and (rec (player-curr-pos p1) (player-curr-pos p2))
-       (rec (player-home-pos p1) (player-home-pos p2))
-       (rec (player-goal-pos p1) (player-goal-pos p2))
-       (rec (player-visited-goal p1) (player-visited-goal p2))
-       (rec (player-color p1) (player-color p2))))
+(define (move=? mv1 mv2 rec)
+  (and (rec (move-pos mv1) (move-pos mv2))
+       (rec (move-shift-direction mv1) (move-shift-direction mv2))
+       (rec (move-idx mv1) (move-idx mv2))
+       (rec (move-orientation mv1) (move-orientation mv2))))
 
-(define (player-hash-code pl rec)
-  (+ (* 10000 (rec (player-curr-pos pl)))
-     (* 1000  (rec (player-home-pos pl)))
-     (* 100   (rec (player-goal-pos pl)))
-     (* 10    (rec (player-visited-goal pl)))
-     (* 1     (rec (player-color pl)))))
+(define (move-hash-code mv rec)
+  (+ (* 1000 (rec (move-pos mv)))
+     (* 100  (rec (move-shift-direction mv)))
+     (* 10   (rec (move-idx mv)))
+     (* 1    (rec (move-orientation mv)))))
 
-(define (player-secondary-hash-code pl rec)
-  (+ (* 10000 (rec (player-color pl)))
-     (* 1000  (rec (player-visited-goal pl)))
-     (* 100   (rec (player-goal-pos pl)))
-     (* 10    (rec (player-home-pos pl)))
-     (* 1     (rec (player-curr-pos pl)))))
+(define (move-secondary-hash-code mv rec)
+  (+ (* 1000 (rec (move-orientation mv)))
+     (* 100  (rec (move-idx mv)))
+     (* 10   (rec (move-shift-direction mv)))
+     (* 1    (rec (move-pos mv)))))
 
 ;; A Move is a structure:
 ;;    (struct ShiftDirection Natural Orientation GridPosn)
 ;; interpretation: A Move has a direction to shift a row or column, the index of the
 ;;                 row or column to shift, the number of degrees to rotate the spare
 ;;                 tile, and a position to move the currently active player to after the shift
-(struct move [pos shift-direction idx orientation] #:transparent)
+(struct move [pos shift-direction idx orientation]
+  #:methods gen:equal+hash
+  [(define equal-proc move=?)
+   (define hash-proc  move-hash-code)
+   (define hash2-proc move-secondary-hash-code)]
+  #:transparent)
 
 
 ;; An Action is one of:
@@ -101,10 +103,7 @@
 ;; Board Player -> [Listof GridPosn]
 ;; Order the possible candidates for riemann search
 (define (get-riemann-candidates board plyr)
-  (define goal-pos
-    (if (player-visited-goal? plyr)
-        (player-get-home-pos plyr)
-        (player-get-goal-pos plyr)))
+  (define goal-pos (get-goal-gp plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
@@ -113,9 +112,39 @@
 ;; PlayerState -> Action
 ;; Determine a player's move using the euclidean strategy
 (define (euclidean-strategy plyr-state)
-  #f)
-  
+  (define candidates (get-euclidean-candidates
+                      (player-state-board plyr-state)
+                      (player-state-player plyr-state)))
+  (get-first-valid-move plyr-state candidates))
 
+
+;; PlayerState -> Action
+;; Order the possible candidates for euclidean search
+(define (get-euclidean-candidates board plyr)
+  (define goal-pos (get-goal-gp plyr))
+  (define all-candidates (get-all-positions board))
+  (sort all-candidates (lambda (pos1 pos2) (compare-euclidean-dist goal-pos pos1 pos2))))
+
+
+;; GridPosn GridPosn GrisPosn -> Boolean
+;; Compares two gridposns and returns whether the first is less than the second
+(define (compare-euclidean-dist goal pos1 pos2)
+  (<= (euclidian-dist goal pos1) (euclidian-dist goal pos2)))
+
+
+;; GridPosn GridPosn -> Natural
+;; Computes the euclidean distance between two gridposns
+(define (euclidian-dist pos1 pos2)
+  (sqrt (+ (expt (- (car pos2) (car pos1)) 2) (expt (- (cdr pos2) (cdr pos1)) 2))))
+
+;; Player -> GridPosn
+;; Determines the current goal for the player
+(define (get-goal-gp plyr)
+  (if (player-visited-goal? plyr)
+      (player-get-home-pos plyr)
+      (player-get-goal-pos plyr)))
+    
+    
 ;; PlayerState [Listof Move] -> Action
 ;; Finds the first Move which is valid in a PlayerState
 (define (get-first-valid-move plyr-state candidates)
@@ -145,9 +174,10 @@
                           (move-shift-direction mv)
                           (move-idx mv))))
   
-  (member
-   (move-pos mv)
-   (board-all-reachable-from new-board (player-get-curr-pos new-player))))
+  (and (not (equal? (move-pos mv) (player-get-curr-pos new-player)))
+       (member
+        (move-pos mv)
+        (board-all-reachable-from new-board (player-get-curr-pos new-player)))))
 
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a gamestate
@@ -183,7 +213,10 @@
   (require (submod "tile.rkt" examples))
   (require (submod "board.rkt" examples))
   (require (submod "state.rkt" examples))
-  (define player-state-1 (player-state board1 tile-extra player2)))
+  
+  (define player-state-1 (player-state board1 tile-extra player2))
+  (define player-state-2 (player-state board1 tile-extra player7))
+  (define player-state-nowhere-to-go (player-state board-nowhere-to-go tile-extra player3)))
 
 (module+ test
   (require rackunit)
@@ -193,7 +226,14 @@
 
 
 (module+ test
-  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) 'right 2 0)))
+  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) 'right 2 0)) ; Player can reach goal tile
+  (check-equal? (riemann-strategy player-state-2) (move (cons 0 0) 'right 6 90)) ; Player cannot reach goal tile, reaches 0 0
+  (check-false (riemann-strategy player-state-nowhere-to-go))) ; Player cannot go anywhere
+
+(module+ test
+  (check-false (euclidean-strategy player-state-nowhere-to-go)) ; Player cannot go anywhere
+  (check-equal? (euclidean-strategy player-state-2) (move (cons 5 4) 'up 0 0)) ; Player cannot reach goal tile, reaches closest tile
+  (check-equal? (euclidean-strategy player-state-1) (move (cons 3 3) 'right 2 0))) ; Player can reach goal tile
 
 
 (module+ test

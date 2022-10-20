@@ -371,7 +371,7 @@
     (player
      (cons 6 6)
      (cons 3 3)
-     (cons 1 3)
+     (cons 5 3)
      #f
      "yellow"))
   (define player8
