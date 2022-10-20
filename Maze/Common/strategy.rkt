@@ -12,12 +12,12 @@
 (provide
  (contract-out
   [move?          contract?]
+  [action?        contract?]
   [strategy?      contract?]
   [player-state?  contract?]
-  ; Gets all positions possible in the state
-  [get-all-positions (-> board? (listof grid-posn?))]))
-#;((
+  ; Riemann strategy
   [riemann-strategy   strategy?]
+  ; Euclidean strategy
   [euclidean-strategy strategy?]))
      
 
@@ -36,6 +36,28 @@
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
+;; Player Player -> Boolean
+;; Are the two players the same?
+(define (move=? p1 p2 rec)
+  (and (rec (player-curr-pos p1) (player-curr-pos p2))
+       (rec (player-home-pos p1) (player-home-pos p2))
+       (rec (player-goal-pos p1) (player-goal-pos p2))
+       (rec (player-visited-goal p1) (player-visited-goal p2))
+       (rec (player-color p1) (player-color p2))))
+
+(define (player-hash-code pl rec)
+  (+ (* 10000 (rec (player-curr-pos pl)))
+     (* 1000  (rec (player-home-pos pl)))
+     (* 100   (rec (player-goal-pos pl)))
+     (* 10    (rec (player-visited-goal pl)))
+     (* 1     (rec (player-color pl)))))
+
+(define (player-secondary-hash-code pl rec)
+  (+ (* 10000 (rec (player-color pl)))
+     (* 1000  (rec (player-visited-goal pl)))
+     (* 100   (rec (player-goal-pos pl)))
+     (* 10    (rec (player-home-pos pl)))
+     (* 1     (rec (player-curr-pos pl)))))
 
 ;; A Move is a structure:
 ;;    (struct ShiftDirection Natural Orientation GridPosn)
@@ -43,6 +65,13 @@
 ;;                 row or column to shift, the number of degrees to rotate the spare
 ;;                 tile, and a position to move the currently active player to after the shift
 (struct move [pos shift-direction idx orientation] #:transparent)
+
+
+;; An Action is one of:
+;;    - Move
+;;    - #f
+;; interpretation: A player acts by either making a move or making no move (passing turn)
+(define action? (or/c #f move?))
 
 
 ;; A PlayerState is a structure:
@@ -55,11 +84,70 @@
 ;;    (-> Gamestate Move)
 ;; interpretation: A strategy examines a gamestate and determines a move for the currently active
 ;;                 player to make
-(define strategy? (-> player-state? move?))
+(define strategy? (-> player-state? action?))
 
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
+
+;; PlayerState -> Action
+;; Determine the player's move using the riemann strategy
+(define (riemann-strategy plyr-state)
+  (define candidates (get-riemann-candidates
+                      (player-state-board plyr-state)
+                      (player-state-player plyr-state)))
+  (get-first-valid-move plyr-state candidates))
+
+;; Board Player -> [Listof GridPosn]
+;; Order the possible candidates for riemann search
+(define (get-riemann-candidates board plyr)
+  (define goal-pos
+    (if (player-visited-goal? plyr)
+        (player-get-home-pos plyr)
+        (player-get-goal-pos plyr)))
+  (cons goal-pos (filter (lambda (pos)
+                           (not (equal? pos goal-pos)))
+                         (get-all-positions board))))
+
+
+;; PlayerState -> Action
+;; Determine a player's move using the euclidean strategy
+(define (euclidean-strategy plyr-state)
+  #f)
+  
+
+;; PlayerState [Listof Move] -> Action
+;; Finds the first Move which is valid in a PlayerState
+(define (get-first-valid-move plyr-state candidates)
+  (findf
+   (λ (mv) (valid-move? plyr-state mv))
+   (all-possible-moves (player-state-board plyr-state) candidates)))   
+
+
+;; PlayerState Move -> Boolean
+;; Returns True if the 
+(define (valid-move? plyr-state mv)
+  (define old-board  (player-state-board plyr-state))
+  (define old-player (player-state-player plyr-state))
+  
+  (define-values
+    (new-board new-extra-tile)
+    (board-shift-and-insert
+     old-board
+     (move-shift-direction mv)
+     (move-idx mv)
+     (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
+  
+  (define new-player
+    (first (shift-players (list
+                           (player-state-player plyr-state))
+                          old-board
+                          (move-shift-direction mv)
+                          (move-idx mv))))
+  
+  (member
+   (move-pos mv)
+   (board-all-reachable-from new-board (player-get-curr-pos new-player))))
 
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a gamestate
@@ -87,52 +175,8 @@
      (tile-rotate spare (move-orientation mv))))
   new-board)
 
-
-;; Board Player -> [Listof GridPosn]
-;; Order the possible candidates for riemann search
-(define (get-riemann-candidates board plyr)
-  (define goal-pos
-    (if (player-visited-goal? plyr)
-        (player-get-home-pos plyr)
-        (player-get-goal-pos plyr)))
-  (cons goal-pos (filter (lambda (pos)
-                           (not (equal? pos goal-pos)))
-                         (get-all-positions board))))
-
-;; PlayerState -> Move
-;; Determine the player's move using the riemann strategy
-(define (riemann-strategy state)
-  (define curr-pos (player-get-curr-pos (player-state-player state)))
-  (define candidates (get-riemann-candidates (player-state-board state) (player-state-player state)))
-  (define possible-moves (all-possible-moves (player-state-board state) candidates))
-  (findf (λ (mv) (valid-move? state mv)) possible-moves))        
-
-
-;; PlayerState Move -> Boolean
-;; Returns True if the 
-(define (valid-move? plyr-state mv)
-  (define old-board  (player-state-board plyr-state))
-  (define old-player (player-state-player plyr-state))
-  
-  (define-values
-    (new-board new-extra-tile)
-    (board-shift-and-insert
-     old-board
-     (move-shift-direction mv)
-     (move-idx mv)
-     (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
-  
-  (define new-player
-    (first (shift-players (list
-                           (player-state-player plyr-state))
-                          old-board
-                          (move-shift-direction mv)
-                          (move-idx mv))))
-  
-  (member
-   (move-pos mv)
-   (board-all-reachable-from new-board (player-get-curr-pos new-player))))
-  
+;; --------------------------------------------------------------------
+;; TESTS
 
 (module+ examples
   (provide (all-defined-out))
@@ -149,7 +193,7 @@
 
 
 (module+ test
-  (check-equal? (riemann-strategy player-state-1) 0))
+  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) 'right 2 0)))
 
 
 (module+ test
