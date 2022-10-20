@@ -35,7 +35,11 @@
   ; Create a new player
   [player-new (-> grid-posn? grid-posn? (listof gem?) date? avatar-color? player?)]
   ;; All reachable from current player current position
-  [all-reachable-from-active (-> gamestate? (listof grid-posn?))]))
+  [all-reachable-from-active (-> gamestate? (listof grid-posn?))]
+  ; Get a players goal treasures
+  [player-get-treasures (-> player? (listof gem?))]
+  ; Get a players current position
+  [player-get-curr-pos (-> player? grid-posn?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -280,6 +284,18 @@
 ;; Move a player to the given gridposn
 (define (player-move-to p pos)
   (struct-copy player p [curr-pos pos]))
+
+
+;; Player -> [Listof Gems]
+;; Get a player's goal treasures
+(define (player-get-treasures plyr)
+  (player-goal-treasures plyr))
+
+
+;; Player -> GridPosn
+;; Get a player's current position
+(define (player-get-curr-pos plyr)
+  (player-curr-pos plyr))
 
 
 ;; --------------------------------------------------------------------
@@ -533,6 +549,8 @@
                  (seconds->date 0)
                  "blue")))
 
+
+
 ;; test opposite-direction?
 (module+ test
   (check-true (opposite-direction? 'up 'down))
@@ -552,3 +570,4 @@
   (check-false (hex-color-code? "a5B4C1"))
   (check-true (hex-color-code? "000000"))
   (check-true (hex-color-code? "B49E23")))
+
