@@ -381,6 +381,13 @@
      (cons 5 1)
      #f
      "yellow"))
+  (define player9
+    (player
+     (cons 5 5)
+     (cons 3 3)
+     (cons 5 1)
+     #t
+     "yellow"))
   (define players0 (list player0 player1 player2 player3 player4))
   ; player0 (a) not on goal or home
   ; first top left
