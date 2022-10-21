@@ -66,8 +66,7 @@
   #:methods gen:equal+hash
   [(define equal-proc move=?)
    (define hash-proc  move-hash-code)
-   (define hash2-proc move-secondary-hash-code)]
-  #:transparent)
+   (define hash2-proc move-secondary-hash-code)])
 
 
 ;; An Action is one of:
