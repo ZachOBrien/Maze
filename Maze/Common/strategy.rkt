@@ -27,6 +27,7 @@
 (require racket/match)
 (require racket/list)
 (require racket/function)
+(require racket/set)
 
 (require "state.rkt")
 (require "board.rkt")
@@ -327,6 +328,12 @@
   (check-true (< (- (euclidian-dist (cons 0 0) (cons 1 1)) 1.4142) .0001))
   (check-equal? (euclidian-dist (cons 1 1) (cons 5 1)) 4)
   (check-true (< (- (euclidian-dist (cons 1 1) (cons 6 6)) 7.0710)  .0001)))
+
+; test all-possible-moves
+(module+ test
+  (check-equal? (set-count (list->set (all-possible-moves board1 cand-list-1))) 3136)
+  (check-equal? (set-count (list->set (all-possible-moves board2 cand-list-1))) 1568)
+  (check-equal? (set-count (list->set (all-possible-moves board1 cand-list-2))) 3136))
 
 ;; test get-all-positions
 (module+ test
