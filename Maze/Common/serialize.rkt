@@ -22,6 +22,7 @@
   [hash->player (-> hash? player?)]
   ;; Convert a json action to a Move
   [json-action->last-action (-> (or/c (listof any/c) 'null) last-action?)]
+  ;; Convert a string direction to a symbol
   [string-direction->symbol (-> string? symbol?)]))
 
 
@@ -31,6 +32,7 @@
 (require "tile.rkt")
 (require "board.rkt")
 (require "state.rkt")
+(require "player.rkt")
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION

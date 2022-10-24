@@ -20,7 +20,9 @@
   ; Riemann strategy
   [riemann-strategy   strategy?]
   ; Euclidean strategy
-  [euclidean-strategy strategy?]))
+  [euclidean-strategy strategy?]
+  ; Convert an Action to json
+  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]))
      
 
 ;; --------------------------------------------------------------------
@@ -30,10 +32,14 @@
 (require racket/list)
 (require racket/function)
 (require racket/set)
+(require racket/bool)
 
 (require "../Common/state.rkt")
+(require "../Common/player.rkt")
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
+(require "../Common/serialize.rkt")
+(require "player-state.rkt")
 
 
 ;; --------------------------------------------------------------------
@@ -78,18 +84,6 @@
 (define action? (or/c #f move?))
 
 
-;; A PlayerState is a structure:
-;;    (struct Board Tile Player)
-;; interpretation: A player knows the board, the extra tile, and all of its information
-(struct player-state [board extra-tile player])
-
-
-;; Board Tile Player -> PlayerState
-;; Create a new player state
-(define (player-state-new board extra-tile player)
-  (player-state board extra-tile player))
-  
-
 ;; A Strategy is a function:
 ;;    (-> Gamestate Move)
 ;; interpretation: A strategy examines a gamestate and determines a move for the currently active
@@ -104,8 +98,8 @@
 ;; Determine the player's move using the Riemann strategy
 (define (riemann-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-riemann-candidates
-                                    (player-state-board plyr-state)
-                                    (player-state-player plyr-state))))
+                                    (player-state-get-board plyr-state)
+                                    (player-state-get-player plyr-state))))
 
 ;; Board Player -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
@@ -119,8 +113,8 @@
 ;; Determine a player's move using the Euclidean strategy
 (define (euclidean-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-euclidean-candidates
-                                    (player-state-board plyr-state)
-                                    (player-state-player plyr-state))))
+                                    (player-state-get-board plyr-state)
+                                    (player-state-get-player plyr-state))))
 
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
@@ -153,8 +147,8 @@
 ;; PlayerState Move -> Boolean
 ;; Returns True if the move is valid in the state
 (define (valid-move? plyr-state mv)
-  (define old-board  (player-state-board plyr-state))
-  (define old-player (player-state-player plyr-state))
+  (define old-board  (player-state-get-board plyr-state))
+  (define old-player (player-state-get-player plyr-state))
   
   (define-values
     (new-board new-extra-tile)
@@ -162,10 +156,10 @@
      old-board
      (move-shift-direction mv)
      (move-idx mv)
-     (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
+     (tile-rotate (player-state-get-extra-tile plyr-state) (move-orientation mv))))
   
   (define new-player
-    (first (shift-players (list (player-state-player plyr-state))
+    (first (shift-players (list (player-state-get-player plyr-state))
                           old-board
                           (move-shift-direction mv)
                           (move-idx mv))))
@@ -187,7 +181,7 @@
 (define (get-first-valid-candidate-move plyr-state candidates)
   (findf
    (curry valid-move? plyr-state)
-   (get-all-candidate-moves (player-state-board plyr-state) candidates)))
+   (get-all-candidate-moves (player-state-get-board plyr-state) candidates)))
 
 ;; Board -> [Listof Move]
 ;; Get all possible moves that can be made on a board
@@ -195,6 +189,15 @@
   (map (curry apply move)
        (cartesian-product candidates shift-directions (get-valid-shift-indices board) orientations)))
 
+;; Action -> (U String List)
+;; Convert an action to json
+(define (action->json act)
+  (cond
+    [(move? act) (list (move-idx act)
+                       (string-upcase (symbol->string (move-shift-direction act)))
+                       (move-orientation act)
+                       (gridposn->hash (move-pos act)))]
+    [(false? act) "PASS"]))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -204,10 +207,9 @@
   (require (submod "../Common/tile.rkt" examples))
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/state.rkt" examples))
+  (require (submod "player-state.rkt" examples))
   
-  (define player-state-1 (player-state board1 tile-extra player2))
-  (define player-state-2 (player-state board1 tile-extra player7))
-  (define player-state-nowhere-to-go (player-state board-nowhere-to-go tile-extra player3))
+
   (define cand-list-1 (list (cons 1 1) (cons 0 1) (cons 1 0) (cons 1 2) (cons 2 1) (cons 0 0) (cons 0 2)
                             (cons 2 0) (cons 2 2) (cons 1 3) (cons 3 1) (cons 0 3) (cons 2 3) (cons 3 0)
                             (cons 3 2) (cons 3 3) (cons 1 4) (cons 4 1) (cons 0 4) (cons 2 4) (cons 4 0)
@@ -234,7 +236,9 @@
   (require rackunit)
   (require (submod ".." examples))
   (require (submod "../Common/board.rkt" examples))
-  (require (submod "../Common/state.rkt" examples)))
+  (require (submod "../Common/state.rkt" examples))
+  (require (submod "player-state.rkt" examples))
+  (require (submod "../Common/player.rkt" examples)))
 
 ; test riemann-strategy
 (module+ test
