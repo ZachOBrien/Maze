@@ -29,9 +29,9 @@
 (require racket/function)
 (require racket/set)
 
-(require "state.rkt")
-(require "board.rkt")
-(require "tile.rkt")
+(require "../Common/state.rkt")
+(require "../Common/board.rkt")
+(require "../Common/tile.rkt")
 
 
 ;; --------------------------------------------------------------------
@@ -201,9 +201,9 @@
 
 (module+ examples
   (provide (all-defined-out))
-  (require (submod "tile.rkt" examples))
-  (require (submod "board.rkt" examples))
-  (require (submod "state.rkt" examples))
+  (require (submod "../Common/tile.rkt" examples))
+  (require (submod "../Common/board.rkt" examples))
+  (require (submod "../Common/state.rkt" examples))
   
   (define player-state-1 (player-state board1 tile-extra player2))
   (define player-state-2 (player-state board1 tile-extra player7))
@@ -233,8 +233,8 @@
 (module+ test
   (require rackunit)
   (require (submod ".." examples))
-  (require (submod "board.rkt" examples))
-  (require (submod "state.rkt" examples)))
+  (require (submod "../Common/board.rkt" examples))
+  (require (submod "../Common/state.rkt" examples)))
 
 ; test riemann-strategy
 (module+ test
