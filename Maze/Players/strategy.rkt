@@ -15,6 +15,8 @@
   [action?        contract?]
   [strategy?      contract?]
   [player-state?  contract?]
+  ; Create a new player state
+  [player-state-new (-> board? tile? player? player-state?)]
   ; Riemann strategy
   [riemann-strategy   strategy?]
   ; Euclidean strategy
@@ -80,6 +82,12 @@
 ;;    (struct Board Tile Player)
 ;; interpretation: A player knows the board, the extra tile, and all of its information
 (struct player-state [board extra-tile player])
+
+
+;; Board Tile Player -> PlayerState
+;; Create a new player state
+(define (player-state-new board extra-tile player)
+  (player-state board extra-tile player))
   
 
 ;; A Strategy is a function:
@@ -93,33 +101,29 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; PlayerState -> Action
-;; Determine the player's move using the riemann strategy
+;; Determine the player's move using the Riemann strategy
 (define (riemann-strategy plyr-state)
-  (define candidates (get-riemann-candidates
-                      (player-state-board plyr-state)
-                      (player-state-player plyr-state)))
-  (get-first-valid-move plyr-state candidates))
+  (get-first-valid-candidate-move plyr-state (get-riemann-candidates
+                                    (player-state-board plyr-state)
+                                    (player-state-player plyr-state))))
 
 ;; Board Player -> [Listof GridPosn]
-;; Order the possible candidates for riemann search
+;; Order the possible candidates for Riemann search
 (define (get-riemann-candidates board plyr)
   (define goal-pos (get-goal-gp plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
 
-
 ;; PlayerState -> Action
-;; Determine a player's move using the euclidean strategy
+;; Determine a player's move using the Euclidean strategy
 (define (euclidean-strategy plyr-state)
-  (define candidates (get-euclidean-candidates
-                      (player-state-board plyr-state)
-                      (player-state-player plyr-state)))
-  (get-first-valid-move plyr-state candidates))
+  (get-first-valid-candidate-move plyr-state (get-euclidean-candidates
+                                    (player-state-board plyr-state)
+                                    (player-state-player plyr-state))))
 
-
-;; PlayerState -> Action
-;; Order the possible candidates for euclidean search
+;; PlayerState -> [Listof GridPosn]
+;; Order the possible candidates for Euclidean search
 (define (get-euclidean-candidates board plyr)
   (define goal-pos (get-goal-gp plyr))
   (define all-candidates (get-all-positions board))
@@ -127,12 +131,11 @@
 
 
 ;; GridPosn GridPosn GrisPosn -> Boolean
-;; Compares two gridposns and returns whether the first is less than the second
+;; Returns true of `pos1` is not farther from `goal` than `pos2`
 (define (compare-euclidean-dist goal pos1 pos2)
   (if (= (euclidian-dist goal pos1) (euclidian-dist goal pos2))
       (compare-row-col pos1 pos2)
       (< (euclidian-dist goal pos1) (euclidian-dist goal pos2))))
-
 
 ;; GridPosn GridPosn -> Natural
 ;; Computes the euclidean distance between two gridposns
@@ -140,23 +143,15 @@
   (sqrt (+ (expt (- (car pos2) (car pos1)) 2) (expt (- (cdr pos2) (cdr pos1)) 2))))
 
 ;; Player -> GridPosn
-;; Determines the current goal for the player
+;; Determines the current goal for the player. If a player has already visited their treasure,
+;; their goal is to return home.
 (define (get-goal-gp plyr)
   (if (player-visited-goal? plyr)
       (player-get-home-pos plyr)
       (player-get-goal-pos plyr)))
-    
-    
-;; PlayerState [Listof Move] -> Action
-;; Finds the first Move which is valid in a PlayerState
-(define (get-first-valid-move plyr-state candidates)
-  (findf
-   (λ (mv) (valid-move? plyr-state mv))
-   (all-possible-moves (player-state-board plyr-state) candidates)))   
-
 
 ;; PlayerState Move -> Boolean
-;; Returns True if the 
+;; Returns True if the move is valid in the state
 (define (valid-move? plyr-state mv)
   (define old-board  (player-state-board plyr-state))
   (define old-player (player-state-player plyr-state))
@@ -170,8 +165,7 @@
      (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
   
   (define new-player
-    (first (shift-players (list
-                           (player-state-player plyr-state))
+    (first (shift-players (list (player-state-player plyr-state))
                           old-board
                           (move-shift-direction mv)
                           (move-idx mv))))
@@ -182,17 +176,23 @@
         (board-all-reachable-from new-board (player-get-curr-pos new-player)))))
 
 ;; Board -> [Listof GridPosn]
-;; Get all possible positions in a gamestate
+;; Get all possible positions in a board
 (define (get-all-positions board)
   (apply append (for/list ([x (in-range 0 (num-cols board))])
       (for/list ([y (in-range 0 (num-rows board))])
         (cons x y)))))
 
+;; PlayerState [Listof Move] -> Action
+;; Finds the first Move which is valid in a PlayerState
+(define (get-first-valid-candidate-move plyr-state candidates)
+  (findf
+   (curry valid-move? plyr-state)
+   (get-all-candidate-moves (player-state-board plyr-state) candidates)))
 
 ;; Board -> [Listof Move]
-;; Get all possible board shift and inserts
-(define (all-possible-moves board candidates)
-  (map (λ (x) (apply move x))
+;; Get all possible moves that can be made on a board
+(define (get-all-candidate-moves board candidates)
+  (map (curry apply move)
        (cartesian-product candidates shift-directions (get-valid-shift-indices board) orientations)))
 
 
@@ -330,9 +330,9 @@
 
 ; test all-possible-moves
 (module+ test
-  (check-equal? (set-count (list->set (all-possible-moves board1 cand-list-1))) 3136)
-  (check-equal? (set-count (list->set (all-possible-moves board2 cand-list-1))) 1568)
-  (check-equal? (set-count (list->set (all-possible-moves board1 cand-list-2))) 3136))
+  (check-equal? (set-count (list->set (get-all-candidate-moves board1 cand-list-1))) 3136)
+  (check-equal? (set-count (list->set (get-all-candidate-moves board2 cand-list-1))) 1568)
+  (check-equal? (set-count (list->set (get-all-candidate-moves board1 cand-list-2))) 3136))
 
 ;; test get-all-positions
 (module+ test
@@ -367,6 +367,6 @@
 
 ; test get-first-valid-move
 (module+ test
-  (check-equal? (get-first-valid-move player-state-1 cand-list-1) (move (cons 3 1) 'down 2 0))
-  (check-equal? (get-first-valid-move player-state-1 cand-list-2) (move (cons 3 3) 'right 2 0))
-  (check-equal? (get-first-valid-move player-state-2 cand-list-3) (move (cons 3 3) 'up 0 0)))
+  (check-equal? (get-first-valid-candidate-move player-state-1 cand-list-1) (move (cons 3 1) 'down 2 0))
+  (check-equal? (get-first-valid-candidate-move player-state-1 cand-list-2) (move (cons 3 3) 'right 2 0))
+  (check-equal? (get-first-valid-candidate-move player-state-2 cand-list-3) (move (cons 3 3) 'up 0 0)))
