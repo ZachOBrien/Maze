@@ -288,14 +288,14 @@
                 tile-extra)
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'down 6 90)) 0) 6)
-                (tile-make 'straight 270 empty))
+                (tile-new 'straight 270 (set)))
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'left 0 180)) 0) 6)
-                (tile-make 'straight 0 empty))
+                (tile-new 'straight 0 (set)))
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'right 6 270)) 6)
                  0)
-                (tile-make 'straight 90 empty)))
+                (tile-new 'straight 90 (set))))
 
 ;; test players on a shifted row/col are moved accordingly
 (module+ test

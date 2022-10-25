@@ -64,18 +64,18 @@
 ;; Converts a connector in string form and a list of gems in string form to a tile
 (define (conn-and-gem->tile conn gems)
   (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
-  (tile-make connector orientation (map string->symbol gems)))
+  (tile-new connector orientation (list->set (map string->symbol gems))))
 
 (module+ test
   (check-equal?
    (conn-and-gem->tile "│" (list "aplite" "beryl"))
-   (tile-make 'straight 0 (list 'aplite 'beryl)))
+   (tile-new 'straight 0 (set 'aplite 'beryl)))
   (check-equal?
    (conn-and-gem->tile "┐" (list "amethyst" "beryl"))
-   (tile-make 'elbow 180 (list 'amethyst 'beryl)))
+   (tile-new 'elbow 180 (set 'amethyst 'beryl)))
   (check-equal?
    (conn-and-gem->tile "┴" (list "aplite" "beryl"))
-   (tile-make 'tri 180 (list 'aplite 'beryl))))
+   (tile-new 'tri 180 (set 'aplite 'beryl))))
 
 
 ;; (Any -> Any) [Listof [Listof Any]] [Listof [Listof Any]] -> [Listof [Listof Any]]
@@ -126,30 +126,30 @@
 ;; Create the spare tile from a HashTable
 (define (hash->spare-tile ht)
   (define conn (hash-ref ht 'tilekey))
-  (define treasures (list (string->symbol (hash-ref ht '1-image))
+  (define treasures (set (string->symbol (hash-ref ht '1-image))
                           (string->symbol (hash-ref ht '2-image))))
   (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
-  (tile-make connector orientation treasures))
+  (tile-new connector orientation treasures))
 
 (module+ test
   (check-equal? (hash->spare-tile (hash 'tilekey "┌"
                                         '1-image "goldstone"
                                         '2-image "heliotrope"))
-                (tile-make 'elbow 90 (list 'goldstone 'heliotrope)))
+                (tile-new 'elbow 90 (set 'goldstone 'heliotrope)))
   (check-equal? (hash->spare-tile (hash 'tilekey "┼"
                                         '1-image "diamond"
                                         '2-image "unakite"))
-                (tile-make 'cross 0 (list 'diamond 'unakite)))
+                (tile-new 'cross 0 (set 'diamond 'unakite)))
   
   (check-equal? (hash->spare-tile (hash 'tilekey "─"
                                         '1-image "raw-beryl"
                                         '2-image "pink-opal"))
-                (tile-make 'straight 90 (list 'raw-beryl 'pink-opal)))
+                (tile-new 'straight 90 (set 'raw-beryl 'pink-opal)))
   
   (check-equal? (hash->spare-tile (hash 'tilekey "┴"
                                         '1-image "hematite"
                                         '2-image "jasper"))
-                (tile-make 'tri 180 (list 'hematite 'jasper))))
+                (tile-new 'tri 180 (set 'hematite 'jasper))))
 
 
 ;; Hashtable -> GridPosn
@@ -218,63 +218,63 @@
   (define example-board
     (list
      (list
-      (tile-make 'straight 0 (list 'stilbite 'zircon))
-      (tile-make 'straight 90 (list 'stilbite 'zircon))
-      (tile-make 'elbow 180 (list 'stilbite 'zircon))
-      (tile-make 'elbow 0 (list 'stilbite 'zircon))
-      (tile-make 'elbow 90 (list 'stilbite 'zircon))
-      (tile-make 'elbow 270 (list 'stilbite 'zircon))
-      (tile-make 'tri 0 (list 'stilbite 'zircon)))
+      (tile-new 'straight 0 (set 'stilbite 'zircon))
+      (tile-new 'straight 90 (set 'stilbite 'zircon))
+      (tile-new 'elbow 180 (set 'stilbite 'zircon))
+      (tile-new 'elbow 0 (set 'stilbite 'zircon))
+      (tile-new 'elbow 90 (set 'stilbite 'zircon))
+      (tile-new 'elbow 270 (set 'stilbite 'zircon))
+      (tile-new 'tri 0 (set 'stilbite 'zircon)))
      (list
-      (tile-make 'straight 0 (list 'prasiolite 'carnelian))
-      (tile-make 'straight 90 (list 'prasiolite 'carnelian))
-      (tile-make 'elbow 180 (list 'prasiolite 'carnelian))
-      (tile-make 'elbow 0 (list 'prasiolite 'carnelian))
-      (tile-make 'elbow 90 (list 'prasiolite 'carnelian))
-      (tile-make 'elbow 270 (list 'prasiolite 'carnelian))
-      (tile-make 'tri 0 (list 'prasiolite 'carnelian)))
+      (tile-new 'straight 0 (set 'prasiolite 'carnelian))
+      (tile-new 'straight 90 (set 'prasiolite 'carnelian))
+      (tile-new 'elbow 180 (set 'prasiolite 'carnelian))
+      (tile-new 'elbow 0 (set 'prasiolite 'carnelian))
+      (tile-new 'elbow 90 (set 'prasiolite 'carnelian))
+      (tile-new 'elbow 270 (set 'prasiolite 'carnelian))
+      (tile-new 'tri 0 (set 'prasiolite 'carnelian)))
      (list
-      (tile-make 'straight 0 (list 'fancy-spinel-marquise 'jasper))
-      (tile-make 'straight 90 (list 'fancy-spinel-marquise 'jasper))
-      (tile-make 'elbow 180 (list 'fancy-spinel-marquise 'jasper))
-      (tile-make 'elbow 0 (list 'fancy-spinel-marquise 'jasper))
-      (tile-make 'elbow 90 (list 'fancy-spinel-marquise 'jasper))
-      (tile-make 'elbow 270 (list 'fancy-spinel-marquise 'jasper))
-      (tile-make 'tri 0 (list 'fancy-spinel-marquise 'jasper)))
+      (tile-new 'straight 0 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'straight 90 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 180 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 0 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 90 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 270 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'tri 0 (set 'fancy-spinel-marquise 'jasper)))
      (list
-      (tile-make 'straight 0 (list 'peridot 'purple-cabochon))
-      (tile-make 'straight 90 (list 'peridot 'purple-cabochon))
-      (tile-make 'elbow 180 (list 'peridot 'purple-cabochon))
-      (tile-make 'elbow 0 (list 'peridot 'purple-cabochon))
-      (tile-make 'elbow 90 (list 'peridot 'purple-cabochon))
-      (tile-make 'elbow 270 (list 'peridot 'purple-cabochon))
-      (tile-make 'tri 0 (list 'peridot 'purple-cabochon)))
+      (tile-new 'straight 0 (set 'peridot 'purple-cabochon))
+      (tile-new 'straight 90 (set 'peridot 'purple-cabochon))
+      (tile-new 'elbow 180 (set 'peridot 'purple-cabochon))
+      (tile-new 'elbow 0 (set 'peridot 'purple-cabochon))
+      (tile-new 'elbow 90 (set 'peridot 'purple-cabochon))
+      (tile-new 'elbow 270 (set 'peridot 'purple-cabochon))
+      (tile-new 'tri 0 (set 'peridot 'purple-cabochon)))
      (list
-      (tile-make 'straight 0 (list 'diamond 'lapis-lazuli))
-      (tile-make 'straight 90 (list 'diamond 'lapis-lazuli))
-      (tile-make 'elbow 180 (list 'diamond 'lapis-lazuli))
-      (tile-make 'elbow 0 (list 'diamond 'lapis-lazuli))
-      (tile-make 'elbow 90 (list 'diamond 'lapis-lazuli))
-      (tile-make 'elbow 270 (list 'diamond 'lapis-lazuli))
-      (tile-make 'tri 0 (list 'diamond 'lapis-lazuli)))
+      (tile-new 'straight 0 (set 'diamond 'lapis-lazuli))
+      (tile-new 'straight 90 (set 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 180 (set 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 0 (set 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 90 (set 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 270 (set 'diamond 'lapis-lazuli))
+      (tile-new 'tri 0 (set 'diamond 'lapis-lazuli)))
      (list
-      (tile-make 'straight 0 (list 'cordierite 'mexican-opal))
-      (tile-make 'straight 90 (list 'cordierite 'mexican-opal))
-      (tile-make 'elbow 180 (list 'cordierite 'mexican-opal))
-      (tile-make 'elbow 0 (list 'cordierite 'mexican-opal))
-      (tile-make 'elbow 90 (list 'cordierite 'mexican-opal))
-      (tile-make 'elbow 270 (list 'cordierite 'mexican-opal))
-      (tile-make 'tri 0 (list 'cordierite 'mexican-opal)))
+      (tile-new 'straight 0 (set 'cordierite 'mexican-opal))
+      (tile-new 'straight 90 (set 'cordierite 'mexican-opal))
+      (tile-new 'elbow 180 (set 'cordierite 'mexican-opal))
+      (tile-new 'elbow 0 (set 'cordierite 'mexican-opal))
+      (tile-new 'elbow 90 (set 'cordierite 'mexican-opal))
+      (tile-new 'elbow 270 (set 'cordierite 'mexican-opal))
+      (tile-new 'tri 0 (set 'cordierite 'mexican-opal)))
      (list
-      (tile-make 'straight 0 (list 'pink-opal 'red-diamond))
-      (tile-make 'straight 90 (list 'pink-opal 'red-diamond))
-      (tile-make 'elbow 180 (list 'pink-opal 'red-diamond))
-      (tile-make 'elbow 0 (list 'pink-opal 'red-diamond))
-      (tile-make 'elbow 90 (list 'pink-opal 'red-diamond))
-      (tile-make 'elbow 270 (list 'pink-opal 'red-diamond))
-      (tile-make 'tri 0 (list 'pink-opal 'red-diamond)))))
+      (tile-new 'straight 0 (set 'pink-opal 'red-diamond))
+      (tile-new 'straight 90 (set 'pink-opal 'red-diamond))
+      (tile-new 'elbow 180 (set 'pink-opal 'red-diamond))
+      (tile-new 'elbow 0 (set 'pink-opal 'red-diamond))
+      (tile-new 'elbow 90 (set 'pink-opal 'red-diamond))
+      (tile-new 'elbow 270 (set 'pink-opal 'red-diamond))
+      (tile-new 'tri 0 (set 'pink-opal 'red-diamond)))))
 
-  (define spare-tile (tile-make 'elbow 270 (list 'lapis-lazuli 'pink-opal)))
+  (define spare-tile (tile-new 'elbow 270 (set 'lapis-lazuli 'pink-opal)))
 
   (define example-treasures
     (list

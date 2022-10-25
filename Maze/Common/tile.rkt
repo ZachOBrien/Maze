@@ -16,11 +16,11 @@
   [orientation? contract?]
   [orientations (listof orientation?)]
   ; Constructs a new tile
-  [tile-make (-> connector? orientation? (listof gem?) tile?)]
+  [tile-new (-> connector? orientation? (set/c gem?) tile?)]
   ; Rotates a tile
   [tile-rotate (-> tile? orientation? tile?)]
   ; Check if a tile holds exactly some gems
-  [tile-has-gems? (-> tile? (listof gem?) boolean?)]
+  [tile-has-gems? (-> tile? (set/c gem?) boolean?)]
   ; Returns true if you can travel from one tile to its adjacent neighbor vertically
   [tile-connected-vertical?   (-> tile? tile? boolean?)]
   ; Returns true if you can travel from one tile to its adjacent neighbor horizontally
@@ -40,62 +40,15 @@
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
-;; Tile Tile (-> Any Any Boolean) -> Boolean
-;; Check if two tiles are equal
-(define (tile=? tile1 tile2 recursive-equal?)
-  (and (recursive-equal? (tile-connector tile1)
-                         (tile-connector tile2))
-       (recursive-equal? (tile-orientation tile1)
-                         (tile-orientation tile2))
-       (recursive-equal? (list->set (tile-gems tile1))
-                         (list->set (tile-gems tile2)))))
-
-;; Tile (-> Any Integer) -> Integer
-;; Computes a hash code for a given Tile
-(define (tile-hash-code tile rec)
-  (+ (* 1000 (rec (tile-connector tile)))
-     (* 100 (rec (tile-orientation tile)))
-     (* 1 (rec (tile-gems tile)))))
-
-;; Tile (-> Any Integer) -> Integer
-;; Computes a secondary hash for a given Tile
-(define (tile-secondary-hash-code tile rec)
-  (+ (* 1000 (rec (tile-orientation tile)))
-     (* 100 (rec (tile-gems tile)))
-     (* 1 (rec (tile-connector tile)))))
-
-;; Tile Port (U #t #f 0 1) -> String
-;; Allows for Tiles to be printed, written, or displayed
-(define (tile-print tile port mode)
-  (define recur (case mode
-                 [(#t) write]
-                 [(#f) display]
-                 [else (lambda (p port) (print p port mode))]))
-  (define tile-string
-    (string-append
-     "["
-     (symbol->string (tile-connector tile))
-     ", "
-     (number->string (tile-orientation tile))
-     ", "
-     (apply string-append (map symbol->string (tile-gems tile)))
-     "]"))
-  (recur tile-string port))
-
 ;; A Tile is a structure:
-;;    (tile Connector Orientation [Listof Gem])
+;;    (tile Connector Orientation [Setof Gem])
 ;; interpretation: Represents a tile in the game of labyrinth
-(struct tile [connector orientation gems]
-  #:methods gen:equal+hash
-  [(define equal-proc tile=?)
-   (define hash-proc  tile-hash-code)
-   (define hash2-proc tile-secondary-hash-code)]
-  #:methods gen:custom-write
-  [(define write-proc tile-print)])
+(struct tile [connector orientation gems] #:transparent)
 
-(define (tile-make connector orientation gems)
+;; Connector Orientation [Setof Gem] -> Tile
+;; Create a new tile
+(define (tile-new connector orientation gems)
   (tile connector orientation gems))
-
 
 ;; A Connector is one of:
 ;;   - 'straight
@@ -137,14 +90,14 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
-;; Tile [Listof Gem] -> Boolean
+;; Tile [Setof Gem] -> Boolean
 ;; Check if a tile holds specific gems
 (define (tile-has-gems? tile gems)
-  (equal? (list->set (tile-gems tile)) (list->set gems)))
+  (equal? (tile-gems tile) gems))
 
 ;; Tile Orientation -> Tile
 (define (tile-rotate t rotation)
-  (tile-make (tile-connector t)
+  (tile-new (tile-connector t)
              (modulo (+ (tile-orientation t) rotation) 360)
              (tile-gems t)))
 
@@ -205,66 +158,66 @@
 
 (module+ examples
   (provide (all-defined-out))
-  (define tile00 (tile 'straight 90 empty))
-  (define tile01 (tile 'elbow 180 empty))
-  (define tile02 (tile 'elbow 0 empty))
-  (define tile03 (tile 'elbow 90 empty))
-  (define tile04 (tile 'elbow 270 empty))
-  (define tile05 (tile 'tri 0 empty))
-  (define tile06 (tile 'tri 270 empty))
+  (define tile00 (tile 'straight 90 (set)))
+  (define tile01 (tile 'elbow 180 (set)))
+  (define tile02 (tile 'elbow 0 (set)))
+  (define tile03 (tile 'elbow 90 (set)))
+  (define tile04 (tile 'elbow 270 (set)))
+  (define tile05 (tile 'tri 0 (set)))
+  (define tile06 (tile 'tri 270 (set)))
 
-  (define tile10 (tile 'tri 180 empty))
-  (define tile11 (tile 'tri 90 (list 'blue-ceylon-sapphire 'bulls-eye)))
-  (define tile12 (tile 'cross 0 empty))
-  (define tile13 (tile 'straight 0 empty))
-  (define tile14 (tile 'straight 270 empty))
-  (define tile15 (tile 'elbow 180 empty))
-  (define tile16 (tile 'elbow 0 empty))
+  (define tile10 (tile 'tri 180 (set)))
+  (define tile11 (tile 'tri 90 (set 'blue-ceylon-sapphire 'bulls-eye)))
+  (define tile12 (tile 'cross 0 (set)))
+  (define tile13 (tile 'straight 0 (set)))
+  (define tile14 (tile 'straight 270 (set)))
+  (define tile15 (tile 'elbow 180 (set)))
+  (define tile16 (tile 'elbow 0 (set)))
 
-  (define tile20 (tile 'elbow 90 empty))
-  (define tile21 (tile 'elbow 270 empty))
-  (define tile22 (tile 'tri 0 empty))
-  (define tile23 (tile 'tri 270 empty))
-  (define tile24 (tile 'tri 180 empty))
-  (define tile25 (tile 'tri 90 empty))
-  (define tile26 (tile 'cross 270 empty))
+  (define tile20 (tile 'elbow 90 (set)))
+  (define tile21 (tile 'elbow 270 (set)))
+  (define tile22 (tile 'tri 0 (set)))
+  (define tile23 (tile 'tri 270 (set)))
+  (define tile24 (tile 'tri 180 (set)))
+  (define tile25 (tile 'tri 90 (set)))
+  (define tile26 (tile 'cross 270 (set)))
 
-  (define tile30 (tile 'straight 180 empty))
-  (define tile31 (tile 'straight 270 empty))
-  (define tile32 (tile 'elbow 180 empty))
-  (define tile33 (tile 'elbow 0 empty))
-  (define tile34 (tile 'elbow 90 empty))
-  (define tile35 (tile 'elbow 270 empty))
-  (define tile36 (tile 'tri 0 empty))
+  (define tile30 (tile 'straight 180 (set)))
+  (define tile31 (tile 'straight 270 (set)))
+  (define tile32 (tile 'elbow 180 (set)))
+  (define tile33 (tile 'elbow 0 (set)))
+  (define tile34 (tile 'elbow 90 (set)))
+  (define tile35 (tile 'elbow 270 (set)))
+  (define tile36 (tile 'tri 0 (set)))
 
-  (define tile40 (tile 'tri 270 empty))
-  (define tile41 (tile 'tri 180 empty))
-  (define tile42 (tile 'tri 90 empty))
-  (define tile43 (tile 'cross 0 empty))
-  (define tile44 (tile 'straight 0 empty))
-  (define tile45 (tile 'straight 90 empty))
-  (define tile46 (tile 'elbow 180 empty))
+  (define tile40 (tile 'tri 270 (set)))
+  (define tile41 (tile 'tri 180 (set)))
+  (define tile42 (tile 'tri 90 (set)))
+  (define tile43 (tile 'cross 0 (set)))
+  (define tile44 (tile 'straight 0 (set)))
+  (define tile45 (tile 'straight 90 (set)))
+  (define tile46 (tile 'elbow 180 (set)))
   
-  (define tile50 (tile 'elbow 0 empty))
-  (define tile51 (tile 'elbow 90 empty))
-  (define tile52 (tile 'elbow 270 empty))
-  (define tile53 (tile 'tri 0 empty))
-  (define tile54 (tile 'tri 270 empty))
-  (define tile55 (tile 'tri 180 empty))
-  (define tile56 (tile 'tri 90 empty))
+  (define tile50 (tile 'elbow 0 (set)))
+  (define tile51 (tile 'elbow 90 (set)))
+  (define tile52 (tile 'elbow 270 (set)))
+  (define tile53 (tile 'tri 0 (set)))
+  (define tile54 (tile 'tri 270 (set)))
+  (define tile55 (tile 'tri 180 (set)))
+  (define tile56 (tile 'tri 90 (set)))
   
-  (define tile60 (tile 'cross    0 empty))
-  (define tile61 (tile 'straight 0 empty))
-  (define tile62 (tile 'straight 90 empty))
-  (define tile63 (tile 'elbow 180 empty))
-  (define tile64 (tile 'elbow 0   empty))
-  (define tile65 (tile 'elbow 90 empty))
-  (define tile66 (tile 'elbow 270 empty))
+  (define tile60 (tile 'cross    0 (set)))
+  (define tile61 (tile 'straight 0 (set)))
+  (define tile62 (tile 'straight 90 (set)))
+  (define tile63 (tile 'elbow 180 (set)))
+  (define tile64 (tile 'elbow 0   (set)))
+  (define tile65 (tile 'elbow 90 (set)))
+  (define tile66 (tile 'elbow 270 (set)))
 
-  (define tile-extra (tile 'straight 180 empty))
+  (define tile-extra (tile 'straight 180 (set)))
 
-  (define tile-horiz (tile 'straight 90 (list 'bulls-eye 'blue-ceylon-sapphire)))
-  (define tile-vert (tile 'straight 0 (list 'alexandrite 'blue-ceylon-sapphire))))
+  (define tile-horiz (tile 'straight 90 (set 'bulls-eye 'blue-ceylon-sapphire)))
+  (define tile-vert (tile 'straight 0 (set 'alexandrite 'blue-ceylon-sapphire))))
 
 
 (module+ test
@@ -273,17 +226,17 @@
 
 ;; test tile-has-gems?
 (module+ test
-  (check-true (tile-has-gems? tile11 (list 'blue-ceylon-sapphire 'bulls-eye)))
-  (check-true (tile-has-gems? tile11 (list 'bulls-eye 'blue-ceylon-sapphire)))
-  (check-false (tile-has-gems? tile11 (list 'alexandrite 'blue-ceylon-sapphire))))
+  (check-true (tile-has-gems? tile11 (set 'blue-ceylon-sapphire 'bulls-eye)))
+  (check-true (tile-has-gems? tile11 (set 'bulls-eye 'blue-ceylon-sapphire)))
+  (check-false (tile-has-gems? tile11 (set 'alexandrite 'blue-ceylon-sapphire))))
 
 ;; test tile-rotate
 (module+ test
-  (check-equal? (tile-rotate tile00 90) (tile 'straight 180 empty))
-  (check-equal? (tile-rotate tile00 180) (tile 'straight 270 empty))
-  (check-equal? (tile-rotate tile00 270) (tile 'straight 0 empty))
-  (check-equal? (tile-rotate tile00 0) (tile 'straight 90 empty))
-  (check-equal? (tile-rotate tile66 270) (tile 'elbow 180 empty)))
+  (check-equal? (tile-rotate tile00 90) (tile 'straight 180 (set)))
+  (check-equal? (tile-rotate tile00 180) (tile 'straight 270 (set)))
+  (check-equal? (tile-rotate tile00 270) (tile 'straight 0 (set)))
+  (check-equal? (tile-rotate tile00 0) (tile 'straight 90 (set)))
+  (check-equal? (tile-rotate tile66 270) (tile 'elbow 180 (set))))
 
 ;; test tile-connected-horizontal
 (module+ test
@@ -388,15 +341,15 @@
 
 ;; test tile=?
 (module+ test
-  (check-equal? (tile-make 'straight 0 empty) (tile-make 'straight 0 empty))
-  (check-not-equal? (tile-make 'straight 0 empty) (tile-make 'straight 90 empty))
-  (check-not-equal? (tile-make 'elbow 0 empty) (tile-make 'straight 0 empty))
+  (check-equal? (tile-new 'straight 0 (set)) (tile-new 'straight 0 (set)))
+  (check-not-equal? (tile-new 'straight 0 (set)) (tile-new 'straight 90 (set)))
+  (check-not-equal? (tile-new 'elbow 0 (set)) (tile-new 'straight 0 (set)))
   (check-not-equal? 
-   (tile-make 'straight 0 (list 'aplite 'beryl))
-   (tile-make 'straight 0 (list 'aplite 'aplite)))
+   (tile-new 'straight 0 (set 'aplite 'beryl))
+   (tile-new 'straight 0 (set 'aplite 'aplite)))
   (check-equal?
-   (tile-make 'straight 0 (list 'aplite 'beryl))
-   (tile-make 'straight 0 (list 'aplite 'beryl)))
-    (check-equal?
-   (tile-make 'straight 0 (list 'beryl 'aplite))
-   (tile-make 'straight 0 (list 'aplite 'beryl))))
+   (tile-new 'straight 0 (set 'aplite 'beryl))
+   (tile-new 'straight 0 (set 'aplite 'beryl)))
+  (check-equal?
+   (tile-new 'straight 0 (set 'beryl 'aplite))
+   (tile-new 'straight 0 (set 'aplite 'beryl))))
