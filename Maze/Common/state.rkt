@@ -12,16 +12,14 @@
 (provide
  (contract-out
   [gamestate?  contract?]
-  
-  [last-action? contract?]
   ; Create a new Gamestate
   [gamestate-new
-   (-> board? tile? (non-empty-listof player?) (or/c #f last-action?) gamestate?)]
+   (-> board? tile? (non-empty-listof player?) (or/c #f shift?) gamestate?)]
   ; Shifts a row or column and inserts a tile in the empty space
   [gamestate-shift-and-insert
-   (-> gamestate? shift-direction? natural-number/c orientation? gamestate?)]
+   (-> gamestate? shift? orientation? gamestate?)]
   ; Move players that were on a row or column that was shifted
-  [shift-players (-> (listof player?) board? shift-direction? natural-number/c (listof player?))]
+  [shift-players (-> (listof player?) board? shift? (listof player?))]
   ; Move the currently active player to a new position
   [gamestate-move-player (-> gamestate? grid-posn? gamestate?)]
   ; Check if a player can reach a position from their current position
@@ -56,69 +54,41 @@
 
 (define DEFAULT-SHIFT-STEP 1)
 
-
-;; A LastAction is a pair:
-;;    (Natural . ShiftDirection)
-;; interpretation: The index and direction of the last shift made.
-(define last-action? (cons/c natural-number/c shift-direction?))
-
-(define (gamestate=? gs1 gs2 rec)
-  (and (rec (gamestate-board gs1)      (gamestate-board gs2))
-       (rec (gamestate-extra-tile gs1) (gamestate-extra-tile gs2))
-       (rec (gamestate-players gs1)    (gamestate-players gs2))
-       (rec (gamestate-last-move gs1)  (gamestate-last-move gs2))))
-
-(define (gamestate-hash-code gs rec)
-  (+ (* 1000 (rec (gamestate-last-move gs)))
-     (* 100  (rec (gamestate-players gs)))
-     (* 10   (rec (gamestate-extra-tile gs)))
-     (* 1    (rec (gamestate-board gs)))))
-
-(define (gamestate-secondary-hash-code gs rec)
-  (+ (* 1000 (rec (gamestate-board gs)))
-     (* 100  (rec (gamestate-extra-tile gs)))
-     (* 10   (rec (gamestate-players gs)))
-     (* 1    (rec (gamestate-last-move gs)))))
-
 ;; A Gamestate is a structure:
 ;;    (struct Board Tile [NonEmptyListof Player] (U LastAction #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
 ;;                 and the last move made
-(struct gamestate [board extra-tile players last-move]
-  #:methods gen:equal+hash
-  [(define equal-proc gamestate=?)
-   (define hash-proc  gamestate-hash-code)
-   (define hash2-proc gamestate-secondary-hash-code)])
+(struct gamestate [board extra-tile players prev-shift] #:transparent)
 
 ;; Board Tile [NonEmptyListof Player] -> Gamestate
 ;; Create a new gamestate
-(define (gamestate-new board extra-tile players last-move)
-  (gamestate board extra-tile players last-move))
+(define (gamestate-new board extra-tile players prev-shift)
+  (gamestate board extra-tile players prev-shift))
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
 
-;; Gamestate ShiftDirection Natural Orientation -> Gamestate
+;; Gamestate Shift Orientation -> Gamestate
 ;; Shifts a row or column and inserts a tile in the empty space
-(define (gamestate-shift-and-insert state dir idx orientation)
+(define (gamestate-shift-and-insert state shft orientation)
   (define-values
     (new-board new-extra-tile)
     (board-shift-and-insert
-     (gamestate-board state) dir idx (tile-rotate (gamestate-extra-tile state) orientation)))
+     (gamestate-board state) shft (tile-rotate (gamestate-extra-tile state) orientation)))
   (define players-after-shift
-    (shift-players (gamestate-players state) (gamestate-board state) dir idx))
-  (gamestate new-board new-extra-tile players-after-shift (cons idx dir)))
+    (shift-players (gamestate-players state) (gamestate-board state) shft))
+  (gamestate new-board new-extra-tile players-after-shift shft))
 
 
-;; [Listof Player] Board ShiftDirection Natural -> [Listof Player]
+;; [Listof Player] Board Shift -> [Listof Player]
 ;; Move players that were on a row or column that was shifted
-(define (shift-players players board dir idx)
-  (define shift-step (if (shifts-forward? dir) DEFAULT-SHIFT-STEP (* -1 DEFAULT-SHIFT-STEP)))
+(define (shift-players players board shft)
+  (define shift-step (if (shifts-forward? (shift-direction shft)) DEFAULT-SHIFT-STEP (* -1 DEFAULT-SHIFT-STEP)))
   (for/list ([plyr players])
-    (if (player-shifted? dir idx plyr)
-        (shift-player plyr board dir shift-step)
+    (if (player-shifted? shft plyr)
+        (shift-player plyr board (shift-direction shft) shift-step)
         plyr)))
 
 
@@ -133,7 +103,6 @@
                       (cons (get-shifted-position player-row-pos shift-step (num-rows board))
                             player-col-pos)))
   (player-move-to plyr new-pos))
- ; (struct-copy player plyr [curr-pos new-pos]))
 
 
 ;; Natural Natural Natural -> Natural
@@ -142,11 +111,11 @@
   (modulo (+ start-idx shift) num-tiles))
 
 
-;; Gamestate ShiftDirection Natural Player -> Boolean
+;; Gamestate Shift Player -> Boolean
 ;; Create a function to check if a player is on a shifted row/col
-(define (player-shifted? dir idx plyr)
-  (cond [(shifts-row? dir) (= (car (player-curr-pos plyr)) idx)]
-        [(shifts-col? dir) (= (cdr (player-curr-pos plyr)) idx)]))
+(define (player-shifted? shft plyr)
+  (cond [(shifts-row? (shift-direction shft)) (= (car (player-curr-pos plyr)) (shift-index shft))]
+        [(shifts-col? (shift-direction shft)) (= (cdr (player-curr-pos plyr)) (shift-index shft))]))
 
 
 ;; Gamestate GridPosn -> Gamestate
@@ -268,32 +237,32 @@
 ;; test execute-move shifts rows and cols
 (module+ test
   ; test shifting rows
-  (check-equal? (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'left 0 0)) 0)
+  (check-equal? (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'left 0) 0)) 0)
                 (list tile01 tile02 tile03 tile04 tile05 tile06 tile-extra))
-  (check-equal? (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'right 6 0)) 6)
+  (check-equal? (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'right 6) 0)) 6)
                 (list tile-extra tile60 tile61 tile62 tile63 tile64 tile65))
   ; test shifting cols
   (check-equal? (map (λ (row) (list-ref row 0))
-                     (gamestate-board (gamestate-shift-and-insert gamestate0 'up 0 0)))
+                     (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'up 0) 0)))
                 (list tile10 tile20 tile30 tile40 tile50 tile60 tile-extra))
   (check-equal? (map (λ (row) (list-ref row 6))
-                     (gamestate-board (gamestate-shift-and-insert gamestate0 'down 6 0)))
+                     (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'down 6) 0)))
                 (list tile-extra tile06 tile16 tile26 tile36 tile46 tile56)))
 
 ;; test execute-move rotates and inserts tile
 (module+ test
   ; test rotating+inserting tile
   (check-equal? (list-ref
-                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'up 0 0)) 6) 0)
+                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'up 0) 0)) 6) 0)
                 tile-extra)
   (check-equal? (list-ref
-                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'down 6 90)) 0) 6)
+                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'down 6) 90)) 0) 6)
                 (tile-new 'straight 270 (set)))
   (check-equal? (list-ref
-                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'left 0 180)) 0) 6)
+                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'left 0) 180)) 0) 6)
                 (tile-new 'straight 0 (set)))
   (check-equal? (list-ref
-                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 'right 6 270)) 6)
+                 (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'right 6) 270)) 6)
                  0)
                 (tile-new 'straight 90 (set))))
 
@@ -303,8 +272,7 @@
   (check-equal? (shift-players
                  (gamestate-players gamestate4)
                  (gamestate-board gamestate4)
-                 'right
-                 0)
+                 (shift-new 'right 0))
                 (list
                  (player-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
                  player1
@@ -313,24 +281,23 @@
   (check-equal? (shift-players
                  (gamestate-players gamestate4)
                  (gamestate-board gamestate4)
-                 'left
-                 0)
+                 (shift-new 'left 0))
                 (list
                  (player-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
                  player1
                  player2
                  (player-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
   (check-true (player-on-pos?
-               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 'up 0 0)) 1)
+               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'up 0) 0)) 1)
                (cons 6 0)))
   (check-true (player-on-pos?
-               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 'down 6 90)) 4)
+               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'down 6) 90)) 4)
                (cons 0 6)))
   (check-true (player-on-pos?
-               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 'left 0 180)) 1)
+               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'left 0) 180)) 1)
                (cons 0 6)))
   (check-true (player-on-pos?
-               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 'right 6 270)) 4)
+               (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'right 6) 270)) 4)
                (cons 6 0))))
 
 ;; test player is moved to the right tile
@@ -354,12 +321,12 @@
   (check-equal? (player-curr-pos (first
                                   (gamestate-players
                                    (gamestate-move-player
-                                    (gamestate-shift-and-insert gamestate0 'up 0 0) (cons 1 1)))))
+                                    (gamestate-shift-and-insert gamestate0 (shift-new 'up 0) 0) (cons 1 1)))))
               (cons 1 1))
   (check-equal? (player-curr-pos (first
                                   (gamestate-players
                                    (gamestate-move-player
-                                    (gamestate-shift-and-insert gamestate5 'left 4 90) (cons 4 5)))))
+                                    (gamestate-shift-and-insert gamestate5 (shift-new 'left 4) 90) (cons 4 5)))))
                (cons 4 5)))
 
 

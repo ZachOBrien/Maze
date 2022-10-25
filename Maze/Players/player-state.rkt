@@ -14,7 +14,7 @@
  (contract-out
   [player-state? contract?]
   ; Create a new player state
-  [player-state-new (-> board? tile? player? prev-shift? player-state?)]
+  [player-state-new (-> board? tile? player? shift? player-state?)]
   ; Get the board from the PlayerState
   [player-state-get-board (-> player-state? board?)]
   ; Get the extra tile from the PlayerState
@@ -34,7 +34,7 @@
 
 
 ;; A PlayerState is a structure:
-;;    (struct Board Tile Player PrevShift)
+;;    (struct Board Tile Player Shift)
 ;; interpretation: A player knows the board, the extra tile, and all of its information
 (struct player-state [board extra-tile player prev-shift])
 
@@ -69,7 +69,7 @@
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/player.rkt" examples))
   
-  (define player-state-1 (player-state board1 tile-extra player2))
-  (define player-state-2 (player-state board1 tile-extra player7))
-  (define player-state-nowhere-to-go (player-state board-nowhere-to-go tile-extra player3)))
+  (define player-state-1 (player-state board1 tile-extra player2 (shift-new 'up 0)))
+  (define player-state-2 (player-state board1 tile-extra player7 (shift-new 'down 4)))
+  (define player-state-nowhere-to-go (player-state board-nowhere-to-go tile-extra player3 (shift-new 'right 4))))
   
