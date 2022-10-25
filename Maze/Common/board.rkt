@@ -68,6 +68,8 @@
   [num-cols (-> board? (and/c integer? positive?))]
   ;; Compares two GridPosns in row-then-column order
   [compare-row-col (-> grid-posn? grid-posn? boolean?)]
+  ;; Do these shifts undo each other?
+  [shift-undoes-shift? (-> shift? shift? boolean?)]
   ;; Get indices which can be shifted
   [get-valid-shift-indices (-> board? (listof natural-number/c))]))
      
@@ -78,6 +80,7 @@
 (require racket/match)
 (require racket/list)
 (require racket/function)
+(require racket/set)
 
 (require "tile.rkt")
 (require "gem.rkt")
@@ -284,6 +287,19 @@
     [(= row1 row2) (<= col1 col2)]
     [(< row1 row2) #t]
     [(> row1 row2) #f]))
+
+
+;; Shift Shift -> Boolean
+;; Do these shifts undo each other?
+(define (shift-undoes-shift? shft1 shft2)
+  (and (= (shift-index shft1) (shift-index shft2))
+       (opposite-direction? (shift-direction shft1) (shift-direction shft2))))
+
+;; ShiftDirection ShiftDirection -> Boolean
+;; True if given directions are opposite
+(define (opposite-direction? dir1 dir2)
+  (or (equal? (set dir1 dir2) (set 'left 'right))
+      (equal? (set dir1 dir2) (set 'up 'down))))
 
 ;; Board -> [Listof GridPosn]
 ;; Get indices which can be shifted
@@ -604,3 +620,14 @@
 
 (module+ test
   (check-equal? (get-valid-shift-indices board1) (list 0 2 4 6)))
+
+;; test opposite-direction?
+(module+ test
+  (check-true (opposite-direction? 'up 'down))
+  (check-true (opposite-direction? 'down 'up))
+  (check-true (opposite-direction? 'right 'left))
+  (check-true (opposite-direction? 'left 'right))
+  (check-false (opposite-direction? 'up 'right))
+  (check-false (opposite-direction? 'down 'left))
+  (check-false (opposite-direction? 'left 'up))
+  (check-false (opposite-direction? 'right 'down)))

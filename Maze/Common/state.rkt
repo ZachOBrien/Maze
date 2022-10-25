@@ -55,10 +55,10 @@
 (define DEFAULT-SHIFT-STEP 1)
 
 ;; A Gamestate is a structure:
-;;    (struct Board Tile [NonEmptyListof Player] (U LastAction #f))
+;;    (struct Board Tile [NonEmptyListof Player] (U Shift #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
-;;                 and the last move made
+;;                 and the last shift made
 (struct gamestate [board extra-tile players prev-shift] #:transparent)
 
 ;; Board Tile [NonEmptyListof Player] -> Gamestate
@@ -178,12 +178,6 @@
 ;; Get the current player
 (define (get-current-player state)
   (first (gamestate-players state)))
-
-;; ShiftDirection ShiftDirection -> Boolean
-;; True if given directions are opposite
-(define (opposite-direction? dir1 dir2)
-  (or (equal? (set dir1 dir2) (set 'left 'right))
-      (equal? (set dir1 dir2) (set 'up 'down))))
 
 ;; Gamestate -> PlayerState
 ;; Makes a playerstate for the currently active player from the gamestate
@@ -385,17 +379,3 @@
                  (cons 5 1)
                  #f
                  "blue")))
-
-
-
-;; test opposite-direction?
-(module+ test
-  (check-true (opposite-direction? 'up 'down))
-  (check-true (opposite-direction? 'down 'up))
-  (check-true (opposite-direction? 'right 'left))
-  (check-true (opposite-direction? 'left 'right))
-  (check-false (opposite-direction? 'up 'right))
-  (check-false (opposite-direction? 'down 'left))
-  (check-false (opposite-direction? 'left 'up))
-  (check-false (opposite-direction? 'right 'down)))
-

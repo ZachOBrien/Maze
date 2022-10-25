@@ -182,20 +182,14 @@
 (define (json-action->last-action action)
   (if (equal? action 'null)
       #f
-      (cons (first action)
-            (string-direction->symbol (first (rest action))))))
+      (shift-new (string-direction->symbol (first (rest action)))
+                 (first action))))
 
 (module+ test
   (check-equal? (json-action->last-action (list 0 "UP"))
-                (cons 0 'up))
-  (check-not-equal? (json-action->last-action (list 4 "RIGHT"))
-                    (cons 4 'left))
-  (check-not-equal? (json-action->last-action (list 0 "UP"))
-                    (cons 0 'right))
-  (check-not-equal? (json-action->last-action (list 0 "UP"))
-                    (cons 2 'down))
-  (check-equal? (json-action->last-action (list 0 "UP"))
-                (cons 0 'up))
+                (shift-new 'up 0))
+  (check-equal? (json-action->last-action (list 4 "RIGHT"))
+                    (shift-new 'right 4))
   (check-equal? (json-action->last-action 'null)
                 #f))
 
@@ -369,4 +363,4 @@
                 (gamestate-new example-board
                                spare-tile
                                expected-players1
-                               (cons 0 'left))))
+                               (shift-new 'left 0))))

@@ -13,14 +13,16 @@
 (provide
  (contract-out
   [player-state? contract?]
-  ; Create a new player state
+  ; Create a new PlayerState
   [player-state-new (-> board? tile? player? shift? player-state?)]
-  ; Get the board from the PlayerState
-  [player-state-get-board (-> player-state? board?)]
-  ; Get the extra tile from the PlayerState
-  [player-state-get-extra-tile (-> player-state? tile?)]
-  ; Get the player from the PlayerState
-  [player-state-get-player (-> player-state? player?)]))
+  ; Get the board
+  [player-state-board (-> player-state? board?)]
+  ; Get the extra tile
+  [player-state-extra-tile (-> player-state? tile?)]
+  ; Get the player
+  [player-state-player (-> player-state? player?)]
+  ; Get the previous shift
+  [player-state-prev-shift (-> player-state? (or/c shift? #f))]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -34,8 +36,9 @@
 
 
 ;; A PlayerState is a structure:
-;;    (struct Board Tile Player Shift)
-;; interpretation: A player knows the board, the extra tile, and all of its information
+;;    (struct Board Tile Player (U Shift #f)
+;; interpretation: A player knows the board, the extra tile, its personal information, and
+;;                 the previous shift
 (struct player-state [board extra-tile player prev-shift])
 
 
@@ -47,21 +50,6 @@
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
-
-;; PlayerState -> Board
-;; Get the board from the PlayerState
-(define (player-state-get-board plyr-state)
-  (player-state-board plyr-state))
-
-;; Playerstate -> Tile
-;; Get the extra tile from the PlayerState
-(define (player-state-get-extra-tile plyr-state)
-  (player-state-extra-tile plyr-state))
-
-;; Playerstate -> Player
-;; Get the player from the PlayerState
-(define (player-state-get-player plyr-state)
-  (player-state-player plyr-state))
 
 (module+ examples
   (provide (all-defined-out))

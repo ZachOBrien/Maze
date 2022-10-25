@@ -44,7 +44,7 @@
 ;; DATA DEFINITIONS
 
 ;; A Move is a structure:
-;;    (struct Shift Orientation GridPosn)
+;;    (struct GridPosn Shift Orientation)
 ;; interpretation: A Move has a position to move the currently active player to after the shift,
 ;;                 a shift, and the number of degrees to rotate the spare tile
 (struct move [pos shift orientation] #:transparent)
@@ -54,12 +54,12 @@
 ;;    - Move
 ;;    - #f
 ;; interpretation: A player acts by either making a move or making no move (passing turn)
-(define action? (or/c #f move?))
+(define action? (or/c move? #f))
 
 
 ;; A Strategy is a function:
-;;    (-> Gamestate Move)
-;; interpretation: A strategy examines a gamestate and determines a move for the currently active
+;;    (-> PlayerState Move)
+;; interpretation: A strategy examines a player state and determines a move for the currently active
 ;;                 player to make
 (define strategy? (-> player-state? action?))
 
@@ -71,8 +71,8 @@
 ;; Determine the player's move using the Riemann strategy
 (define (riemann-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-riemann-candidates
-                                    (player-state-get-board plyr-state)
-                                    (player-state-get-player plyr-state))))
+                                    (player-state-board plyr-state)
+                                    (player-state-player plyr-state))))
 
 ;; Board Player -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
@@ -86,8 +86,8 @@
 ;; Determine a player's move using the Euclidean strategy
 (define (euclidean-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-euclidean-candidates
-                                    (player-state-get-board plyr-state)
-                                    (player-state-get-player plyr-state))))
+                                    (player-state-board plyr-state)
+                                    (player-state-player plyr-state))))
 
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
@@ -120,22 +120,23 @@
 ;; PlayerState Move -> Boolean
 ;; Returns True if the move is valid in the state
 (define (valid-move? plyr-state mv)
-  (define old-board  (player-state-get-board plyr-state))
-  (define old-player (player-state-get-player plyr-state))
+  (define old-board  (player-state-board plyr-state))
+  (define old-player (player-state-player plyr-state))
   
   (define-values
     (new-board new-extra-tile)
     (board-shift-and-insert
      old-board
      (move-shift mv)
-     (tile-rotate (player-state-get-extra-tile plyr-state) (move-orientation mv))))
+     (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
   
   (define new-player
-    (first (shift-players (list (player-state-get-player plyr-state))
+    (first (shift-players (list (player-state-player plyr-state))
                           old-board
                           (move-shift mv))))
   
   (and (not (equal? (move-pos mv) (player-curr-pos new-player)))
+       (not (shift-undoes-shift? (move-shift mv) (player-state-prev-shift plyr-state)))
        (member
         (move-pos mv)
         (board-all-reachable-from new-board (player-curr-pos new-player)))))
@@ -152,7 +153,7 @@
 (define (get-first-valid-candidate-move plyr-state candidates)
   (findf
    (curry valid-move? plyr-state)
-   (get-all-candidate-moves (player-state-get-board plyr-state) candidates)))
+   (get-all-candidate-moves (player-state-board plyr-state) candidates)))
 
 ;; Board -> [Listof Move]
 ;; Get all possible moves that can be made on a board
@@ -215,15 +216,21 @@
 
 ; test riemann-strategy
 (module+ test
-  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) (shift-new 'right 2) 0)) ; Player can reach goal tile
-  (check-equal? (riemann-strategy player-state-2) (move (cons 0 0) (shift-new 'right 6) 90)) ; Player cannot reach goal tile, reaches 0 0
-  (check-false (riemann-strategy player-state-nowhere-to-go))) ; Player cannot go anywhere
+  ; Player can reach goal tile
+  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) (shift-new 'right 2) 0))
+  ; Player cannot reach goal tile, reaches 0 0
+  (check-equal? (riemann-strategy player-state-2) (move (cons 0 0) (shift-new 'right 6) 90))
+  ; Player cannot go anywhere
+  (check-false (riemann-strategy player-state-nowhere-to-go)))
 
 ; test euclidean-strategy
 (module+ test
-  (check-false (euclidean-strategy player-state-nowhere-to-go)) ; Player cannot go anywhere
-  (check-equal? (euclidean-strategy player-state-2) (move (cons 5 2) (shift-new 'right 6) 90)) ; Player cannot reach goal tile, reaches closest tile
-  (check-equal? (euclidean-strategy player-state-1) (move (cons 3 3) (shift-new 'right 2) 0))) ; Player can reach goal tile
+  ; Player cannot go anywhere
+  (check-false (euclidean-strategy player-state-nowhere-to-go))
+  ; Player cannot reach goal tile, reaches closest tile
+  (check-equal? (euclidean-strategy player-state-2) (move (cons 5 2) (shift-new 'right 6) 90))
+  ; Player can reach goal tile
+  (check-equal? (euclidean-strategy player-state-1) (move (cons 3 3) (shift-new 'right 2) 0)))
 
 ; test get-euclidean-strategy
 (module+ test
