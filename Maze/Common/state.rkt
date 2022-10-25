@@ -125,8 +125,8 @@
 ;; Player Board ShiftDirection Natural
 ;; Shifts a player along a row or column
 (define (shift-player plyr board dir shift-step)
-  (define player-row-pos (car (player-get-curr-pos plyr)))
-  (define player-col-pos (cdr (player-get-curr-pos plyr)))
+  (define player-row-pos (car (player-curr-pos plyr)))
+  (define player-col-pos (cdr (player-curr-pos plyr)))
   (define new-pos (if (shifts-row? dir)    
                       (cons player-row-pos
                             (get-shifted-position player-col-pos shift-step (num-cols board)))
@@ -145,8 +145,8 @@
 ;; Gamestate ShiftDirection Natural Player -> Boolean
 ;; Create a function to check if a player is on a shifted row/col
 (define (player-shifted? dir idx plyr)
-  (cond [(shifts-row? dir) (= (car (player-get-curr-pos plyr)) idx)]
-        [(shifts-col? dir) (= (cdr (player-get-curr-pos plyr)) idx)]))
+  (cond [(shifts-row? dir) (= (car (player-curr-pos plyr)) idx)]
+        [(shifts-col? dir) (= (cdr (player-curr-pos plyr)) idx)]))
 
 
 ;; Gamestate GridPosn -> Gamestate
@@ -161,7 +161,7 @@
 ;; Player GridPosn -> Boolean
 ;; Returns True if the player is on the given position
 (define (player-on-pos? p pos)
-  (equal? (player-get-curr-pos p) pos))
+  (equal? (player-curr-pos p) pos))
 
 
 ;; Gamestate GridPosn -> Boolean
@@ -174,20 +174,20 @@
 ;; Gamestate -> [Listof Grid-Posn]
 ;; Find all positions reachable from the current active player's position
 (define (all-reachable-from-active state)
-  (board-all-reachable-from (gamestate-board state) (player-get-curr-pos (get-current-player state))))
+  (board-all-reachable-from (gamestate-board state) (player-curr-pos (get-current-player state))))
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their goal tile
 (define (player-on-goal? state)
   (define curr-player (get-current-player state))
-  (equal? (player-get-curr-pos curr-player) (player-get-goal-pos curr-player)))
+  (equal? (player-curr-pos curr-player) (player-goal-pos curr-player)))
 
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their home tile
 (define (player-on-home? state)
   (define curr-player (get-current-player state))
-  (equal? (player-get-curr-pos curr-player) (player-get-home-pos curr-player)))
+  (equal? (player-curr-pos curr-player) (player-home-pos curr-player)))
 
 
 ;; Gamestate -> Gamestate
@@ -351,12 +351,12 @@
 
 ;; test player is moved to correct tile after shift moves row/col
 (module+ test
-  (check-equal? (player-get-curr-pos (first
+  (check-equal? (player-curr-pos (first
                                   (gamestate-players
                                    (gamestate-move-player
                                     (gamestate-shift-and-insert gamestate0 'up 0 0) (cons 1 1)))))
               (cons 1 1))
-  (check-equal? (player-get-curr-pos (first
+  (check-equal? (player-curr-pos (first
                                   (gamestate-players
                                    (gamestate-move-player
                                     (gamestate-shift-and-insert gamestate5 'left 4 90) (cons 4 5)))))

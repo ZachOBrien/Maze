@@ -141,8 +141,8 @@
 ;; their goal is to return home.
 (define (get-goal-gp plyr)
   (if (player-visited-goal? plyr)
-      (player-get-home-pos plyr)
-      (player-get-goal-pos plyr)))
+      (player-home-pos plyr)
+      (player-goal-pos plyr)))
 
 ;; PlayerState Move -> Boolean
 ;; Returns True if the move is valid in the state
@@ -164,10 +164,10 @@
                           (move-shift-direction mv)
                           (move-idx mv))))
   
-  (and (not (equal? (move-pos mv) (player-get-curr-pos new-player)))
+  (and (not (equal? (move-pos mv) (player-curr-pos new-player)))
        (member
         (move-pos mv)
-        (board-all-reachable-from new-board (player-get-curr-pos new-player)))))
+        (board-all-reachable-from new-board (player-curr-pos new-player)))))
 
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a board
