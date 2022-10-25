@@ -14,7 +14,7 @@
  (contract-out
   [player-state? contract?]
   ; Create a new player state
-  [player-state-new (-> board? tile? player? player-state?)]
+  [player-state-new (-> board? tile? player? prev-shift? player-state?)]
   ; Get the board from the PlayerState
   [player-state-get-board (-> player-state? board?)]
   ; Get the extra tile from the PlayerState
@@ -34,15 +34,15 @@
 
 
 ;; A PlayerState is a structure:
-;;    (struct Board Tile Player)
+;;    (struct Board Tile Player PrevShift)
 ;; interpretation: A player knows the board, the extra tile, and all of its information
-(struct player-state [board extra-tile player])
+(struct player-state [board extra-tile player prev-shift])
 
 
 ;; Board Tile Player -> PlayerState
 ;; Create a new player state
-(define (player-state-new board extra-tile player)
-  (player-state board extra-tile player))
+(define (player-state-new board extra-tile player prev-shift)
+  (player-state board extra-tile player prev-shift))
 
 
 ;; --------------------------------------------------------------------
