@@ -14,7 +14,7 @@
  (contract-out
   [player-state? contract?]
   ; Create a new PlayerState
-  [player-state-new (-> board? tile? player? shift? player-state?)]
+  [player-state-new (-> board? tile? player? (or/c shift? #f) player-state?)]
   ; Get the board
   [player-state-board (-> player-state? board?)]
   ; Get the extra tile
@@ -39,7 +39,7 @@
 ;;    (struct Board Tile Player (U Shift #f)
 ;; interpretation: A player knows the board, the extra tile, its personal information, and
 ;;                 the previous shift
-(struct player-state [board extra-tile player prev-shift])
+(struct player-state [board extra-tile player prev-shift] #:transparent)
 
 
 ;; Board Tile Player -> PlayerState

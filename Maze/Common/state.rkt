@@ -182,7 +182,11 @@
 ;; Gamestate -> PlayerState
 ;; Makes a playerstate for the currently active player from the gamestate
 (define (gamestate->player-state gstate)
-  (player-state-new (gamestate-board gstate) (gamestate-extra-tile gstate) (first (gamestate-players gstate))))
+  (player-state-new
+   (gamestate-board gstate)
+   (gamestate-extra-tile gstate)
+   (first (gamestate-players gstate))
+   (gamestate-prev-shift gstate)))
 
 ;; Gamestate GridPosn -> Gamestate
 ;; Changes the goal tile of the active player
@@ -225,6 +229,7 @@
 (module+ test
   (require rackunit)
   (require (submod ".." examples))
+  (require (submod "board.rkt" examples))
   (require (submod "tile.rkt" examples))
   (require (submod "player.rkt" examples)))
 
@@ -379,3 +384,9 @@
                  (cons 5 1)
                  #f
                  "blue")))
+
+
+;; Test gamestate->player-state
+(module+ test
+  (check-equal? (gamestate->player-state gamestate0)
+                (player-state-new board1 tile-extra player0 #f)))
