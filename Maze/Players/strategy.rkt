@@ -122,19 +122,16 @@
 (define (valid-move? plyr-state mv)
   (define old-board  (player-state-board plyr-state))
   (define old-player (player-state-player plyr-state))
-  
   (define-values
     (new-board new-extra-tile)
     (board-shift-and-insert
      old-board
      (move-shift mv)
      (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
-  
   (define new-player
     (first (shift-players (list (player-state-player plyr-state))
                           old-board
                           (move-shift mv))))
-  
   (and (not (equal? (move-pos mv) (player-curr-pos new-player)))
        (not (shift-undoes-shift? (move-shift mv) (player-state-prev-shift plyr-state)))
        (member
@@ -300,6 +297,8 @@
 ; test valid-move?
 (module+ test
   (check-not-false (valid-move? player-state-1 (move (cons 3 1) (shift-new 'down 2) 0)))
+  ; Check that undoing the previous move is invalid, even if the rest of the move is legal
+  (check-false (valid-move? player-state-1 (move (cons 3 1) (shift-new 'up 2) 0)))
   (check-not-false (valid-move? player-state-1 (move (cons 3 3) (shift-new 'right 2) 0)))
   (check-false (valid-move? player-state-1 (move (cons 3 3) (shift-new 'up 0) 0)))
   (check-false (valid-move? player-state-1 (move (cons 3 2) (shift-new 'down 2) 0)))
