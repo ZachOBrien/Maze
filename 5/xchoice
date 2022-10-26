@@ -27,4 +27,4 @@
   (define gstate (change-active-player-goal (hash->gamestate state-ht) goal))
   (define pstate (gamestate->player-state gstate))
 
-  (write-json (action->json (if (equal? strategy "riemann") (riemann-strategy pstate) (euclidean-strategy pstate)))))
+  (write-json (action->json (if (equal? strategy "Riemann") (riemann-strategy pstate) (euclidean-strategy pstate)))))
