@@ -14,13 +14,13 @@
  (contract-out
   [player-state? contract?]
   ; Create a new PlayerState
-  [player-state-new (-> board? tile? player? (or/c shift? #f) player-state?)]
+  [player-state-new (-> board? tile? player-info? (or/c shift? #f) player-state?)]
   ; Get the board
   [player-state-board (-> player-state? board?)]
   ; Get the extra tile
   [player-state-extra-tile (-> player-state? tile?)]
   ; Get the player
-  [player-state-player (-> player-state? player?)]
+  [player-state-plyr-info (-> player-state? player-info?)]
   ; Get the previous shift
   [player-state-prev-shift (-> player-state? (or/c shift? #f))]))
 
@@ -29,23 +29,23 @@
 
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
-(require "../Common/player.rkt")
+(require "../Common/player-info.rkt")
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
 
 ;; A PlayerState is a structure:
-;;    (struct Board Tile Player (U Shift #f)
+;;    (struct Board Tile PlayerInfo (U Shift #f)
 ;; interpretation: A player knows the board, the extra tile, its personal information, and
 ;;                 the previous shift
-(struct player-state [board extra-tile player prev-shift] #:transparent)
+(struct player-state [board extra-tile plyr-info prev-shift] #:transparent)
 
 
-;; Board Tile Player -> PlayerState
+;; Board Tile PlayerInfo -> PlayerState
 ;; Create a new player state
-(define (player-state-new board extra-tile player prev-shift)
-  (player-state board extra-tile player prev-shift))
+(define (player-state-new board extra-tile plyr-info prev-shift)
+  (player-state board extra-tile plyr-info prev-shift))
 
 
 ;; --------------------------------------------------------------------
@@ -55,9 +55,10 @@
   (provide (all-defined-out))
   (require (submod "../Common/tile.rkt" examples))
   (require (submod "../Common/board.rkt" examples))
-  (require (submod "../Common/player.rkt" examples))
+  (require (submod "../Common/player-info.rkt" examples))
   
-  (define player-state-1 (player-state board1 tile-extra player2 (shift-new 'up 0)))
-  (define player-state-2 (player-state board1 tile-extra player7 (shift-new 'down 4)))
-  (define player-state-nowhere-to-go (player-state board-nowhere-to-go tile-extra player3 (shift-new 'right 4))))
+  (define player-state-1 (player-state board1 tile-extra player-info2 (shift-new 'up 0)))
+  (define player-state-2 (player-state board1 tile-extra player-info7 (shift-new 'down 4)))
+  (define player-state-nowhere-to-go
+    (player-state board-nowhere-to-go tile-extra player-info3 (shift-new 'right 4))))
   

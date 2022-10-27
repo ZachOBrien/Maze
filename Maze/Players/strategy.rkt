@@ -33,7 +33,7 @@
 (require racket/bool)
 
 (require "../Common/state.rkt")
-(require "../Common/player.rkt")
+(require "../Common/player-info.rkt")
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
 (require "../Common/serialize.rkt")
@@ -72,7 +72,7 @@
 (define (riemann-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-riemann-candidates
                                     (player-state-board plyr-state)
-                                    (player-state-player plyr-state))))
+                                    (player-state-plyr-info plyr-state))))
 
 ;; Board Player -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
@@ -87,7 +87,7 @@
 (define (euclidean-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-euclidean-candidates
                                     (player-state-board plyr-state)
-                                    (player-state-player plyr-state))))
+                                    (player-state-plyr-info plyr-state))))
 
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
@@ -109,19 +109,19 @@
 (define (euclidian-dist pos1 pos2)
   (sqrt (+ (expt (- (car pos2) (car pos1)) 2) (expt (- (cdr pos2) (cdr pos1)) 2))))
 
-;; Player -> GridPosn
+;; PlayerInfo -> GridPosn
 ;; Determines the current goal for the player. If a player has already visited their treasure,
 ;; their goal is to return home.
 (define (get-goal-gp plyr)
-  (if (player-visited-goal? plyr)
-      (player-home-pos plyr)
-      (player-goal-pos plyr)))
+  (if (player-info-visited-goal? plyr)
+      (player-info-home-pos plyr)
+      (player-info-goal-pos plyr)))
 
 ;; PlayerState Move -> Boolean
 ;; Returns True if the move is valid in the state
 (define (valid-move? plyr-state mv)
   (define old-board  (player-state-board plyr-state))
-  (define old-player (player-state-player plyr-state))
+  (define old-player (player-state-plyr-info plyr-state))
   (define-values
     (new-board new-extra-tile)
     (board-shift-and-insert
@@ -129,14 +129,14 @@
      (move-shift mv)
      (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
   (define new-player
-    (first (shift-players (list (player-state-player plyr-state))
+    (first (shift-players (list (player-state-plyr-info plyr-state))
                           old-board
                           (move-shift mv))))
-  (and (not (equal? (move-pos mv) (player-curr-pos new-player)))
+  (and (not (equal? (move-pos mv) (player-info-curr-pos new-player)))
        (not (shift-undoes-shift? (move-shift mv) (player-state-prev-shift plyr-state)))
        (member
         (move-pos mv)
-        (board-all-reachable-from new-board (player-curr-pos new-player)))))
+        (board-all-reachable-from new-board (player-info-curr-pos new-player)))))
 
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a board
@@ -209,7 +209,7 @@
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/state.rkt" examples))
   (require (submod "player-state.rkt" examples))
-  (require (submod "../Common/player.rkt" examples)))
+  (require (submod "../Common/player-info.rkt" examples)))
 
 ; test riemann-strategy
 (module+ test
@@ -231,7 +231,7 @@
 
 ; test get-euclidean-strategy
 (module+ test
-  (check-equal? (get-euclidean-candidates board1 player1)
+  (check-equal? (get-euclidean-candidates board1 player-info1)
                 (list (cons 1 1) (cons 0 1) (cons 1 0) (cons 1 2) (cons 2 1) (cons 0 0) (cons 0 2)
                       (cons 2 0) (cons 2 2) (cons 1 3) (cons 3 1) (cons 0 3) (cons 2 3) (cons 3 0)
                       (cons 3 2) (cons 3 3) (cons 1 4) (cons 4 1) (cons 0 4) (cons 2 4) (cons 4 0)
@@ -239,7 +239,7 @@
                       (cons 5 0) (cons 5 2) (cons 4 4) (cons 3 5) (cons 5 3) (cons 1 6) (cons 4 5)
                       (cons 5 4) (cons 6 1) (cons 0 6) (cons 2 6) (cons 6 0) (cons 6 2) (cons 3 6)
                       (cons 6 3) (cons 5 5) (cons 4 6) (cons 6 4) (cons 5 6) (cons 6 5) (cons 6 6)))
-  (check-equal? (get-euclidean-candidates board1 player2)
+  (check-equal? (get-euclidean-candidates board1 player-info2)
                 (list (cons 3 3) (cons 2 3) (cons 3 2) (cons 3 4) (cons 4 3) (cons 2 2) (cons 2 4)
                       (cons 4 2) (cons 4 4) (cons 1 3) (cons 3 1) (cons 3 5) (cons 5 3) (cons 1 2)
                       (cons 1 4) (cons 2 1) (cons 2 5) (cons 4 1) (cons 4 5) (cons 5 2) (cons 5 4)
@@ -247,7 +247,7 @@
                       (cons 6 3) (cons 0 2) (cons 0 4) (cons 2 0) (cons 2 6) (cons 4 0) (cons 4 6)
                       (cons 6 2) (cons 6 4) (cons 0 1) (cons 0 5) (cons 1 0) (cons 1 6) (cons 5 0)
                       (cons 5 6) (cons 6 1) (cons 6 5) (cons 0 0) (cons 0 6) (cons 6 0) (cons 6 6)))
-  (check-equal? (get-euclidean-candidates board1 player3)
+  (check-equal? (get-euclidean-candidates board1 player-info3)
                 (list (cons 1 3) (cons 0 3) (cons 1 2) (cons 1 4) (cons 2 3) (cons 0 2) (cons 0 4)
                       (cons 2 2) (cons 2 4) (cons 1 1) (cons 1 5) (cons 3 3) (cons 0 1) (cons 0 5)
                       (cons 2 1) (cons 2 5) (cons 3 2) (cons 3 4) (cons 3 1) (cons 3 5) (cons 1 0)
@@ -258,7 +258,7 @@
 
 ; test get-riemann-candidates
 (module+ test
-  (check-equal? (get-riemann-candidates board1 player1)
+  (check-equal? (get-riemann-candidates board1 player-info1)
                 (list (cons 1 1)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0)            (cons 1 2) (cons 1 3) (cons 1 4) (cons 1 5) (cons 1 6)
@@ -267,7 +267,7 @@
                       (cons 4 0) (cons 4 1) (cons 4 2) (cons 4 3) (cons 4 4) (cons 4 5) (cons 4 6)
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6)))
-  (check-equal? (get-riemann-candidates board1 player2)
+  (check-equal? (get-riemann-candidates board1 player-info2)
                 (list (cons 3 3)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0) (cons 1 1) (cons 1 2) (cons 1 3) (cons 1 4) (cons 1 5) (cons 1 6)
@@ -276,7 +276,7 @@
                       (cons 4 0) (cons 4 1) (cons 4 2) (cons 4 3) (cons 4 4) (cons 4 5) (cons 4 6)
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6)))
-  (check-equal? (get-riemann-candidates board1 player3)
+  (check-equal? (get-riemann-candidates board1 player-info3)
                 (list (cons 1 3)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0) (cons 1 1) (cons 1 2)            (cons 1 4) (cons 1 5) (cons 1 6)
@@ -342,11 +342,11 @@
 
 ; test get-goal-gp
 (module+ test
-  (check-equal? (get-goal-gp player1) (cons 1 1))
-  (check-equal? (get-goal-gp player2) (cons 3 3))
-  (check-equal? (get-goal-gp player3) (cons 1 3))
-  (check-equal? (get-goal-gp player4) (cons 5 5))
-  (check-equal? (get-goal-gp player9) (cons 3 3)))
+  (check-equal? (get-goal-gp player-info1) (cons 1 1))
+  (check-equal? (get-goal-gp player-info2) (cons 3 3))
+  (check-equal? (get-goal-gp player-info3) (cons 1 3))
+  (check-equal? (get-goal-gp player-info4) (cons 5 5))
+  (check-equal? (get-goal-gp player-info9) (cons 3 3)))
 
 ; test get-first-valid-move
 (module+ test
