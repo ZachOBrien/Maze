@@ -24,7 +24,9 @@
   ; Returns true if you can travel from one tile to its adjacent neighbor vertically
   [tile-connected-vertical?   (-> tile? tile? boolean?)]
   ; Returns true if you can travel from one tile to its adjacent neighbor horizontally
-  [tile-connected-horizontal? (-> tile? tile? boolean?)]))
+  [tile-connected-horizontal? (-> tile? tile? boolean?)]
+  ; Create a tile with a random connector and orientation
+  [create-random-tile (-> (set/c gem?) tile?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -151,6 +153,14 @@
     [('tri o)      (not (= 90 o))]
     [('elbow o)    (or (= 0 o) (= 90 o))]
     [('straight o) (or (= 90 o) (= 270 o))]))
+
+
+;; [Setof Gem] -> Tile
+;; Create a tile with a random connector and orientation
+(define (create-random-tile gems)
+  (define conn (first (shuffle connectors)))
+  (define ornt (first (shuffle orientations)))
+  (tile conn ornt gems))
 
 
 ;; --------------------------------------------------------------------

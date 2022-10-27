@@ -46,6 +46,8 @@
   
   ; Create a new Shift
   [shift-new (-> shift-direction? natural-number/c shift?)]
+  ; Create a random board
+  [create-random-board (-> natural-number/c board?)]
   ; Shift a row or column at an index and insert a new tile
   [board-shift-and-insert (->i
                            ([b board?]
@@ -126,6 +128,23 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
+
+;; Natural -> Board
+;; Randomly creates a new board. The dimension must be odd.
+(define (create-random-board dim)
+  (define randomized-gems (shuffle gems))
+  (define tiles (map create-random-tile (chunk-into-sets gems)))
+  (for/list ([row dim])
+    (for/list ([col dim])
+      (list-ref tiles (+ (* row dim) col)))))
+
+;; List -> [Listof Set]
+;; Chunk a list into sets of length 2. If list is odd length, last element is dropped.
+(define (chunk-into-sets lst [acc '()])
+  (cond
+    [(empty? lst) acc]
+    [(empty? (rest lst)) acc]
+    [else (chunk-into-sets (list-tail lst 2) (cons (set (first lst) (second lst)) acc))]))
 
 ;; Board Shift Tile -> (Board Tile)
 ;; Shifts a row or column and inserts a new tile in the empty space
@@ -353,6 +372,11 @@
   (require rackunit)
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples)))
+
+;; Test create-random-board
+(module+ test
+  (check-equal? (num-rows (create-random-board 7)) 7)
+  (check-equal? (num-cols (create-random-board 6)) 6))
 
 ;; Test valid-shift?
 (module+ test
