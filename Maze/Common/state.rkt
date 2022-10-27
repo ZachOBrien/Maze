@@ -14,12 +14,12 @@
   [gamestate?  contract?]
   ; Create a new Gamestate
   [gamestate-new
-   (-> board? tile? (non-empty-listof player?) (or/c #f shift?) gamestate?)]
+   (-> board? tile? (non-empty-listof player-info?) (or/c #f shift?) gamestate?)]
   ; Shifts a row or column and inserts a tile in the empty space
   [gamestate-shift-and-insert
    (-> gamestate? shift? orientation? gamestate?)]
   ; Move players that were on a row or column that was shifted
-  [shift-players (-> (listof player?) board? shift? (listof player?))]
+  [shift-players (-> (listof player-info?) board? shift? (listof player-info?))]
   ; Move the currently active player to a new position
   [gamestate-move-player (-> gamestate? grid-posn? gamestate?)]
   ; Check if a player can reach a position from their current position
@@ -45,7 +45,7 @@
 (require "tile.rkt")
 (require "board.rkt")
 (require "gem.rkt")
-(require "player.rkt")
+(require "player-info.rkt")
 (require "../Players/player-state.rkt")
 
 
@@ -55,13 +55,13 @@
 (define DEFAULT-SHIFT-STEP 1)
 
 ;; A Gamestate is a structure:
-;;    (struct Board Tile [NonEmptyListof Player] (U Shift #f))
+;;    (struct Board Tile [NonEmptyListof PlayerInfo] (U Shift #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
 ;;                 and the last shift made
 (struct gamestate [board extra-tile players prev-shift] #:transparent)
 
-;; Board Tile [NonEmptyListof Player] -> Gamestate
+;; Board Tile [NonEmptyListof PlayerInfo] -> Gamestate
 ;; Create a new gamestate
 (define (gamestate-new board extra-tile players prev-shift)
   (gamestate board extra-tile players prev-shift))
@@ -82,7 +82,7 @@
   (gamestate new-board new-extra-tile players-after-shift shft))
 
 
-;; [Listof Player] Board Shift -> [Listof Player]
+;; [Listof PlayerInfo] Board Shift -> [Listof PlayerInfo]
 ;; Move players that were on a row or column that was shifted
 (define (shift-players players board shft)
   (define shift-step (if (shifts-forward? (shift-direction shft)) DEFAULT-SHIFT-STEP (* -1 DEFAULT-SHIFT-STEP)))
@@ -92,17 +92,17 @@
         plyr)))
 
 
-;; Player Board ShiftDirection Natural
+;; PlayerInfo Board ShiftDirection Natural
 ;; Shifts a player along a row or column
 (define (shift-player plyr board dir shift-step)
-  (define player-row-pos (car (player-curr-pos plyr)))
-  (define player-col-pos (cdr (player-curr-pos plyr)))
+  (define player-row-pos (car (player-info-curr-pos plyr)))
+  (define player-col-pos (cdr (player-info-curr-pos plyr)))
   (define new-pos (if (shifts-row? dir)    
                       (cons player-row-pos
                             (get-shifted-position player-col-pos shift-step (num-cols board)))
                       (cons (get-shifted-position player-row-pos shift-step (num-rows board))
                             player-col-pos)))
-  (player-move-to plyr new-pos))
+  (player-info-move-to plyr new-pos))
 
 
 ;; Natural Natural Natural -> Natural
@@ -111,26 +111,26 @@
   (modulo (+ start-idx shift) num-tiles))
 
 
-;; Gamestate Shift Player -> Boolean
+;; Gamestate Shift PlayerInfo -> Boolean
 ;; Create a function to check if a player is on a shifted row/col
 (define (player-shifted? shft plyr)
-  (cond [(shifts-row? (shift-direction shft)) (= (car (player-curr-pos plyr)) (shift-index shft))]
-        [(shifts-col? (shift-direction shft)) (= (cdr (player-curr-pos plyr)) (shift-index shft))]))
+  (cond [(shifts-row? (shift-direction shft)) (= (car (player-info-curr-pos plyr)) (shift-index shft))]
+        [(shifts-col? (shift-direction shft)) (= (cdr (player-info-curr-pos plyr)) (shift-index shft))]))
 
 
 ;; Gamestate GridPosn -> Gamestate
 ;; Move the currently active player to a new tile according to their specified move
 (define (gamestate-move-player state pos)
   (define players (gamestate-players state))
-  (define curr-player-moved (player-move-to (first players) pos))
+  (define curr-player-moved (player-info-move-to (first players) pos))
   (struct-copy gamestate state
                [players (cons curr-player-moved (rest players))]))
 
 
-;; Player GridPosn -> Boolean
+;; PlayerInfo GridPosn -> Boolean
 ;; Returns True if the player is on the given position
 (define (player-on-pos? p pos)
-  (equal? (player-curr-pos p) pos))
+  (equal? (player-info-curr-pos p) pos))
 
 
 ;; Gamestate GridPosn -> Boolean
@@ -143,20 +143,20 @@
 ;; Gamestate -> [Listof Grid-Posn]
 ;; Find all positions reachable from the current active player's position
 (define (all-reachable-from-active state)
-  (board-all-reachable-from (gamestate-board state) (player-curr-pos (get-current-player state))))
+  (board-all-reachable-from (gamestate-board state) (player-info-curr-pos (get-current-player state))))
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their goal tile
 (define (player-on-goal? state)
   (define curr-player (get-current-player state))
-  (equal? (player-curr-pos curr-player) (player-goal-pos curr-player)))
+  (equal? (player-info-curr-pos curr-player) (player-info-goal-pos curr-player)))
 
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their home tile
 (define (player-on-home? state)
   (define curr-player (get-current-player state))
-  (equal? (player-curr-pos curr-player) (player-home-pos curr-player)))
+  (equal? (player-info-curr-pos curr-player) (player-info-home-pos curr-player)))
 
 
 ;; Gamestate -> Gamestate
@@ -174,7 +174,7 @@
                [players (append (rest plyrs) (cons (first plyrs) empty))]))
 
 
-;; Gamestate -> Player
+;; Gamestate -> PlayerInfo
 ;; Get the current player
 (define (get-current-player state)
   (first (gamestate-players state)))
@@ -191,7 +191,7 @@
 ;; Gamestate GridPosn -> Gamestate
 ;; Changes the goal tile of the active player
 (define (change-active-player-goal state new-goal)
-  (define new-players (cons (player-change-goal (get-current-player state) new-goal)
+  (define new-players (cons (player-info-change-goal (get-current-player state) new-goal)
                             (rest (gamestate-players state))))
   (struct-copy gamestate state [players new-players]))
 
@@ -202,28 +202,28 @@
   (provide (all-defined-out))
   (require (submod "tile.rkt" examples))
   (require (submod "board.rkt" examples))
-  (require (submod "player.rkt" examples))
+  (require (submod "player-info.rkt" examples))
 
-  (define players0 (list player0 player1 player2 player3 player4))
-  ; player0 (a) not on goal or home
+  (define player-infos0 (list player-info0 player-info1 player-info2 player-info3 player-info4))
+  ; player-info0 (a) not on goal or home
   ; first top left
-  (define gamestate0 (gamestate-new board1 tile-extra players0 #f))
+  (define gamestate0 (gamestate-new board1 tile-extra player-infos0 #f))
 
-  (define players1 (list player3 player4))
-  ; player1 (a) not on goal on home
-  (define gamestate1 (gamestate-new board1 tile-extra players1 #f))
-  (define players2 (list player1 player2 player3 player4))
+  (define player-infos1 (list player-info3 player-info4))
+  ; player-info1 (a) not on goal on home
+  (define gamestate1 (gamestate-new board1 tile-extra player-infos1 #f))
+  (define player-infos2 (list player-info1 player-info2 player-info3 player-info4))
   ; on goal not home
-  (define gamestate2 (gamestate-new board1 tile-extra players2 #f))
+  (define gamestate2 (gamestate-new board1 tile-extra player-infos2 #f))
 
-  (define players3 (list player1 player0 player5 player6 player7))
-  (define gamestate3 (gamestate-new board1 tile-extra players3 #f))
+  (define player-infos3 (list player-info1 player-info0 player-info5 player-info6 player-info7))
+  (define gamestate3 (gamestate-new board1 tile-extra player-infos3 #f))
 
-  (define players4 (list player0 player1 player2 player5))
-  (define gamestate4 (gamestate board1 tile-extra players4 #f))
+  (define player-infos4 (list player-info0 player-info1 player-info2 player-info5))
+  (define gamestate4 (gamestate board1 tile-extra player-infos4 #f))
 
-  (define players5 (list player8 player5 player7))
-  (define gamestate5 (gamestate-new board1 tile-extra players5 #f)))
+  (define player-infos5 (list player-info8 player-info5 player-info7))
+  (define gamestate5 (gamestate-new board1 tile-extra player-infos5 #f)))
   
 
 (module+ test
@@ -231,7 +231,7 @@
   (require (submod ".." examples))
   (require (submod "board.rkt" examples))
   (require (submod "tile.rkt" examples))
-  (require (submod "player.rkt" examples)))
+  (require (submod "player-info.rkt" examples)))
 
 ;; test execute-move shifts rows and cols
 (module+ test
@@ -273,56 +273,56 @@
                  (gamestate-board gamestate4)
                  (shift-new 'right 0))
                 (list
-                 (player-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
-                 player1
-                 player2
-                 (player-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
+                 (player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
+                 player-info1
+                 player-info2
+                 (player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
   (check-equal? (shift-players
                  (gamestate-players gamestate4)
                  (gamestate-board gamestate4)
                  (shift-new 'left 0))
                 (list
-                 (player-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
-                 player1
-                 player2
-                 (player-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
-  (check-true (player-on-pos?
+                 (player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
+                 player-info1
+                 player-info2
+                 (player-info-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'up 0) 0)) 1)
                (cons 6 0)))
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'down 6) 90)) 4)
                (cons 0 6)))
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'left 0) 180)) 1)
                (cons 0 6)))
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'right 6) 270)) 4)
                (cons 6 0))))
 
 ;; test player is moved to the right tile
 (module+ test
   ; test moving player
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-move-player gamestate0 (cons 2 0))) 0)
                (cons 2 0)))
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-move-player gamestate5 (cons 3 0))) 0)
                (cons 3 0)))
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-move-player gamestate0 (cons 1 2))) 0)
                (cons 1 2)))
-  (check-true (player-on-pos?
+  (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-move-player gamestate0 (cons 1 1))) 0)
                (cons 1 1))))
 
 ;; test player is moved to correct tile after shift moves row/col
 (module+ test
-  (check-equal? (player-curr-pos (first
+  (check-equal? (player-info-curr-pos (first
                                   (gamestate-players
                                    (gamestate-move-player
                                     (gamestate-shift-and-insert gamestate0 (shift-new 'up 0) 0) (cons 1 1)))))
               (cons 1 1))
-  (check-equal? (player-curr-pos (first
+  (check-equal? (player-info-curr-pos (first
                                   (gamestate-players
                                    (gamestate-move-player
                                     (gamestate-shift-and-insert gamestate5 (shift-new 'left 4) 90) (cons 4 5)))))
@@ -352,33 +352,33 @@
 ;; test remove-player
 (module+ test
   (check-equal? (gamestate-players (remove-player gamestate0))
-                (list player1 player2 player3 player4))
+                (list player-info1 player-info2 player-info3 player-info4))
   (check-equal? (gamestate-players (remove-player gamestate1))
-                (list player4))
+                (list player-info4))
   (check-equal? (gamestate-players (remove-player gamestate2))
-                (list player2 player3 player4)))
+                (list player-info2 player-info3 player-info4)))
 
 ;; test end-current-turn
 (module+ test
-  (check-equal? (get-current-player (end-current-turn gamestate0)) player1)
-  (check-equal? (get-current-player (end-current-turn gamestate1)) player4)
-  (check-equal? (get-current-player (end-current-turn gamestate2)) player2))
+  (check-equal? (get-current-player (end-current-turn gamestate0)) player-info1)
+  (check-equal? (get-current-player (end-current-turn gamestate1)) player-info4)
+  (check-equal? (get-current-player (end-current-turn gamestate2)) player-info2))
 
 ;; Test player-on-pos
 (module+ test
-  (check-true (player-on-pos? player0 (cons 0 0))))
+  (check-true (player-info-on-pos? player-info0 (cons 0 0))))
 
-;; Test player-move-to
+;; Test player-info-move-to
 (module+ test
-  (check-equal? (player-move-to player0 (cons 3 3))
-                (player-new
+  (check-equal? (player-info-move-to player-info0 (cons 3 3))
+                (player-info-new
                  (cons 3 3)
                  (cons 6 6)
                  (cons 5 1)
                  #f
                  "blue"))
-  (check-equal? (player-move-to player0 (cons 6 6))
-                (player-new
+  (check-equal? (player-info-move-to player-info0 (cons 6 6))
+                (player-info-new
                  (cons 6 6)
                  (cons 6 6)
                  (cons 5 1)
@@ -389,4 +389,4 @@
 ;; Test gamestate->player-state
 (module+ test
   (check-equal? (gamestate->player-state gamestate0)
-                (player-state-new board1 tile-extra player0 #f)))
+                (player-state-new board1 tile-extra player-info0 #f)))

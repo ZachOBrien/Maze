@@ -18,8 +18,8 @@
   [hash->gamestate (-> hash? gamestate?)]
   ;; Convert a hashtable to a GridPosn
   [hash->gridposn (-> hash? grid-posn?)]
-  ;; Convert a hashtable to a Player
-  [hash->player (-> hash? player?)]
+  ;; Convert a hashtable to a PlayerInfo
+  [hash->player-info (-> hash? player-info?)]
   ;; Convert a json action to a Move
   [json-action->last-action (-> (or/c (listof any/c) 'null) shift?)]
   ;; Convert a string direction to a symbol
@@ -32,7 +32,7 @@
 (require "tile.rkt")
 (require "board.rkt")
 (require "state.rkt")
-(require "player.rkt")
+(require "player-info.rkt")
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -158,24 +158,24 @@
   (cons (hash-ref ht 'row#) (hash-ref ht 'column#)))
 
 
-;; HashTable -> Player
-;; Create a player from a HashTable
-(define (hash->player ht)
-  (player-new (hash->gridposn (hash-ref ht 'current))
-              (hash->gridposn (hash-ref ht 'home))
-              (cons 1 1)
-              #f
-              (hash-ref ht 'color)))
+;; HashTable -> PlayerInfo
+;; Create a player-info from a HashTable
+(define (hash->player-info ht)
+  (player-info-new (hash->gridposn (hash-ref ht 'current))
+                   (hash->gridposn (hash-ref ht 'home))
+                   (cons 1 1)
+                   #f
+                   (hash-ref ht 'color)))
 
 (module+ test
-  (check-equal? (hash->player (hash 'current (hash 'row# 0 'column# 0)
+  (check-equal? (hash->player-info (hash 'current (hash 'row# 0 'column# 0)
                                     'home (hash 'row# 2 'column# 2)
                                     'color "blue"))
-                (player-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
-  (check-equal? (hash->player (hash 'current (hash 'row# 6 'column# 1)
+                (player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
+  (check-equal? (hash->player-info (hash 'current (hash 'row# 6 'column# 1)
                                     'home (hash 'row# 3 'column# 4)
                                     'color "red"))
-                (player-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
+                (player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list
@@ -204,7 +204,7 @@
   (gamestate-new
    (hash->board (hash-ref ht 'board))
    (hash->spare-tile (hash-ref ht 'spare))
-   (map hash->player (hash-ref ht 'plmt))
+   (map hash->player-info (hash-ref ht 'plmt))
    (json-action->last-action (hash-ref ht 'last))))
    
 
@@ -332,17 +332,17 @@
           '("│" "─" "┐" "└" "┌" "┘" "┬")
           '("│" "─" "┐" "└" "┌" "┘" "┬")))
 
-  (define example-players1
+  (define example-player-infos1
     (list (hash 'current (hash 'row# 0 'column# 0) 'home (hash 'row# 6 'column# 6) 'color "blue")
           (hash 'current (hash 'row# 1 'column# 1) 'home (hash 'row# 5 'column# 5) 'color "red")
           (hash 'current (hash 'row# 2 'column# 2) 'home (hash 'row# 4 'column# 4) 'color "green")
           (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
 
-  (define expected-players1
-    (list (player-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
-          (player-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
-          (player-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
-          (player-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
+  (define expected-player-infos1
+    (list (player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
+          (player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
+          (player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
+          (player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
 
   (define example-board-hash
     (hash 'connectors example-connectors
@@ -358,9 +358,9 @@
                                        'spare (hash 'tilekey "┘"
                                                     '1-image "lapis-lazuli"
                                                     '2-image "pink-opal")
-                                       'plmt example-players1
+                                       'plmt example-player-infos1
                                        'last (list 0 "LEFT")))
                 (gamestate-new example-board
                                spare-tile
-                               expected-players1
+                               expected-player-infos1
                                (shift-new 'left 0))))
