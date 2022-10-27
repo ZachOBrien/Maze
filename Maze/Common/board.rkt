@@ -47,7 +47,7 @@
   ; Create a new Shift
   [shift-new (-> shift-direction? natural-number/c shift?)]
   ; Create a random board
-  [create-random-board (-> natural-number/c board?)]
+  [create-random-board (-> (and/c natural-number/c odd?) board?)]
   ; Shift a row or column at an index and insert a new tile
   [board-shift-and-insert (->i
                            ([b board?]
