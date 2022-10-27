@@ -12,6 +12,7 @@
 (provide
  (contract-out
   [move?          contract?]
+  [move-new (-> grid-posn? shift? orientation? move?)]
   [action?        contract?]
   [strategy?      contract?]
   [player-state?  contract?]
@@ -49,6 +50,8 @@
 ;;                 a shift, and the number of degrees to rotate the spare tile
 (struct move [pos shift orientation] #:transparent)
 
+(define (move-new pos shft orientation)
+  (move pos shft orientation))
 
 ;; An Action is one of:
 ;;    - Move
