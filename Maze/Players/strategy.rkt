@@ -12,13 +12,19 @@
 (provide
  (contract-out
   [move?          contract?]
+  [move-orientation (-> move? orientation?)]
+  [move-shift (-> move? shift?)]
+  [move-pos (-> move? grid-posn?)]
+  [move-new (-> grid-posn? shift? orientation? move?)]
   [action?        contract?]
   [strategy?      contract?]
   [player-state?  contract?]
   ; Riemann strategy
   [riemann-strategy   strategy?]
   ; Euclidean strategy
-  [euclidean-strategy strategy?]))
+  [euclidean-strategy strategy?]
+  ; Convert an Action to json
+  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]))
      
 
 ;; --------------------------------------------------------------------
@@ -28,63 +34,38 @@
 (require racket/list)
 (require racket/function)
 (require racket/set)
+(require racket/bool)
 
-(require "state.rkt")
-(require "board.rkt")
-(require "tile.rkt")
+(require "../Common/state.rkt")
+(require "../Common/player-info.rkt")
+(require "../Common/board.rkt")
+(require "../Common/tile.rkt")
+(require "../Common/serialize.rkt")
+(require "player-state.rkt")
 
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
 
-;; Player Player -> Boolean
-;; Are the two players the same?
-(define (move=? mv1 mv2 rec)
-  (and (rec (move-pos mv1) (move-pos mv2))
-       (rec (move-shift-direction mv1) (move-shift-direction mv2))
-       (rec (move-idx mv1) (move-idx mv2))
-       (rec (move-orientation mv1) (move-orientation mv2))))
-
-(define (move-hash-code mv rec)
-  (+ (* 1000 (rec (move-pos mv)))
-     (* 100  (rec (move-shift-direction mv)))
-     (* 10   (rec (move-idx mv)))
-     (* 1    (rec (move-orientation mv)))))
-
-(define (move-secondary-hash-code mv rec)
-  (+ (* 1000 (rec (move-orientation mv)))
-     (* 100  (rec (move-idx mv)))
-     (* 10   (rec (move-shift-direction mv)))
-     (* 1    (rec (move-pos mv)))))
-
 ;; A Move is a structure:
-;;    (struct ShiftDirection Natural Orientation GridPosn)
-;; interpretation: A Move has a direction to shift a row or column, the index of the
-;;                 row or column to shift, the number of degrees to rotate the spare
-;;                 tile, and a position to move the currently active player to after the shift
-(struct move [pos shift-direction idx orientation]
-  #:methods gen:equal+hash
-  [(define equal-proc move=?)
-   (define hash-proc  move-hash-code)
-   (define hash2-proc move-secondary-hash-code)])
+;;    (struct GridPosn Shift Orientation)
+;; interpretation: A Move has a position to move the currently active player to after the shift,
+;;                 a shift, and the number of degrees to rotate the spare tile
+(struct move [pos shift orientation] #:transparent)
 
+(define (move-new pos shft orientation)
+  (move pos shft orientation))
 
 ;; An Action is one of:
 ;;    - Move
 ;;    - #f
 ;; interpretation: A player acts by either making a move or making no move (passing turn)
-(define action? (or/c #f move?))
+(define action? (or/c move? #f))
 
-
-;; A PlayerState is a structure:
-;;    (struct Board Tile Player)
-;; interpretation: A player knows the board, the extra tile, and all of its information
-(struct player-state [board extra-tile player])
-  
 
 ;; A Strategy is a function:
-;;    (-> Gamestate Move)
-;; interpretation: A strategy examines a gamestate and determines a move for the currently active
+;;    (-> PlayerState Move)
+;; interpretation: A strategy examines a player state and determines a move for the currently active
 ;;                 player to make
 (define strategy? (-> player-state? action?))
 
@@ -93,33 +74,29 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; PlayerState -> Action
-;; Determine the player's move using the riemann strategy
+;; Determine the player's move using the Riemann strategy
 (define (riemann-strategy plyr-state)
-  (define candidates (get-riemann-candidates
-                      (player-state-board plyr-state)
-                      (player-state-player plyr-state)))
-  (get-first-valid-move plyr-state candidates))
+  (get-first-valid-candidate-move plyr-state (get-riemann-candidates
+                                    (player-state-board plyr-state)
+                                    (player-state-plyr-info plyr-state))))
 
 ;; Board Player -> [Listof GridPosn]
-;; Order the possible candidates for riemann search
+;; Order the possible candidates for Riemann search
 (define (get-riemann-candidates board plyr)
   (define goal-pos (get-goal-gp plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
 
-
 ;; PlayerState -> Action
-;; Determine a player's move using the euclidean strategy
+;; Determine a player's move using the Euclidean strategy
 (define (euclidean-strategy plyr-state)
-  (define candidates (get-euclidean-candidates
-                      (player-state-board plyr-state)
-                      (player-state-player plyr-state)))
-  (get-first-valid-move plyr-state candidates))
+  (get-first-valid-candidate-move plyr-state (get-euclidean-candidates
+                                    (player-state-board plyr-state)
+                                    (player-state-plyr-info plyr-state))))
 
-
-;; PlayerState -> Action
-;; Order the possible candidates for euclidean search
+;; PlayerState -> [Listof GridPosn]
+;; Order the possible candidates for Euclidean search
 (define (get-euclidean-candidates board plyr)
   (define goal-pos (get-goal-gp plyr))
   (define all-candidates (get-all-positions board))
@@ -127,87 +104,89 @@
 
 
 ;; GridPosn GridPosn GrisPosn -> Boolean
-;; Compares two gridposns and returns whether the first is less than the second
+;; Returns true of `pos1` is not farther from `goal` than `pos2`
 (define (compare-euclidean-dist goal pos1 pos2)
   (if (= (euclidian-dist goal pos1) (euclidian-dist goal pos2))
       (compare-row-col pos1 pos2)
       (< (euclidian-dist goal pos1) (euclidian-dist goal pos2))))
-
 
 ;; GridPosn GridPosn -> Natural
 ;; Computes the euclidean distance between two gridposns
 (define (euclidian-dist pos1 pos2)
   (sqrt (+ (expt (- (car pos2) (car pos1)) 2) (expt (- (cdr pos2) (cdr pos1)) 2))))
 
-;; Player -> GridPosn
-;; Determines the current goal for the player
+;; PlayerInfo -> GridPosn
+;; Determines the current goal for the player. If a player has already visited their treasure,
+;; their goal is to return home.
 (define (get-goal-gp plyr)
-  (if (player-visited-goal? plyr)
-      (player-get-home-pos plyr)
-      (player-get-goal-pos plyr)))
-    
-    
-;; PlayerState [Listof Move] -> Action
-;; Finds the first Move which is valid in a PlayerState
-(define (get-first-valid-move plyr-state candidates)
-  (findf
-   (λ (mv) (valid-move? plyr-state mv))
-   (all-possible-moves (player-state-board plyr-state) candidates)))   
-
+  (if (player-info-visited-goal? plyr)
+      (player-info-home-pos plyr)
+      (player-info-goal-pos plyr)))
 
 ;; PlayerState Move -> Boolean
-;; Returns True if the 
+;; Returns True if the move is valid in the state
 (define (valid-move? plyr-state mv)
   (define old-board  (player-state-board plyr-state))
-  (define old-player (player-state-player plyr-state))
-  
+  (define old-player (player-state-plyr-info plyr-state))
   (define-values
     (new-board new-extra-tile)
     (board-shift-and-insert
      old-board
-     (move-shift-direction mv)
-     (move-idx mv)
+     (move-shift mv)
      (tile-rotate (player-state-extra-tile plyr-state) (move-orientation mv))))
-  
   (define new-player
-    (first (shift-players (list
-                           (player-state-player plyr-state))
+    (first (shift-players (list (player-state-plyr-info plyr-state))
                           old-board
-                          (move-shift-direction mv)
-                          (move-idx mv))))
-  
-  (and (not (equal? (move-pos mv) (player-get-curr-pos new-player)))
+                          (move-shift mv))))
+  (and (not (equal? (move-pos mv) (player-info-curr-pos new-player)))
+       (not (shift-undoes-shift? (move-shift mv) (player-state-prev-shift plyr-state)))
        (member
         (move-pos mv)
-        (board-all-reachable-from new-board (player-get-curr-pos new-player)))))
+        (board-all-reachable-from new-board (player-info-curr-pos new-player)))))
 
 ;; Board -> [Listof GridPosn]
-;; Get all possible positions in a gamestate
+;; Get all possible positions in a board
 (define (get-all-positions board)
   (apply append (for/list ([x (in-range 0 (num-cols board))])
       (for/list ([y (in-range 0 (num-rows board))])
         (cons x y)))))
 
+;; PlayerState [Listof Move] -> Action
+;; Finds the first Move which is valid in a PlayerState
+(define (get-first-valid-candidate-move plyr-state candidates)
+  (findf
+   (curry valid-move? plyr-state)
+   (get-all-candidate-moves (player-state-board plyr-state) candidates)))
 
 ;; Board -> [Listof Move]
-;; Get all possible board shift and inserts
-(define (all-possible-moves board candidates)
-  (map (λ (x) (apply move x))
-       (cartesian-product candidates shift-directions (get-valid-shift-indices board) orientations)))
+;; Get all possible moves that can be made on a board
+(define (get-all-candidate-moves board candidates)
+  (map (curry apply move)
+       (cartesian-product candidates
+                          (map (curry apply shift-new) (cartesian-product shift-directions (get-valid-shift-indices board)))
+                          orientations)))
 
+;; Action -> (U String List)
+;; Convert an action to json
+(define (action->json act)
+  (cond
+    [(move? act) (list (shift-index (move-shift act))
+                       (string-upcase (symbol->string (shift-direction (move-shift act))))
+                       (move-orientation act)
+                       (gridposn->hash (move-pos act)))]
+    [(false? act) "PASS"]))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
 
 (module+ examples
   (provide (all-defined-out))
-  (require (submod "tile.rkt" examples))
-  (require (submod "board.rkt" examples))
-  (require (submod "state.rkt" examples))
+  (require (submod "../Common/tile.rkt" examples))
+  (require (submod "../Common/board.rkt" examples))
+  (require (submod "../Common/state.rkt" examples))
+  (require (submod "player-state.rkt" examples))
   
-  (define player-state-1 (player-state board1 tile-extra player2))
-  (define player-state-2 (player-state board1 tile-extra player7))
-  (define player-state-nowhere-to-go (player-state board-nowhere-to-go tile-extra player3))
+
   (define cand-list-1 (list (cons 1 1) (cons 0 1) (cons 1 0) (cons 1 2) (cons 2 1) (cons 0 0) (cons 0 2)
                             (cons 2 0) (cons 2 2) (cons 1 3) (cons 3 1) (cons 0 3) (cons 2 3) (cons 3 0)
                             (cons 3 2) (cons 3 3) (cons 1 4) (cons 4 1) (cons 0 4) (cons 2 4) (cons 4 0)
@@ -233,24 +212,32 @@
 (module+ test
   (require rackunit)
   (require (submod ".." examples))
-  (require (submod "board.rkt" examples))
-  (require (submod "state.rkt" examples)))
+  (require (submod "../Common/board.rkt" examples))
+  (require (submod "../Common/state.rkt" examples))
+  (require (submod "player-state.rkt" examples))
+  (require (submod "../Common/player-info.rkt" examples)))
 
 ; test riemann-strategy
 (module+ test
-  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) 'right 2 0)) ; Player can reach goal tile
-  (check-equal? (riemann-strategy player-state-2) (move (cons 0 0) 'right 6 90)) ; Player cannot reach goal tile, reaches 0 0
-  (check-false (riemann-strategy player-state-nowhere-to-go))) ; Player cannot go anywhere
+  ; Player can reach goal tile
+  (check-equal? (riemann-strategy player-state-1) (move (cons 3 3) (shift-new 'right 2) 0))
+  ; Player cannot reach goal tile, reaches 0 0
+  (check-equal? (riemann-strategy player-state-2) (move (cons 0 0) (shift-new 'right 6) 90))
+  ; Player cannot go anywhere
+  (check-false (riemann-strategy player-state-nowhere-to-go)))
 
 ; test euclidean-strategy
 (module+ test
-  (check-false (euclidean-strategy player-state-nowhere-to-go)) ; Player cannot go anywhere
-  (check-equal? (euclidean-strategy player-state-2) (move (cons 5 2) 'right 6 90)) ; Player cannot reach goal tile, reaches closest tile
-  (check-equal? (euclidean-strategy player-state-1) (move (cons 3 3) 'right 2 0))) ; Player can reach goal tile
+  ; Player cannot go anywhere
+  (check-false (euclidean-strategy player-state-nowhere-to-go))
+  ; Player cannot reach goal tile, reaches closest tile
+  (check-equal? (euclidean-strategy player-state-2) (move (cons 5 2) (shift-new 'right 6) 90))
+  ; Player can reach goal tile
+  (check-equal? (euclidean-strategy player-state-1) (move (cons 3 3) (shift-new 'right 2) 0)))
 
 ; test get-euclidean-strategy
 (module+ test
-  (check-equal? (get-euclidean-candidates board1 player1)
+  (check-equal? (get-euclidean-candidates board1 player-info1)
                 (list (cons 1 1) (cons 0 1) (cons 1 0) (cons 1 2) (cons 2 1) (cons 0 0) (cons 0 2)
                       (cons 2 0) (cons 2 2) (cons 1 3) (cons 3 1) (cons 0 3) (cons 2 3) (cons 3 0)
                       (cons 3 2) (cons 3 3) (cons 1 4) (cons 4 1) (cons 0 4) (cons 2 4) (cons 4 0)
@@ -258,7 +245,7 @@
                       (cons 5 0) (cons 5 2) (cons 4 4) (cons 3 5) (cons 5 3) (cons 1 6) (cons 4 5)
                       (cons 5 4) (cons 6 1) (cons 0 6) (cons 2 6) (cons 6 0) (cons 6 2) (cons 3 6)
                       (cons 6 3) (cons 5 5) (cons 4 6) (cons 6 4) (cons 5 6) (cons 6 5) (cons 6 6)))
-  (check-equal? (get-euclidean-candidates board1 player2)
+  (check-equal? (get-euclidean-candidates board1 player-info2)
                 (list (cons 3 3) (cons 2 3) (cons 3 2) (cons 3 4) (cons 4 3) (cons 2 2) (cons 2 4)
                       (cons 4 2) (cons 4 4) (cons 1 3) (cons 3 1) (cons 3 5) (cons 5 3) (cons 1 2)
                       (cons 1 4) (cons 2 1) (cons 2 5) (cons 4 1) (cons 4 5) (cons 5 2) (cons 5 4)
@@ -266,7 +253,7 @@
                       (cons 6 3) (cons 0 2) (cons 0 4) (cons 2 0) (cons 2 6) (cons 4 0) (cons 4 6)
                       (cons 6 2) (cons 6 4) (cons 0 1) (cons 0 5) (cons 1 0) (cons 1 6) (cons 5 0)
                       (cons 5 6) (cons 6 1) (cons 6 5) (cons 0 0) (cons 0 6) (cons 6 0) (cons 6 6)))
-  (check-equal? (get-euclidean-candidates board1 player3)
+  (check-equal? (get-euclidean-candidates board1 player-info3)
                 (list (cons 1 3) (cons 0 3) (cons 1 2) (cons 1 4) (cons 2 3) (cons 0 2) (cons 0 4)
                       (cons 2 2) (cons 2 4) (cons 1 1) (cons 1 5) (cons 3 3) (cons 0 1) (cons 0 5)
                       (cons 2 1) (cons 2 5) (cons 3 2) (cons 3 4) (cons 3 1) (cons 3 5) (cons 1 0)
@@ -277,7 +264,7 @@
 
 ; test get-riemann-candidates
 (module+ test
-  (check-equal? (get-riemann-candidates board1 player1)
+  (check-equal? (get-riemann-candidates board1 player-info1)
                 (list (cons 1 1)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0)            (cons 1 2) (cons 1 3) (cons 1 4) (cons 1 5) (cons 1 6)
@@ -286,7 +273,7 @@
                       (cons 4 0) (cons 4 1) (cons 4 2) (cons 4 3) (cons 4 4) (cons 4 5) (cons 4 6)
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6)))
-  (check-equal? (get-riemann-candidates board1 player2)
+  (check-equal? (get-riemann-candidates board1 player-info2)
                 (list (cons 3 3)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0) (cons 1 1) (cons 1 2) (cons 1 3) (cons 1 4) (cons 1 5) (cons 1 6)
@@ -295,7 +282,7 @@
                       (cons 4 0) (cons 4 1) (cons 4 2) (cons 4 3) (cons 4 4) (cons 4 5) (cons 4 6)
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6)))
-  (check-equal? (get-riemann-candidates board1 player3)
+  (check-equal? (get-riemann-candidates board1 player-info3)
                 (list (cons 1 3)
                       (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0) (cons 1 1) (cons 1 2)            (cons 1 4) (cons 1 5) (cons 1 6)
@@ -315,12 +302,14 @@
 
 ; test valid-move?
 (module+ test
-  (check-not-false (valid-move? player-state-1 (move (cons 3 1) 'down 2 0)))
-  (check-not-false (valid-move? player-state-1 (move (cons 3 3) 'right 2 0)))
-  (check-false (valid-move? player-state-1 (move (cons 3 3) 'up 0 0)))
-  (check-false (valid-move? player-state-1 (move (cons 3 2) 'down 2 0)))
-  (check-false (valid-move? player-state-1 (move (cons 1 1) 'right 6 0)))
-  (check-false (valid-move? player-state-1 (move (cons 3 1) 'left 6 0))))
+  (check-not-false (valid-move? player-state-1 (move (cons 3 1) (shift-new 'down 2) 0)))
+  ; Check that undoing the previous move is invalid, even if the rest of the move is legal
+  (check-false (valid-move? player-state-1 (move (cons 3 1) (shift-new 'up 2) 0)))
+  (check-not-false (valid-move? player-state-1 (move (cons 3 3) (shift-new 'right 2) 0)))
+  (check-false (valid-move? player-state-1 (move (cons 3 3) (shift-new 'up 0) 0)))
+  (check-false (valid-move? player-state-1 (move (cons 3 2) (shift-new 'down 2) 0)))
+  (check-false (valid-move? player-state-1 (move (cons 1 1) (shift-new 'right 6) 0)))
+  (check-false (valid-move? player-state-1 (move (cons 3 1) (shift-new 'left 6) 0))))
 
 ; test euclidian-dist
 (module+ test
@@ -330,9 +319,9 @@
 
 ; test all-possible-moves
 (module+ test
-  (check-equal? (set-count (list->set (all-possible-moves board1 cand-list-1))) 3136)
-  (check-equal? (set-count (list->set (all-possible-moves board2 cand-list-1))) 1568)
-  (check-equal? (set-count (list->set (all-possible-moves board1 cand-list-2))) 3136))
+  (check-equal? (set-count (list->set (get-all-candidate-moves board1 cand-list-1))) 3136)
+  (check-equal? (set-count (list->set (get-all-candidate-moves board2 cand-list-1))) 1568)
+  (check-equal? (set-count (list->set (get-all-candidate-moves board1 cand-list-2))) 3136))
 
 ;; test get-all-positions
 (module+ test
@@ -359,14 +348,14 @@
 
 ; test get-goal-gp
 (module+ test
-  (check-equal? (get-goal-gp player1) (cons 1 1))
-  (check-equal? (get-goal-gp player2) (cons 3 3))
-  (check-equal? (get-goal-gp player3) (cons 1 3))
-  (check-equal? (get-goal-gp player4) (cons 5 5))
-  (check-equal? (get-goal-gp player9) (cons 3 3)))
+  (check-equal? (get-goal-gp player-info1) (cons 1 1))
+  (check-equal? (get-goal-gp player-info2) (cons 3 3))
+  (check-equal? (get-goal-gp player-info3) (cons 1 3))
+  (check-equal? (get-goal-gp player-info4) (cons 5 5))
+  (check-equal? (get-goal-gp player-info9) (cons 3 3)))
 
 ; test get-first-valid-move
 (module+ test
-  (check-equal? (get-first-valid-move player-state-1 cand-list-1) (move (cons 3 1) 'down 2 0))
-  (check-equal? (get-first-valid-move player-state-1 cand-list-2) (move (cons 3 3) 'right 2 0))
-  (check-equal? (get-first-valid-move player-state-2 cand-list-3) (move (cons 3 3) 'up 0 0)))
+  (check-equal? (get-first-valid-candidate-move player-state-1 cand-list-1) (move (cons 3 1) (shift-new 'down 2) 0))
+  (check-equal? (get-first-valid-candidate-move player-state-1 cand-list-2) (move (cons 3 3) (shift-new 'right 2) 0))
+  (check-equal? (get-first-valid-candidate-move player-state-2 cand-list-3) (move (cons 3 3) (shift-new 'up 0) 0)))

@@ -9,12 +9,18 @@
 
 (require racket/contract)
 
+;; Board -> (Shift -> Boolean)
+;; Creates a function to check for valid shift in the given board
+(define (valid-shift? board)
+  (and/c
+   shift?
+   (lambda (shft) ((valid-shift-index? board) (shift-index shft)))))
+
 ;; Board -> (Natural -> Boolean)
-;; Creates a function to check for valid shift index in the given board
 (define (valid-shift-index? board)
   (and/c natural-number/c
-         (</c (length board))
-         even?))
+            (</c (length board))
+            even?))
 
 ;; [SquareListof Any] -> Boolean
 ;; Checks if the square list has odd dimensions
@@ -33,11 +39,19 @@
   [grid-posn?       contract?]
   [shift-direction? contract?]
   [shift-directions (listof shift-direction?)]
+  
+  [shift?           contract?]
+  [shift-direction (-> shift? shift-direction?)]
+  [shift-index (-> shift? natural-number/c)]
+  
+  ; Create a new Shift
+  [shift-new (-> shift-direction? natural-number/c shift?)]
+  ; Create a random board
+  [create-random-board (-> (and/c natural-number/c odd?) board?)]
   ; Shift a row or column at an index and insert a new tile
   [board-shift-and-insert (->i
                            ([b board?]
-                            [s shift-direction?]
-                            [i (b) (valid-shift-index? b)]
+                            [s (b) (valid-shift? b)]
                             [t tile?])
                             (values (rb board?) (rt tile?)))]
   ; Get a list of the board positions reachable from a given board position
@@ -56,6 +70,8 @@
   [num-cols (-> board? (and/c integer? positive?))]
   ;; Compares two GridPosns in row-then-column order
   [compare-row-col (-> grid-posn? grid-posn? boolean?)]
+  ;; Do these shifts undo each other?
+  [shift-undoes-shift? (-> (or/c shift? #f) (or/c shift? #f) boolean?)]
   ;; Get indices which can be shifted
   [get-valid-shift-indices (-> board? (listof natural-number/c))]))
      
@@ -66,6 +82,8 @@
 (require racket/match)
 (require racket/list)
 (require racket/function)
+(require racket/set)
+(require racket/bool)
 
 (require "tile.rkt")
 (require "gem.rkt")
@@ -97,29 +115,55 @@
 (define shift-directions (list 'up 'down 'left 'right))
 (define shift-direction? (apply or/c shift-directions))
 
+;; A Shift is a structure:
+;;    (struct ShiftDirection Natural)
+;; interpretation: The direction and index of a shift
+(struct shift [direction index] #:transparent)
+
+;; Natural ShiftDirection -> Shift
+;; Create a new Shift
+(define (shift-new direction index)
+  (shift direction index))
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
 
-;; Board ShiftDirection Natural Tile -> (Board Tile)
+;; Natural -> Board
+;; Randomly creates a new board. The dimension must be odd.
+(define (create-random-board dim)
+  (define randomized-gems (shuffle gems))
+  (define tiles (map create-random-tile (chunk-into-sets gems)))
+  (for/list ([row dim])
+    (for/list ([col dim])
+      (list-ref tiles (+ (* row dim) col)))))
+
+;; List -> [Listof Set]
+;; Chunk a list into sets of length 2. If list is odd length, last element is dropped.
+(define (chunk-into-sets lst [acc '()])
+  (cond
+    [(empty? lst) acc]
+    [(empty? (rest lst)) acc]
+    [else (chunk-into-sets (list-tail lst 2) (cons (set (first lst) (second lst)) acc))]))
+
+;; Board Shift Tile -> (Board Tile)
 ;; Shifts a row or column and inserts a new tile in the empty space
-(define (board-shift-and-insert board dir idx new-tile)
-  (define tiles-to-shift (get-tiles-to-shift board dir idx))
-  (define tiles-after-shift (get-tiles-after-shift tiles-to-shift dir new-tile))
-  (define extra-tile (get-extra-tile-from-shift tiles-to-shift dir))
+(define (board-shift-and-insert board shft new-tile)
+  (define tiles-to-shift (get-tiles-to-shift board shft))
+  (define tiles-after-shift (get-tiles-after-shift tiles-to-shift (shift-direction shft) new-tile))
+  (define extra-tile (get-extra-tile-from-shift tiles-to-shift (shift-direction shft)))
   (define new-board
-    (if (shifts-row? dir)
-        (replace-row board idx tiles-after-shift)
-        (replace-col board idx tiles-after-shift)))
+    (if (shifts-row? (shift-direction shft))
+        (replace-row board (shift-index shft) tiles-after-shift)
+        (replace-col board (shift-index shft) tiles-after-shift)))
   (values new-board extra-tile))
 
-;; Board ShiftDirection Natural -> [Listof Tile]
+;; Board Shift -> [Listof Tile]
 ;; Retrieves the tiles which will be shifted given a direction and index
-(define (get-tiles-to-shift board dir idx)
-  (if (shifts-row? dir)
-      (get-row board idx)
-      (get-col board idx)))
+(define (get-tiles-to-shift board shft)
+  (if (shifts-row? (shift-direction shft))
+      (get-row board (shift-index shft))
+      (get-col board (shift-index shft))))
 
 ;; [Listof Tile] ShiftDirection -> Tile
 ;; Retrieves the tile which would be pushed off the board as a result of a shift
@@ -264,6 +308,21 @@
     [(< row1 row2) #t]
     [(> row1 row2) #f]))
 
+
+;; (U Shift #f) (U Shift #f) -> Boolean
+;; Do these shifts undo each other?
+(define (shift-undoes-shift? shft1 shft2)
+  (cond
+    [(or (false? shft1) (false? shft2)) #f]
+    [else (and (= (shift-index shft1) (shift-index shft2))
+               (opposite-direction? (shift-direction shft1) (shift-direction shft2)))]))
+
+;; ShiftDirection ShiftDirection -> Boolean
+;; True if given directions are opposite
+(define (opposite-direction? dir1 dir2)
+  (or (equal? (set dir1 dir2) (set 'left 'right))
+      (equal? (set dir1 dir2) (set 'up 'down))))
+
 ;; Board -> [Listof GridPosn]
 ;; Get indices which can be shifted
 (define (get-valid-shift-indices board)
@@ -314,6 +373,19 @@
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples)))
 
+;; Test create-random-board
+(module+ test
+  (check-equal? (num-rows (create-random-board 7)) 7)
+  (check-equal? (num-cols (create-random-board 6)) 6))
+
+;; Test valid-shift?
+(module+ test
+  (check-true ((valid-shift? board1) (shift 'left 0)))
+  (check-true ((valid-shift? board1) (shift 'right 2)))
+  (check-true ((valid-shift? board1) (shift 'left 6)))
+  (check-false ((valid-shift? board1) (shift 'up 1)))
+  (check-false ((valid-shift? board1) (shift 'down 3))))
+
 ;; Test valid-shift-index?
 (module+ test
   (check-true ((valid-shift-index? board1) 0))
@@ -344,11 +416,11 @@
 
 ;; Test get-tiles-to-shift
 (module+ test
-  (check-equal? (get-tiles-to-shift board2 'left 0) row0_2)
-  (check-equal? (get-tiles-to-shift board2 'right 0) row0_2)
-  (check-equal? (get-tiles-to-shift board2 'left 2) row2_2)
-  (check-equal? (get-tiles-to-shift board2 'right 2) row2_2)
-  (check-equal? (get-tiles-to-shift board2 'down 0) (list tile00 tile10 tile20)))
+  (check-equal? (get-tiles-to-shift board2 (shift 'left 0)) row0_2)
+  (check-equal? (get-tiles-to-shift board2 (shift 'right 0)) row0_2)
+  (check-equal? (get-tiles-to-shift board2 (shift 'left 2)) row2_2)
+  (check-equal? (get-tiles-to-shift board2 (shift 'right 2)) row2_2)
+  (check-equal? (get-tiles-to-shift board2 (shift 'down 0)) (list tile00 tile10 tile20)))
 
 ;; Test get-extra-tile-from-shift
 (module+ test
@@ -366,7 +438,7 @@
    "Board shift row right on top row correctly"
    (let-values
      ([(new-board new-extra-tile)
-      (board-shift-and-insert board2 'right 0 tile-extra)])
+      (board-shift-and-insert board2 (shift 'right 0) tile-extra)])
      (check-equal? new-extra-tile tile02)
      (check-equal?
       new-board
@@ -377,7 +449,7 @@
    "Board shift row right on bottom row correctly"
    (let-values
      ([(new-board new-extra-tile)
-      (board-shift-and-insert board2 'right 2 tile-extra)])
+      (board-shift-and-insert board2 (shift 'right 2) tile-extra)])
      (check-equal? new-extra-tile tile22)
      (check-equal?
       new-board
@@ -388,7 +460,7 @@
    "Board shift row left on top row correctly"
    (let-values
        ([(new-board new-extra-tile)
-         (board-shift-and-insert board2 'left 0 tile-extra)])
+         (board-shift-and-insert board2 (shift 'left 0) tile-extra)])
      (check-equal? new-extra-tile tile00)
      (check-equal?
       new-board
@@ -399,7 +471,7 @@
    "Board shift row left on bottom row correctly"
    (let-values
        ([(new-board new-extra-tile)
-         (board-shift-and-insert board2 'left 2 tile-extra)])
+         (board-shift-and-insert board2 (shift 'left 2) tile-extra)])
      (check-equal? new-extra-tile tile20)
      (check-equal?
       new-board
@@ -410,7 +482,7 @@
    "Board shift column up on left column correctly"
    (let-values
      ([(new-board new-extra-tile)
-      (board-shift-and-insert board2 'up 0 tile-extra)])
+      (board-shift-and-insert board2 (shift 'up 0) tile-extra)])
      (check-equal? new-extra-tile tile00)
      (check-equal?
       new-board
@@ -421,7 +493,7 @@
    "Board shift column up on right column correctly"
    (let-values
      ([(new-board new-extra-tile)
-      (board-shift-and-insert board2 'up 2 tile-extra)])
+      (board-shift-and-insert board2 (shift 'up 2) tile-extra)])
      (check-equal? new-extra-tile tile02)
      (check-equal?
       new-board
@@ -432,7 +504,7 @@
    "Board shift column down on left column correctly"
    (let-values
      ([(new-board new-extra-tile)
-      (board-shift-and-insert board2 'down 0 tile-extra)])
+      (board-shift-and-insert board2 (shift 'down 0) tile-extra)])
      (check-equal? new-extra-tile tile20)
      (check-equal?
       new-board
@@ -443,7 +515,7 @@
    "Board shift column down on right column correctly"
    (let-values
      ([(new-board new-extra-tile)
-      (board-shift-and-insert board2 'down 2 tile-extra)])
+      (board-shift-and-insert board2 (shift 'down 2) tile-extra)])
      (check-equal? new-extra-tile tile22)
      (check-equal?
       new-board
@@ -575,3 +647,23 @@
 
 (module+ test
   (check-equal? (get-valid-shift-indices board1) (list 0 2 4 6)))
+
+;; test opposite-direction?
+(module+ test
+  (check-true (opposite-direction? 'up 'down))
+  (check-true (opposite-direction? 'down 'up))
+  (check-true (opposite-direction? 'right 'left))
+  (check-true (opposite-direction? 'left 'right))
+  (check-false (opposite-direction? 'up 'right))
+  (check-false (opposite-direction? 'down 'left))
+  (check-false (opposite-direction? 'left 'up))
+  (check-false (opposite-direction? 'right 'down)))
+
+;; test shift-undoes-shift?
+(module+ test
+  (check-true (shift-undoes-shift? (shift-new 'left 0) (shift-new 'right 0)))
+  (check-false (shift-undoes-shift? (shift-new 'left 0) (shift-new 'right 1)))
+  (check-false (shift-undoes-shift? (shift-new 'left 0) (shift-new 'left 0)))
+  (check-false (shift-undoes-shift? (shift-new 'right 2) #f))
+  (check-false (shift-undoes-shift? #f (shift-new 'up 3)))
+  (check-false (shift-undoes-shift? #f #f)))
