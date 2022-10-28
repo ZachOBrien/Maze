@@ -8,6 +8,7 @@
 
 (require racket/contract)
 (require racket/list)
+(require "player-info.rkt")
 
 (provide
  (contract-out
@@ -30,14 +31,20 @@
   [player-on-home? (-> gamestate? boolean?)]
   ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
+  ; Get the current player's color
+  [current-player-color (-> gamestate? avatar-color?)]
   ; End the current player's turn and switch to the next player's turn
   [end-current-turn (-> gamestate? gamestate?)]
   ;; All reachable from current player current position
   [all-reachable-from-active (-> gamestate? (listof grid-posn?))]
   ; Makes a playerstate for the currently active player from the gamestate
-  [gamestate->player-state (-> gamestate? player-state?)]
+  [gamestate->player-state (-> gamestate? avatar-color? player-state?)]
   ; Changes the goal tile of the active player
-  [change-active-player-goal (-> gamestate? grid-posn? gamestate?)]))
+  [change-active-player-goal (-> gamestate? grid-posn? gamestate?)]
+  ; Get the list of players colors
+  [get-player-color-list (-> gamestate? (listof avatar-color?))]
+  ; Determined the legality of a move for the current player
+  [valid-move? (-> gamestate? move? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -45,7 +52,7 @@
 (require "tile.rkt")
 (require "board.rkt")
 (require "gem.rkt")
-(require "player-info.rkt")
+;(require "player-info.rkt")
 (require "../Players/player-state.rkt")
 
 
@@ -179,13 +186,13 @@
 (define (get-current-player state)
   (first (gamestate-players state)))
 
-;; Gamestate -> PlayerState
-;; Makes a playerstate for the currently active player from the gamestate
-(define (gamestate->player-state gstate)
+;; Gamestate AvatarColor -> PlayerState
+;; Makes a playerstate for the player who is represented by the color from the gamestate
+(define (gamestate->player-state gstate color)
   (player-state-new
    (gamestate-board gstate)
    (gamestate-extra-tile gstate)
-   (first (gamestate-players gstate))
+   (gamestate-get-by-color gstate color)
    (gamestate-prev-shift gstate)))
 
 ;; Gamestate GridPosn -> Gamestate
@@ -194,6 +201,22 @@
   (define new-players (cons (player-info-change-goal (get-current-player state) new-goal)
                             (rest (gamestate-players state))))
   (struct-copy gamestate state [players new-players]))
+
+;; Gamestate AvatarColor -> (U PlayerInfo #f)
+;; Get a PlayerInfo with the corresponding color
+(define (gamestate-get-by-color state color)
+  (findf (lambda (plyr) (equal? color (player-info-color plyr))) (gamestate-players state)))
+  
+
+;; Gamestate -> AvatarColor
+;; Get the current player's color
+(define (current-player-color gstate)
+  (player-info-color (get-current-player gstate)))
+
+;; Gamestate -> [Listof AvatarColor]
+;; Get the list of avatar player colors
+(define (get-player-color-list gstate)
+  (map player-info-color (gamestate-players gstate)))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -388,5 +411,8 @@
 
 ;; Test gamestate->player-state
 (module+ test
-  (check-equal? (gamestate->player-state gamestate0)
+  (check-equal? (gamestate->player-state gamestate0 (current-player-color gamestate0))
                 (player-state-new board1 tile-extra player-info0 #f)))
+
+(module+ test
+  (check-equal? (get-player-color-list gamestate0) (list "blue" "red" "green" "yellow" "blue")))

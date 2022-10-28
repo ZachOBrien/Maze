@@ -9,6 +9,7 @@
 (provide
  (contract-out
   [player-info? contract?]
+  [avatar-color? contract?]
   ; Create a new player
   [player-info-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player-info?)]
   ; Get a player's goal position
@@ -24,7 +25,9 @@
   ; Move a player to the given gridposn
   [player-info-move-to (-> player-info? grid-posn? player-info?)]
   ; Move a player's goal to the given gridposn
-  [player-info-change-goal (-> player-info? grid-posn? player-info?)]))
+  [player-info-change-goal (-> player-info? grid-posn? player-info?)]
+  ; Get a player's color
+  [player-info-color (-> player-info? avatar-color?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES

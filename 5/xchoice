@@ -25,6 +25,6 @@
 
   (define goal (hash->gridposn goal-ht))
   (define gstate (change-active-player-goal (hash->gamestate state-ht) goal))
-  (define pstate (gamestate->player-state gstate))
+  (define pstate (gamestate->player-state gstate (current-player-color gstate)))
 
   (write-json (action->json (if (equal? strategy "Riemann") (riemann-strategy pstate) (euclidean-strategy pstate)))))
