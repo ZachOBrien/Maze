@@ -88,7 +88,8 @@
   (provide (all-defined-out))
   (define player0 (new player% [init-plyr-name "bob"] [init-strategy riemann-strategy]))
   (define player1 (new player% [init-plyr-name "colin"] [init-strategy euclidean-strategy]))
-  (define player2 (new player% [init-plyr-name "zach"] [init-strategy euclidean-strategy])))
+  (define player2 (new player% [init-plyr-name "zach"] [init-strategy euclidean-strategy]))
+  (define player3 (new player% [init-plyr-name "aoun"] [init-strategy riemann-strategy])))
 
 (module+ test
   (require rackunit)

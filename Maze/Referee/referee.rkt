@@ -43,6 +43,8 @@
 
     (super-new)
 
+    ;; Void -> [Listof AvatarColor] [Listof AvatarColor]
+    ;; Runs a game from start to finish, 
     (define/public (run-game)
       (begin
         (send-setup)
@@ -153,7 +155,10 @@
 
 (module+ test
   (require rackunit)
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod "../Common/board.rkt" examples))
+  (require (submod "../Common/tile.rkt" examples))
+  (require (submod "../Common/player-info.rkt" examples)))
 
 
 (module+ examples
@@ -161,7 +166,13 @@
   (require (submod "../Players/player.rkt" examples))
   (define example-referee0 (new referee%
                                 [init-player-list (list player0 player1 player2)]
-                                [init-gamestate gamestate5])))
+                                [init-gamestate gamestate5]))
+  (define example-referee1 (new referee%
+                                [init-player-list (list player0 player1 player2 player3)]
+                                [init-gamestate gamestate4]))
+  (define example-referee2 (new referee%
+                                [init-player-list (list player0 player1)]
+                                [init-gamestate gamestate1])))
 
 (module+ test
   (test-case
@@ -170,4 +181,26 @@
      ([(winners criminals)
       (send example-referee0 run-game)])
      (check-equal? empty criminals)
-     (check-equal? (list "red") winners))))
+     (check-equal? (list "red") winners)))
+  (test-case
+   "Run a game of Maze gs4"
+   (let-values
+       ([(winners criminals)
+         (send example-referee1 run-game)])
+     (check-equal? empty criminals)
+     (check-equal? (list "purple") winners)))
+  (test-case
+   "Run a game of Maze gs5"
+   (let-values
+       ([(winners criminals)
+         (send example-referee2 run-game)])
+     (check-equal? empty criminals)
+     (check-equal? (list "blue") winners))))
+
+; test valid-move? board extra-tile prev-shift plyr-info orientation shift pos)
+(module+ test
+  (check-false (valid-move? board1 tile-extra (shift-new 'down 2) player-info1 0 (shift-new 'down 2) (cons 3 1)))
+  (check-false (valid-move? board1 tile-extra (shift-new 'up 2) player-info1 90 (shift-new 'right 2) (cons 5 1)))
+  (check-false (valid-move? board1 tile-extra (shift-new 'right 2) player-info1 180 (shift-new 'down 2) (cons 3 3)))
+  (check-false (valid-move? board1 tile-extra (shift-new 'left 2) player-info1 270 (shift-new 'left 2) (cons 3 1)))
+  (check-not-false (valid-move? board1 tile-extra (shift-new 'down 2) player-info1 0 (shift-new 'down 2) (cons 2 1))))

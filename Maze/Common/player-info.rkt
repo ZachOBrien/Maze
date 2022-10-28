@@ -117,7 +117,7 @@
      (cons 5 5)
      (cons 1 1)
      #f
-     "red"))
+     "purple"))
   (define player-info2
     (player-info
      (cons 2 2)

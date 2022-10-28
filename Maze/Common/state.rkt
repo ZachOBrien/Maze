@@ -441,4 +441,4 @@
                 (player-state-new board1 tile-extra player-info0 #f)))
 
 (module+ test
-  (check-equal? (get-player-color-list gamestate0) (list "blue" "red" "green" "yellow" "blue")))
+  (check-equal? (get-player-color-list gamestate0) (list "blue" "purple" "green" "yellow" "blue")))
