@@ -163,6 +163,11 @@
                                 [init-player-list (list player0 player1 player2)]
                                 [init-gamestate gamestate5])))
 
-
 (module+ test
-  (check-equal? (send example-referee0 run-game) empty))
+  (test-case
+   "Run a game of Maze"
+   (let-values
+     ([(winners criminals)
+      (send example-referee0 run-game)])
+     (check-equal? empty criminals)
+     (check-equal? (list "red") winners))))
