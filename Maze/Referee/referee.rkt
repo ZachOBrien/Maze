@@ -34,10 +34,10 @@
   (class object%
     (init init-player-list init-gamestate)
     
-    (define gstate init-gamestate)
+    (define state0 init-gamestate)
     (define active-players (make-hash
                             (for/list ([p init-player-list]
-                                       [c (get-player-color-list gstate)])
+                                       [c (get-player-color-list state0)])
                               (cons c p))))
     (define kicked-players '())
 
@@ -46,10 +46,10 @@
     (define/public (run-game)
       (begin
         (send-setup)
-        (define final-state (play-until-completion gstate))
+        (define final-state (play-until-completion state0))
         (define winners (determine-winners final-state))
         (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
-                                  (get-player-color-list gstate)))
+                                  (get-player-color-list state0)))
         (values winners criminals)))
 
     ;; Void -> Void
@@ -58,8 +58,8 @@
       (hash-for-each active-players
                      (lambda (color plyr)
                        (send plyr setup
-                        (gamestate->player-state gstate color)
-                        (player-info-goal-pos (gamestate-get-by-color gstate color))))))
+                        (gamestate->player-state state0 color)
+                        (player-info-goal-pos (gamestate-get-by-color state0 color))))))
 
     ;; Gamestate Natural -> Gamestate
     ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
