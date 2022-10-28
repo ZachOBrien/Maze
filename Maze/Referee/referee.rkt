@@ -95,23 +95,23 @@
     
     ;; Gamestate AvatarColor -> Boolean Gamestate
     ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
-    (define (execute-turn gstate color)
-      (define mv (send (hash-ref color) take-turn (gamestate->player-state gstate color)))
-      (define move-is-valid (valid-move? (gamestate-board gstate)
-                                         (gamestate-extra-tile gstate)
-                                         (gamestate-prev-shift gstate)
-                                         (gamestate-get-by-color color)
+    (define (execute-turn state color)
+      (define mv (send (hash-ref color) take-turn (gamestate->player-state state color)))
+      (define move-is-valid (valid-move? (gamestate-board state)
+                                         (gamestate-extra-tile state)
+                                         (gamestate-prev-shift state)
+                                         (gamestate-get-by-color state color)
                                          (move-orientation mv)
                                          (move-shift mv)
                                          (move-pos mv)))
       (cond
-        [(false? mv) (values #t (end-current-turn gstate))]
+        [(false? mv) (values #t (end-current-turn state))]
         [move-is-valid (values #f (end-current-turn (gamestate-move-player
-                                                     (gamestate-shift-and-insert gstate
+                                                     (gamestate-shift-and-insert state
                                                                                  (move-shift mv)
                                                                                  (move-orientation mv))
                                                      (move-pos mv))))]
-        [(not move-is-valid) (values #f (remove-player gstate))]))
+        [(not move-is-valid) (values #f (remove-player state))]))
 
     ;; Gamestate -> [Listof AvatarColor]
     ;; Determine which players (if any) won the game
@@ -153,9 +153,16 @@
 
 (module+ test
   (require rackunit)
-  (require (submod ".." examples))
-  (require (submod "../Common/board.rkt" examples))
-  (require (submod "../Common/state.rkt" examples))
-  (require (submod "../Players/player-state.rkt" examples))
-  (require (submod "../Common/player-info.rkt" examples)))
+  (require (submod ".." examples)))
 
+
+(module+ examples
+  (require (submod "../Common/state.rkt" examples))
+  (require (submod "../Players/player.rkt" examples))
+  (define example-referee0 (new referee%
+                                [init-player-list (list player0 player1 player2)]
+                                [init-gamestate gamestate5])))
+
+
+(module+ test
+  (check-equal? (send example-referee0 run-game) empty))

@@ -197,12 +197,12 @@
 
 ;; Gamestate AvatarColor -> PlayerState
 ;; Makes a playerstate for the player who is represented by the color from the gamestate
-(define (gamestate->player-state gstate color)
+(define (gamestate->player-state state color)
   (player-state-new
-   (gamestate-board gstate)
-   (gamestate-extra-tile gstate)
-   (gamestate-get-by-color gstate color)
-   (gamestate-prev-shift gstate)))
+   (gamestate-board state)
+   (gamestate-extra-tile state)
+   (gamestate-get-by-color state color)
+   (gamestate-prev-shift state)))
 
 ;; Gamestate GridPosn -> Gamestate
 ;; Changes the goal tile of the active player
@@ -231,7 +231,7 @@
 ;; Determine the distance of a player from their objective. If they have not found their treasure,
 ;; that is their objective. If they have found their treasure, getting home is their objective.
 (define (euclidean-distance-from-objective state color)
-  (define plyr (gamestate-get-by-color color))
+  (define plyr (gamestate-get-by-color state color))
   (if (player-info-visited-goal? plyr)
       (euclidean-dist (player-info-curr-pos plyr) (player-info-home-pos plyr))
       (euclidean-dist (player-info-curr-pos plyr) (player-info-goal-pos plyr))))

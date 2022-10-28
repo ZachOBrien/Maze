@@ -8,6 +8,7 @@
 
 (provide
  (contract-out
+  ; Create a new player
   [player-new (-> string? strategy? (is-a?/c player%))]))
      
 
@@ -26,6 +27,7 @@
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; String Strategy -> Player
+;; Create a new player
 (define (player-new name strat)
   (new player% [init-plyr-name name] [init-strategy strat]))
 
