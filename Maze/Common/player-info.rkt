@@ -27,7 +27,9 @@
   ; Move a player's goal to the given gridposn
   [player-info-change-goal (-> player-info? grid-posn? player-info?)]
   ; Get a player's color
-  [player-info-color (-> player-info? avatar-color?)]))
+  [player-info-color (-> player-info? avatar-color?)]
+  ; Is the player both at home and has visited their goal?
+  [player-info-visited-goal-returned-home? (-> player-info? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -72,13 +74,22 @@
 (define (player-info-new curr-pos home-pos goal-pos visited-goal? color)
   (player-info curr-pos home-pos goal-pos visited-goal? color))
 
+(define (player-info-visited-goal-returned-home? plyr)
+  (and (player-info-visited-goal? plyr)
+       (equal? (player-info-curr-pos plyr) (player-info-home-pos plyr))))
+
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
 ;; Player GridPosn -> Player
 ;; Move a player to the given gridposn
 (define (player-info-move-to p pos)
-  (struct-copy player-info p [curr-pos pos]))
+  (struct-copy player-info p
+               [curr-pos pos]
+               [visited-goal? (or
+                               (player-info-visited-goal? p)
+                               (equal? pos (player-info-goal-pos p)))]))
+               
 
 ;; Player GridPosn -> Plyaer
 ;; Move a player's goal to the given gridposn

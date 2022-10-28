@@ -10,9 +10,13 @@
 (require racket/list)
 (require "player-info.rkt")
 
+
 (provide
  (contract-out
   [gamestate?  contract?]
+  [gamestate-board (-> gamestate? board?)]
+  [gamestate-extra-tile (-> gamestate? tile?)]
+  [gamestate-prev-shift (-> gamestate? shift?)]
   ; Create a new Gamestate
   [gamestate-new
    (-> board? tile? (non-empty-listof player-info?) (or/c #f shift?) gamestate?)]
@@ -43,8 +47,13 @@
   [change-active-player-goal (-> gamestate? grid-posn? gamestate?)]
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
-  ; Determined the legality of a move for the current player
-  [valid-move? (-> gamestate? move? boolean?)]))
+  ; Determine the distance of a player from their objective. If they have not found their treasure,
+  ; that is their objective. If they have found their treasure, getting home is their objective.
+  [euclidean-distance-from-objective (-> gamestate? avatar-color? number?)]
+  ; Get a PlayerInfo by color
+  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
+  ; Has the game ended?
+  [game-over? (-> gamestate? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -52,7 +61,7 @@
 (require "tile.rkt")
 (require "board.rkt")
 (require "gem.rkt")
-;(require "player-info.rkt")
+(require "rulebook.rkt")
 (require "../Players/player-state.rkt")
 
 
@@ -217,6 +226,23 @@
 ;; Get the list of avatar player colors
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
+
+;; Gamestate AvatarColor -> Number
+;; Determine the distance of a player from their objective. If they have not found their treasure,
+;; that is their objective. If they have found their treasure, getting home is their objective.
+(define (euclidean-distance-from-objective state color)
+  (define plyr (gamestate-get-by-color color))
+  (if (player-info-visited-goal? plyr)
+      (euclidean-dist (player-info-curr-pos plyr) (player-info-home-pos plyr))
+      (euclidean-dist (player-info-curr-pos plyr) (player-info-goal-pos plyr))))
+
+;; Gamestate -> Boolean
+;; Has the game ended?
+(define (game-over? state)
+  (or
+   (empty? (gamestate-players state))
+   (not (empty? (filter (λ (plyr) (player-info-visited-goal-returned-home? plyr))) (gamestate-players state)))))
+   
 
 ;; --------------------------------------------------------------------
 ;; TESTS

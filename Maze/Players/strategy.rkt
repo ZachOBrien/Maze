@@ -12,6 +12,9 @@
 (provide
  (contract-out
   [move?          contract?]
+  [move-orientation (-> move? orientation?)]
+  [move-shift (-> move? shift?)]
+  [move-pos (-> move? grid-posn?)]
   [move-new (-> grid-posn? shift? orientation? move?)]
   [action?        contract?]
   [strategy?      contract?]
