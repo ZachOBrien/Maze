@@ -23,7 +23,11 @@
   ;; Convert a json action to a Move
   [json-action->last-action (-> (or/c (listof any/c) 'null) shift?)]
   ;; Convert a string direction to a symbol
-  [string-direction->symbol (-> string? symbol?)]))
+  [string-direction->symbol (-> string? symbol?)]
+  ;; Convert a hashtable to a referee state
+  [hash->referee-state (-> hash? referee-state?)]
+  ; Convert an Action to json
+  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]))
 
 
 ;; --------------------------------------------------------------------
@@ -33,6 +37,8 @@
 (require "board.rkt")
 (require "state.rkt")
 (require "player-info.rkt")
+(require "../Players/strategy.rkt")
+(require "../Players/player.rkt")
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -167,6 +173,15 @@
                        #f
                        (hash-ref ht 'color)))
 
+;; HashTable -> PlayerInfo
+;; Create a player-info from a HashTable
+(define (hash->referee-player-info ht)
+  (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
+                   (hash->gridposn (hash-ref ht 'home))
+                   (hash->gridposn (hash-ref ht 'goto))
+                   #f
+                   (hash-ref ht 'color)))
+
 (module+ test
   (check-equal? (hash->player-info (hash 'current (hash 'row# 0 'column# 0)
                                          'home (hash 'row# 2 'column# 2)
@@ -176,6 +191,14 @@
                                          'home (hash 'row# 3 'column# 4)
                                          'color "red"))
                 (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
+
+;; [Listof Strings] -> Player
+;; Make a player from the json array
+(define (list->player inp)
+  (define strat (if (equal? (first (rest inp)) "Riemann")
+                    riemann-strategy
+                    euclidean-strategy))
+  (player-new (first inp) strat))
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list
@@ -198,6 +221,15 @@
 (define (string-direction->symbol str)
   (string->symbol (string-downcase str)))
 
+;; HashTable -> RefereeState
+;; Makes a RefereeState from a hashtable
+(define (hash->referee-state ht)
+  (referee-state-new
+   (hash->board (hash-ref ht 'board))
+   (hash->spare-tile (hash-ref ht 'spare))
+   (map hash->referee-player-info (hash-ref ht 'plmt))
+   (json-action->last-action (hash-ref ht 'last))))
+
 ;; HashTable -> Gamestate
 ;; Makes a gamestate from a hashtable
 (define (hash->gamestate ht)
@@ -206,6 +238,16 @@
    (hash->spare-tile (hash-ref ht 'spare))
    (map hash->player-info (hash-ref ht 'plmt))
    (json-action->last-action (hash-ref ht 'last))))
+
+;; Action -> (U String List)
+;; Convert an action to json
+(define (action->json act)
+  (cond
+    [(move? act) (list (shift-index (move-shift act))
+                       (string-upcase (symbol->string (shift-direction (move-shift act))))
+                       (move-orientation act)
+                       (gridposn->hash (move-pos act)))]
+    [(false? act) "PASS"]))
    
 
 (module+ examples

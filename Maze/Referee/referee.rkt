@@ -7,7 +7,10 @@
 
 
 (provide
- (contract-out))
+ (contract-out
+  [referee? contract?]
+  ; Create a new Referee
+  [referee-new (-> (listof player?) referee-state? referee?)]))
      
 
 ;; --------------------------------------------------------------------
@@ -20,6 +23,7 @@
 (require "../Common/state.rkt")
 (require "../Common/player-info.rkt")
 (require "../Players/strategy.rkt")
+(require "../Players/player.rkt")
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -31,6 +35,8 @@
 (define DEFAULT-BOARD-SIZE 7)
 (define MAX-ROUNDS 1000)
 
+(define (referee-new player-list gamestate)
+  (new referee% [init-player-list player-list] [init-gamestate gamestate]))
 
 (define referee%
   (class object%
@@ -144,6 +150,10 @@
   (with-handlers ([exn:fail? 'misbehaved])
     (with-limits time-limit-sec #f (send plyr take-turn plyr-state))))
 
+;; -> (Any -> Boolean)
+;; Creates a contract for instances of referee
+(define referee?
+  (is-a?/c referee%))
 
 ;; TODO: REFACTOR THIS INTO RULEBOOK ***********************************************************************************************************************************
 ;; Board Tile Shift PlayerInfo Move -> Boolean

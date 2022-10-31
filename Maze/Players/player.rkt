@@ -8,8 +8,9 @@
 
 (provide
  (contract-out
+  [player? contract?]
   ; Create a new player
-  [player-new (-> string? strategy? (is-a?/c player%))]))
+  [player-new (-> string? strategy? player?)]))
      
 
 ;; --------------------------------------------------------------------
@@ -31,6 +32,8 @@
 ;; Create a new player
 (define (player-new name strat)
   (new player% [init-plyr-name name] [init-strategy strat]))
+
+
 
 (define/contract player%
   (class/c
@@ -81,6 +84,11 @@
     (define/public (get-goal) goal)
     (define/public (get-plyr-state0) plyr-state0)
     (define/public (get-won-game) won-game)))
+
+;; -> (Any -> Boolean)
+;; Is an instance of player?
+(define player?
+  (is-a?/c player%))
 
 ;; --------------------------------------------------------------------
 ;; TESTS

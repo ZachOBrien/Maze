@@ -21,9 +21,7 @@
   ; Riemann strategy
   [riemann-strategy   strategy?]
   ; Euclidean strategy
-  [euclidean-strategy strategy?]
-  ; Convert an Action to json
-  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]))
+  [euclidean-strategy strategy?]))
      
 
 ;; --------------------------------------------------------------------
@@ -39,7 +37,6 @@
 (require "../Common/player-info.rkt")
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
-(require "../Common/serialize.rkt")
 
 
 ;; --------------------------------------------------------------------
@@ -163,15 +160,7 @@
                           (map (curry apply shift-new) (cartesian-product shift-directions (get-valid-shift-indices board)))
                           orientations)))
 
-;; Action -> (U String List)
-;; Convert an action to json
-(define (action->json act)
-  (cond
-    [(move? act) (list (shift-index (move-shift act))
-                       (string-upcase (symbol->string (shift-direction (move-shift act))))
-                       (move-orientation act)
-                       (gridposn->hash (move-pos act)))]
-    [(false? act) "PASS"]))
+
 
 ;; --------------------------------------------------------------------
 ;; TESTS
