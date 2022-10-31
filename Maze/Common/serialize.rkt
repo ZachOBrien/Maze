@@ -161,7 +161,7 @@
 ;; HashTable -> PlayerInfo
 ;; Create a player-info from a HashTable
 (define (hash->player-info ht)
-  (player-info-new (hash->gridposn (hash-ref ht 'current))
+  (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
                    (hash->gridposn (hash-ref ht 'home))
                    (cons 1 1)
                    #f
@@ -171,11 +171,11 @@
   (check-equal? (hash->player-info (hash 'current (hash 'row# 0 'column# 0)
                                     'home (hash 'row# 2 'column# 2)
                                     'color "blue"))
-                (player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
+                (ref-player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
   (check-equal? (hash->player-info (hash 'current (hash 'row# 6 'column# 1)
                                     'home (hash 'row# 3 'column# 4)
                                     'color "red"))
-                (player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
+                (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list
@@ -339,10 +339,10 @@
           (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
 
   (define expected-player-infos1
-    (list (player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
-          (player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
-          (player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
-          (player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
+    (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
+          (ref-player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
+          (ref-player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
+          (ref-player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
 
   (define example-board-hash
     (hash 'connectors example-connectors

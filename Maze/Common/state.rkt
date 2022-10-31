@@ -27,11 +27,11 @@
   [shift-players (-> (listof player-info?) board? shift? (listof player-info?))]
   ; Move the currently active player to a new position
   [gamestate-move-player (-> gamestate? grid-posn? gamestate?)]
-  ; Check if a player can reach a position from their current position
+  ; Check if the current player can reach a position from their current position
   [player-can-reach-pos? (-> gamestate? grid-posn? boolean?)]
-  ; Check if a player is currently placed on their goal tile
-  [player-on-goal? (-> gamestate? boolean?)]
-  ; Check if a player is currently placed on their home tile
+  ; Check if the current player is currently placed on their treasure tile
+  [player-on-treasure? (-> gamestate? boolean?)]
+  ; Check if the curent player is currently placed on their home tile
   [player-on-home? (-> gamestate? boolean?)]
   ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
@@ -43,8 +43,8 @@
   [all-reachable-from-active (-> gamestate? (listof grid-posn?))]
   ; Makes a playerstate for the currently active player from the gamestate
   [gamestate->player-state (-> gamestate? avatar-color? player-state?)]
-  ; Changes the goal tile of the active player
-  [change-active-player-goal (-> gamestate? grid-posn? gamestate?)]
+  ; Changes the treasure tile of the active player
+  [change-active-player-treasure (-> gamestate? grid-posn? gamestate?)]
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
   ; Determine the distance of a player from their objective. If they have not found their treasure,
@@ -162,10 +162,9 @@
   (board-all-reachable-from (gamestate-board state) (player-info-curr-pos (get-current-player state))))
 
 ;; Gamestate -> Boolean
-;; Check if a player is currently placed on their goal tile
-(define (player-on-goal? state)
-  (define curr-player (get-current-player state))
-  (equal? (player-info-curr-pos curr-player) (player-info-goal-pos curr-player)))
+;; Check if a player is currently placed on their treasure tile
+(define (player-on-treasure? state)
+  (on-treasure? (get-current-player state)))
 
 
 ;; Gamestate -> Boolean
@@ -205,9 +204,9 @@
    (gamestate-prev-shift state)))
 
 ;; Gamestate GridPosn -> Gamestate
-;; Changes the goal tile of the active player
-(define (change-active-player-goal state new-goal)
-  (define new-players (cons (player-info-change-goal (get-current-player state) new-goal)
+;; Changes the treasure position of the active player
+(define (change-active-player-treasure state new-treasure)
+  (define new-players (cons (change-treasure (get-current-player state) new-treasure)
                             (rest (gamestate-players state))))
   (struct-copy gamestate state [players new-players]))
 
@@ -232,16 +231,16 @@
 ;; that is their objective. If they have found their treasure, getting home is their objective.
 (define (euclidean-distance-from-objective state color)
   (define plyr (gamestate-get-by-color state color))
-  (if (player-info-visited-goal? plyr)
+  (if (player-info-visited-treasure? plyr)
       (euclidean-dist (player-info-curr-pos plyr) (player-info-home-pos plyr))
-      (euclidean-dist (player-info-curr-pos plyr) (player-info-goal-pos plyr))))
+      (euclidean-dist (player-info-curr-pos plyr) (player-info-treasure-pos plyr))))
 
 ;; Gamestate -> Boolean
 ;; Has the game ended?
 (define (game-over? state)
   (or
    (empty? (gamestate-players state))
-   (not (empty? (filter (λ (plyr) (player-info-visited-goal-returned-home? plyr))) (gamestate-players state)))))
+   (not (empty? (filter (λ (plyr) (visited-treasure-and-on-home? plyr))) (gamestate-players state)))))
    
 
 ;; --------------------------------------------------------------------
@@ -254,15 +253,15 @@
   (require (submod "player-info.rkt" examples))
 
   (define player-infos0 (list player-info0 player-info1 player-info2 player-info3 player-info4))
-  ; player-info0 (a) not on goal or home
+  ; player-info0 (a) not on treasure or home
   ; first top left
   (define gamestate0 (gamestate-new board1 tile-extra player-infos0 #f))
 
   (define player-infos1 (list player-info3 player-info4))
-  ; player-info1 (a) not on goal on home
+  ; player-info1 (a) not on treasure on home
   (define gamestate1 (gamestate-new board1 tile-extra player-infos1 #f))
   (define player-infos2 (list player-info1 player-info2 player-info3 player-info4))
-  ; on goal not home
+  ; on treasure not home
   (define gamestate2 (gamestate-new board1 tile-extra player-infos2 #f))
 
   (define player-infos3 (list player-info1 player-info0 player-info5 player-info6 player-info7))
@@ -322,19 +321,19 @@
                  (gamestate-board gamestate4)
                  (shift-new 'right 0))
                 (list
-                 (player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
+                 (ref-player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
                  player-info1
                  player-info2
-                 (player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
+                 (ref-player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
   (check-equal? (shift-players
                  (gamestate-players gamestate4)
                  (gamestate-board gamestate4)
                  (shift-new 'left 0))
                 (list
-                 (player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
+                 (ref-player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
                  player-info1
                  player-info2
-                 (player-info-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
+                 (ref-player-info-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
   (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'up 0) 0)) 1)
                (cons 6 0)))
@@ -386,11 +385,11 @@
   (check-false (player-can-reach-pos? gamestate0 (cons 0 3)))
   (check-false (player-can-reach-pos? gamestate0 (cons 6 6))))
 
-;; test player-on-goal?
+;; test player-on-treasure?
 (module+ test
-  (check-false (player-on-goal? gamestate0))
-  (check-false (player-on-goal? gamestate1))
-  (check-true  (player-on-goal? gamestate2)))
+  (check-false (player-on-treasure? gamestate0))
+  (check-false (player-on-treasure? gamestate1))
+  (check-true  (player-on-treasure? gamestate2)))
 
 ;; test player-on-home?
 (module+ test
@@ -420,14 +419,14 @@
 ;; Test player-info-move-to
 (module+ test
   (check-equal? (player-info-move-to player-info0 (cons 3 3))
-                (player-info-new
+                (ref-player-info-new
                  (cons 3 3)
                  (cons 6 6)
                  (cons 5 1)
                  #f
                  "blue"))
   (check-equal? (player-info-move-to player-info0 (cons 6 6))
-                (player-info-new
+                (ref-player-info-new
                  (cons 6 6)
                  (cons 6 6)
                  (cons 5 1)

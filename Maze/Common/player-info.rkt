@@ -8,28 +8,34 @@
 
 (provide
  (contract-out
-  [player-info? contract?]
-  [avatar-color? contract?]
-  ; Create a new player
-  [player-info-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player-info?)]
-  ; Get a player's goal position
-  [player-info-goal-pos (-> player-info? grid-posn?)]
+  [player-info?     contract?]
+  [pub-player-info? contract?]
+  [ref-player-info? contract?]
+  [avatar-color?    contract?]
+  ; Create a new public player info
+  [pub-player-info-new (-> grid-posn? grid-posn? 'hidden boolean? avatar-color? player-info?)]
+  ; Create a new referee player info
+  [ref-player-info-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player-info?)]
+  ; Get a player's treasure position
+  [player-info-treasure-pos (-> ref-player-info? grid-posn?)]
   ; Get a player's home position
   [player-info-home-pos (-> player-info? grid-posn?)]
   ; Get a player's current position
   [player-info-curr-pos (-> player-info? grid-posn?)]
   ; Check if a player is on a position
   [player-info-on-pos? (-> player-info? grid-posn? boolean?)]
-  ; True if a player has already visited their goal
-  [player-info-visited-goal? (-> player-info? boolean?)]
+  ; True if a player has already visited their treasure
+  [player-info-visited-treasure? (-> player-info? boolean?)]
   ; Move a player to the given gridposn
   [player-info-move-to (-> player-info? grid-posn? player-info?)]
-  ; Move a player's goal to the given gridposn
-  [player-info-change-goal (-> player-info? grid-posn? player-info?)]
+  ; Move a player's treasure to the given gridposn
+  [change-treasure (-> ref-player-info? grid-posn? ref-player-info?)]
   ; Get a player's color
   [player-info-color (-> player-info? avatar-color?)]
-  ; Is the player both at home and has visited their goal?
-  [player-info-visited-goal-returned-home? (-> player-info? boolean?)]))
+  ; Is the player currently on their treasure?
+  [on-treasure? (-> ref-player-info? boolean?)]
+  ; Is the player both at home and has visited their treasure?
+  [visited-treasure-and-on-home? (-> player-info? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -63,20 +69,54 @@
 
 (define avatar-color? (apply or/c (cons hex-color-code? avatar-colors)))
 
-;; A PlayerInfo is a structure:
-;;    (struct GridPosn GridPosn GridPosn Boolean AvatarColor)
-;; interpretation: The referee knows a player's current position, home position, goal position,
-;;                 whether or not they2 3))'ve visited their goal position, and avatar color
-(struct player-info [curr-pos home-pos goal-pos visited-goal? color] #:transparent)
+;; A PlayerInfo is one of:
+;;     - PubPlayerInfo
+;;     - RefPlayerInfo
+;; interpretation: The information about a player is either public, or contains
+;;                 details that only the referee and the player itself should know.
 
-;; GridPosn GridPosn [Listof Gem] Boolean AvatarColor -> PlayerInfo
-;; Create a new player
-(define (player-info-new curr-pos home-pos goal-pos visited-goal? color)
-  (player-info curr-pos home-pos goal-pos visited-goal? color))
+;; (struct GridPosn GridPosn (U GridPosn 'hidden) Boolean AvatarColor)
+;; interpretation: The referee knows a player's current position, home position, treasure position,
+;;                 whether or not they've visited their treasure position, and avatar color
+(struct player-info [curr-pos home-pos treasure-pos visited-treasure? color] #:transparent)
 
-(define (player-info-visited-goal-returned-home? plyr)
-  (and (player-info-visited-goal? plyr)
+;; PlayerInfo -> Boolean
+;; Is this PlayerInfo a public player info?
+(define (pub-player-info? plyr)
+  (and (player-info? plyr)
+       (equal? 'hidden (player-info-treasure-pos plyr))))
+
+;; PlayerInfo -> Boolean
+;; Is this PlayerInfo a referee player info?
+(define (ref-player-info? plyr)
+  (and (player-info? plyr)
+       (grid-posn? (player-info-treasure-pos plyr))))
+
+
+;; GridPosn GridPosn 'hidden Boolean AvatarColor -> PubPlayerInfo
+;; Create a new pub-player-info
+(define (pub-player-info-new curr-pos home-pos treasure-pos visited-treasure? color)
+  (player-info curr-pos home-pos treasure-pos visited-treasure? color))
+
+
+;; GridPosn GridPosn GridPosn Boolean AvatarColor -> RefPlayerInfo
+;; Create a new ref-player-info
+(define (ref-player-info-new curr-pos home-pos treasure-pos visited-treasure? color)
+  (player-info curr-pos home-pos treasure-pos visited-treasure? color))
+
+
+;; PlayerInfo -> PlayerInfo
+;; Has this player visited their treasure and is currently on their home position?
+(define (visited-treasure-and-on-home? plyr)
+  (and (player-info-visited-treasure? plyr)
        (equal? (player-info-curr-pos plyr) (player-info-home-pos plyr))))
+
+
+;; RefPlayerInfo -> Boolean
+;; Returns true if the player is currently on their treasure
+(define (on-treasure? plyr)
+  (equal? (player-info-curr-pos plyr) (player-info-treasure-pos plyr)))
+
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -86,17 +126,18 @@
 (define (player-info-move-to p pos)
   (struct-copy player-info p
                [curr-pos pos]
-               [visited-goal? (or
-                               (player-info-visited-goal? p)
-                               (equal? pos (player-info-goal-pos p)))]))
+               [visited-treasure? (or
+                                   (player-info-visited-treasure? p)
+                                   (equal? pos (player-info-treasure-pos p)))]))
                
 
-;; Player GridPosn -> Plyaer
-;; Move a player's goal to the given gridposn
-(define (player-info-change-goal p new-goal)
-  (struct-copy player-info p [goal-pos new-goal]))
+;; RefPlayerInfo GridPosn -> RefPlayerInfo
+;; Move a player's treasure to the given gridposn
+(define (change-treasure p new-treasure)
+  (struct-copy player-info p [treasure-pos new-treasure]))
 
-;; Player GridPosn -> Boolean
+
+;; PlayerInfo GridPosn -> Boolean
 ;; Returns True if the player is on the given position
 (define (player-info-on-pos? p pos)
   (equal? (player-info-curr-pos p) pos))

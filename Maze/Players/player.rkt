@@ -62,7 +62,7 @@
                                board-size)))
   
     ;; PlayerState GridPosn -> Any
-    ;; Sets initial state and goal position
+    ;; Sets initial state and treasure position
     (define/public (setup plyr-state new-goal)
       (set! plyr-state0 plyr-state)
       (set! goal new-goal))

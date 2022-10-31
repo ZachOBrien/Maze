@@ -62,7 +62,6 @@
 ;; interpretation: A player acts by either making a move or making no move (passing turn)
 (define action? (or/c move? #f))
 
-
 ;; A Strategy is a function:
 ;;    (-> PlayerState Move)
 ;; interpretation: A strategy examines a player state and determines a move for the currently active
@@ -80,10 +79,10 @@
                                     (player-state-board plyr-state)
                                     (player-state-plyr-info plyr-state))))
 
-;; Board Player -> [Listof GridPosn]
+;; Board RefPlayerInfo -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
 (define (get-riemann-candidates board plyr)
-  (define goal-pos (get-goal-gp plyr))
+  (define goal-pos (get-goal-pos plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
@@ -98,7 +97,7 @@
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
 (define (get-euclidean-candidates board plyr)
-  (define goal-pos (get-goal-gp plyr))
+  (define goal-pos (get-goal-pos plyr))
   (define all-candidates (get-all-positions board))
   (sort all-candidates (lambda (pos1 pos2) (compare-euclidean-dist goal-pos pos1 pos2))))
 
@@ -115,13 +114,13 @@
 (define (euclidian-dist pos1 pos2)
   (sqrt (+ (expt (- (car pos2) (car pos1)) 2) (expt (- (cdr pos2) (cdr pos1)) 2))))
 
-;; PlayerInfo -> GridPosn
+;; RefPlayerInfo -> GridPosn
 ;; Determines the current goal for the player. If a player has already visited their treasure,
 ;; their goal is to return home.
-(define (get-goal-gp plyr)
-  (if (player-info-visited-goal? plyr)
+(define (get-goal-pos plyr)
+  (if (player-info-visited-treasure? plyr)
       (player-info-home-pos plyr)
-      (player-info-goal-pos plyr)))
+      (player-info-treasure-pos plyr)))
 
 ;; PlayerState Move -> Boolean
 ;; Returns True if the move is valid in the state
@@ -346,13 +345,13 @@
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6))))
 
-; test get-goal-gp
+; test get-goal-pos
 (module+ test
-  (check-equal? (get-goal-gp player-info1) (cons 1 1))
-  (check-equal? (get-goal-gp player-info2) (cons 3 3))
-  (check-equal? (get-goal-gp player-info3) (cons 1 3))
-  (check-equal? (get-goal-gp player-info4) (cons 5 5))
-  (check-equal? (get-goal-gp player-info9) (cons 3 3)))
+  (check-equal? (get-goal-pos player-info1) (cons 1 1))
+  (check-equal? (get-goal-pos player-info2) (cons 3 3))
+  (check-equal? (get-goal-pos player-info3) (cons 1 3))
+  (check-equal? (get-goal-pos player-info4) (cons 5 5))
+  (check-equal? (get-goal-pos player-info9) (cons 3 3)))
 
 ; test get-first-valid-move
 (module+ test

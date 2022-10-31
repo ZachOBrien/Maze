@@ -57,13 +57,13 @@
         (values winners criminals)))
 
     ;; Void -> Void
-    ;; Update each player with the initial board and their goal tile
+    ;; Update each player with the initial board and their treasure position
     (define (send-setup)
       (hash-for-each active-players
                      (lambda (color plyr)
                        (send plyr setup
                         (gamestate->player-state state0 color)
-                        (player-info-goal-pos (gamestate-get-by-color state0 color))))))
+                        (player-info-treasure-pos (gamestate-get-by-color state0 color))))))
 
     ;; Gamestate Natural -> Gamestate
     ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
@@ -121,18 +121,18 @@
     ;; Determine which players (if any) won the game
     (define (determine-winners state)
       (define players (get-player-color-list state))
-      (define plyrs-visited-goal
-        (filter (λ (color) (player-info-visited-goal? (gamestate-get-by-color state color)))
+      (define plyrs-visited-treasure
+        (filter (λ (color) (player-info-visited-treasure? (gamestate-get-by-color state color)))
                 players))
       (cond
-        [(empty? plyrs-visited-goal)
+        [(empty? plyrs-visited-treasure)
          (let* ([distances (map (curry euclidean-distance-from-objective state) players)]
                 [min-dist (apply min distances)])
            (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) players))]
         [else
-         (let* ([distances (map (curry euclidean-distance-from-objective state) plyrs-visited-goal)]
+         (let* ([distances (map (curry euclidean-distance-from-objective state) plyrs-visited-treasure)]
                 [min-dist (apply min distances)])
-           (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) plyrs-visited-goal))]))))
+           (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) plyrs-visited-treasure))]))))
 
 
 ;; Player -> (U Action 'misbehaved)
