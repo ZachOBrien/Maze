@@ -13,6 +13,8 @@
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
 
+(require racket/sandbox)
+
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
 (require "../Common/state.rkt")
@@ -98,7 +100,7 @@
     ;; Gamestate AvatarColor -> Boolean Gamestate
     ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
     (define (execute-turn state color)
-      (define mv (send (hash-ref color) take-turn (gamestate->player-state state color)))
+      (define mv (safe-get-action (hash-ref color) (gamestate->player-state state color)))
       (define move-is-valid (valid-move? (gamestate-board state)
                                          (gamestate-extra-tile state)
                                          (gamestate-prev-shift state)
@@ -131,6 +133,16 @@
          (let* ([distances (map (curry euclidean-distance-from-objective state) plyrs-visited-goal)]
                 [min-dist (apply min distances)])
            (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) plyrs-visited-goal))]))))
+
+
+;; Player -> (U Action 'misbehaved)
+;; Get a player's action. The Player may misbehave, and the following behaviors are handled:
+;;    1. The call to the Player's take-turn method raises an exception
+;;    2. The call to the Player's take-turn method exceeds a time limit
+;; If the player misbehaves in any of these ways, 'misbehaved is returned.
+(define (safe-get-action plyr plyr-state [time-limit-sec 4])
+  (with-handlers ([exn:fail? 'misbehaved])
+    (with-limits time-limit-sec #f (send plyr take-turn plyr-state))))
 
 
 ;; TODO: REFACTOR THIS INTO RULEBOOK ***********************************************************************************************************************************
