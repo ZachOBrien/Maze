@@ -17,6 +17,7 @@
 
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
+(require "../Common/state.rkt")
 (require "strategy.rkt")
 
 ;; --------------------------------------------------------------------
@@ -96,19 +97,18 @@
   (require (submod ".." examples))
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/state.rkt" examples))
-  (require (submod "player-state.rkt" examples))
   (require (submod "../Common/player-info.rkt" examples)))
 
 ;; test take-turn
 (module+ test
-  (check-equal? (send player0 take-turn player-state-1) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player0 take-turn player-state-2) (move-new (cons 0 0) (shift-new 'right 6) 90))
+  (check-equal? (send player0 take-turn player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
+  (check-equal? (send player0 take-turn player-state1) (move-new (cons 0 0) (shift-new 'right 6) 90))
   (check-equal? (send player0 take-turn player-state-nowhere-to-go) #f)
-  (check-equal? (send player1 take-turn player-state-1) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player1 take-turn player-state-2) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (send player1 take-turn player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
+  (check-equal? (send player1 take-turn player-state1) (move-new (cons 5 2) (shift-new 'right 6) 90))
   (check-equal? (send player1 take-turn player-state-nowhere-to-go) #f)
-  (check-equal? (send player2 take-turn player-state-1) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player2 take-turn player-state-2) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (send player2 take-turn player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
+  (check-equal? (send player2 take-turn player-state1) (move-new (cons 5 2) (shift-new 'right 6) 90))
   (check-equal? (send player2 take-turn player-state-nowhere-to-go) #f))
 
 ;; test name
@@ -122,9 +122,9 @@
 (module+ test
   (check-equal? (send player0 get-goal) #f)
   (check-equal? (send player0 get-plyr-state0) #f)
-  (send player0 setup player-state-1 (cons 0 0))
+  (send player0 setup player-state0 (cons 0 0))
   (check-equal? (send player0 get-goal) (cons 0 0))
-  (check-equal? (send player0 get-plyr-state0) player-state-1))
+  (check-equal? (send player0 get-plyr-state0) player-state0))
 
 ;; test won
 (module+ test

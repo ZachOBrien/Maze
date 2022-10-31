@@ -62,7 +62,7 @@
       (hash-for-each active-players
                      (lambda (color plyr)
                        (send plyr setup
-                        (gamestate->player-state state0 color)
+                        (referee-state->player-state state0 color)
                         (player-info-treasure-pos (gamestate-get-by-color state0 color))))))
 
     ;; Gamestate Natural -> Gamestate
@@ -100,7 +100,7 @@
     ;; Gamestate AvatarColor -> Boolean Gamestate
     ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
     (define (execute-turn state color)
-      (define mv (safe-get-action (hash-ref color) (gamestate->player-state state color)))
+      (define mv (safe-get-action (hash-ref color) (referee-state->player-state state color)))
       (define move-is-valid (valid-move? (gamestate-board state)
                                          (gamestate-extra-tile state)
                                          (gamestate-prev-shift state)

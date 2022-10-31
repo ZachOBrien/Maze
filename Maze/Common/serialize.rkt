@@ -127,7 +127,7 @@
 (define (hash->spare-tile ht)
   (define conn (hash-ref ht 'tilekey))
   (define treasures (set (string->symbol (hash-ref ht '1-image))
-                          (string->symbol (hash-ref ht '2-image))))
+                         (string->symbol (hash-ref ht '2-image))))
   (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
   (tile-new connector orientation treasures))
 
@@ -162,19 +162,19 @@
 ;; Create a player-info from a HashTable
 (define (hash->player-info ht)
   (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
-                   (hash->gridposn (hash-ref ht 'home))
-                   (cons 1 1)
-                   #f
-                   (hash-ref ht 'color)))
+                       (hash->gridposn (hash-ref ht 'home))
+                       (cons 1 1)
+                       #f
+                       (hash-ref ht 'color)))
 
 (module+ test
   (check-equal? (hash->player-info (hash 'current (hash 'row# 0 'column# 0)
-                                    'home (hash 'row# 2 'column# 2)
-                                    'color "blue"))
+                                         'home (hash 'row# 2 'column# 2)
+                                         'color "blue"))
                 (ref-player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
   (check-equal? (hash->player-info (hash 'current (hash 'row# 6 'column# 1)
-                                    'home (hash 'row# 3 'column# 4)
-                                    'color "red"))
+                                         'home (hash 'row# 3 'column# 4)
+                                         'color "red"))
                 (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
 
 ;; (U [Listof Any] 'null) -> Move
@@ -189,7 +189,7 @@
   (check-equal? (json-action->last-action (list 0 "UP"))
                 (shift-new 'up 0))
   (check-equal? (json-action->last-action (list 4 "RIGHT"))
-                    (shift-new 'right 4))
+                (shift-new 'right 4))
   (check-equal? (json-action->last-action 'null)
                 #f))
 
@@ -201,7 +201,7 @@
 ;; HashTable -> Gamestate
 ;; Makes a gamestate from a hashtable
 (define (hash->gamestate ht)
-  (gamestate-new
+  (referee-state-new
    (hash->board (hash-ref ht 'board))
    (hash->spare-tile (hash-ref ht 'spare))
    (map hash->player-info (hash-ref ht 'plmt))
@@ -360,7 +360,7 @@
                                                     '2-image "pink-opal")
                                        'plmt example-player-infos1
                                        'last (list 0 "LEFT")))
-                (gamestate-new example-board
-                               spare-tile
-                               expected-player-infos1
-                               (shift-new 'left 0))))
+                (referee-state-new example-board
+                                   spare-tile
+                                   expected-player-infos1
+                                   (shift-new 'left 0))))

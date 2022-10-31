@@ -13,9 +13,11 @@
   [ref-player-info? contract?]
   [avatar-color?    contract?]
   ; Create a new public player info
-  [pub-player-info-new (-> grid-posn? grid-posn? 'hidden boolean? avatar-color? player-info?)]
+  [pub-player-info-new (-> grid-posn? grid-posn? 'hidden 'hidden avatar-color? player-info?)]
   ; Create a new referee player info
   [ref-player-info-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player-info?)]
+  ; Convert a referee player info into a public player info
+  [ref-player-info->pub-player-info (-> ref-player-info? pub-player-info?)]
   ; Get a player's treasure position
   [player-info-treasure-pos (-> ref-player-info? grid-posn?)]
   ; Get a player's home position
@@ -25,7 +27,7 @@
   ; Check if a player is on a position
   [player-info-on-pos? (-> player-info? grid-posn? boolean?)]
   ; True if a player has already visited their treasure
-  [player-info-visited-treasure? (-> player-info? boolean?)]
+  [player-info-visited-treasure? (-> ref-player-info? boolean?)]
   ; Move a player to the given gridposn
   [player-info-move-to (-> player-info? grid-posn? player-info?)]
   ; Move a player's treasure to the given gridposn
@@ -35,7 +37,7 @@
   ; Is the player currently on their treasure?
   [on-treasure? (-> ref-player-info? boolean?)]
   ; Is the player both at home and has visited their treasure?
-  [visited-treasure-and-on-home? (-> player-info? boolean?)]))
+  [visited-treasure-and-on-home? (-> ref-player-info? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -84,7 +86,8 @@
 ;; Is this PlayerInfo a public player info?
 (define (pub-player-info? plyr)
   (and (player-info? plyr)
-       (equal? 'hidden (player-info-treasure-pos plyr))))
+       (equal? 'hidden (player-info-treasure-pos plyr))
+       (equal? 'hidden (player-info-visited-treasure? plyr))))
 
 ;; PlayerInfo -> Boolean
 ;; Is this PlayerInfo a referee player info?
@@ -93,7 +96,7 @@
        (grid-posn? (player-info-treasure-pos plyr))))
 
 
-;; GridPosn GridPosn 'hidden Boolean AvatarColor -> PubPlayerInfo
+;; GridPosn GridPosn 'hidden 'hidden AvatarColor -> PubPlayerInfo
 ;; Create a new pub-player-info
 (define (pub-player-info-new curr-pos home-pos treasure-pos visited-treasure? color)
   (player-info curr-pos home-pos treasure-pos visited-treasure? color))
@@ -104,8 +107,17 @@
 (define (ref-player-info-new curr-pos home-pos treasure-pos visited-treasure? color)
   (player-info curr-pos home-pos treasure-pos visited-treasure? color))
 
+;; RefPlayerInfo -> PubPlayerInfo
+;; Convert a referee payer info into a public player info
+(define (ref-player-info->pub-player-info plyr)
+  (player-info (player-info-curr-pos plyr)
+               (player-info-home-pos plyr)
+               'hidden
+               'hidden
+               (player-info-color plyr)))
 
-;; PlayerInfo -> PlayerInfo
+
+;; RefPlayerInfo -> Boolean
 ;; Has this player visited their treasure and is currently on their home position?
 (define (visited-treasure-and-on-home? plyr)
   (and (player-info-visited-treasure? plyr)
@@ -216,6 +228,9 @@
      #t
      "yellow")))
 
+(module+ test
+  (require (submod ".." examples)))
+
 ;; test hex-color-code?
 (module+ test
   (check-true (hex-color-code? "A5B4C1"))
@@ -224,3 +239,13 @@
   (check-false (hex-color-code? "a5B4C1"))
   (check-true (hex-color-code? "000000"))
   (check-true (hex-color-code? "B49E23")))
+
+
+;; test ref-player-info->pub-player-info
+(module+ test
+  (check-equal? (ref-player-info->pub-player-info player-info9)
+                (player-info (cons 5 5)
+                             (cons 3 3)
+                             'hidden
+                             'hidden
+                             "yellow")))
