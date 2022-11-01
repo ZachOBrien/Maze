@@ -36,19 +36,22 @@
 (define DEFAULT-BOARD-SIZE 7)
 (define MAX-ROUNDS 1000)
 
-(define (referee-new player-list gamestate)
-  (new referee% [init-player-list player-list] [init-gamestate gamestate]))
+
+;; [Listof Player] RefereeState -> Referee
+;; Create a new Referee
+(define (referee-new player-list state)
+  (new referee% [init-player-list player-list] [init-gamestate state]))
+
 
 (define referee%
   (class object%
-    (init init-player-list init-gamestate)
+    (init init-player-list init-state)
     
-    (define state0 init-gamestate)
+    (define state0 init-state)
     (define active-players (make-hash
                             (for/list ([p init-player-list]
                                        [c (get-player-color-list state0)])
                               (cons c p))))
-    (define kicked-players '())
 
     (super-new)
 
@@ -77,15 +80,15 @@
                         (referee-state->player-state state0 color)
                         (player-info-treasure-pos (gamestate-get-by-color state0 color))))))
 
-    ;; Gamestate Natural -> Gamestate
+    ;; RefereeState Natural -> RefereeState
     ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
     ;; gamestate when the game has ended
     (define (play-until-completion state [rounds-remaining MAX-ROUNDS])
       (cond
-        [(< 0 rounds-remaining) state]
+        [(<= 0 rounds-remaining) state]
         [else (play-until-completion-help state rounds-remaining)]))
          
-    ;; Gamestate Natural -> Gamestate
+    ;; RefereeState Natural -> RefereeState
     ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
     ;; gamestate when the game has ended
     (define (play-until-completion-help state rounds-remaining)
@@ -97,7 +100,7 @@
         [else (play-until-completion next-state (sub1 rounds-remaining))]))
 
     ;; [Listof AvatarColor] [Listof AvatarColor] [Listof AvatarColor] ->
-    ;;                                           (values Gamestate [Listof AvatarColor])
+    ;;                                           (values RefereeState [Listof AvatarColor])
     ;; Run a round
     (define (run-round state queue [passed-plyrs '()])
       (cond [(empty? queue) (values state passed-plyrs)]
@@ -109,7 +112,7 @@
                                 (run-round next-state (rest queue) passed-plyrs))]))]))
 
     
-    ;; Gamestate AvatarColor -> Boolean Gamestate
+    ;; RefereeState AvatarColor -> Boolean RefereeState
     ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
     (define (execute-turn state color)
       (define mv (safe-get-action (hash-ref color) (referee-state->player-state state color)))
@@ -124,22 +127,30 @@
                                                                                  (move-orientation mv))
                                                      (move-pos mv))))]))
 
-    ;; Gamestate -> [Listof AvatarColor]
+    ;; RefereeState -> [Listof AvatarColor]
     ;; Determine which players (if any) won the game
     (define (determine-winners state)
       (define players (get-player-color-list state))
-      (define plyrs-visited-treasure
+      (define players-that-visited-treasure
         (filter (λ (color) (player-info-visited-treasure? (gamestate-get-by-color state color)))
                 players))
-      (cond
-        [(empty? plyrs-visited-treasure)
-         (let* ([distances (map (curry euclidean-distance-from-objective state) players)]
-                [min-dist (apply min distances)])
-           (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) players))]
-        [else
-         (let* ([distances (map (curry euclidean-distance-from-objective state) plyrs-visited-treasure)]
-                [min-dist (apply min distances)])
-           (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) plyrs-visited-treasure))]))))
+      (if (empty? players-that-visited-treasure)
+          (all-min-distance state players)
+          (all-min-distance state players-that-visited-treasure)))))
+
+
+;; -> (Any -> Boolean)
+;; Creates a contract for instances of referee
+(define referee?
+  (is-a?/c referee%))
+
+
+;; RefereeState [Listof Player] -> [Listof Player]
+;; Get all players which are minimum distance from their objective
+(define (all-min-distance state players)
+  (define distances (map (curry euclidean-distance-from-objective state) players))
+  (define min-dist (apply min distances))
+  (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) players))
 
 
 ;; Player -> (U Action 'misbehaved)
@@ -150,11 +161,6 @@
 (define (safe-get-action plyr plyr-state [time-limit-sec 4])
   (with-handlers ([exn:fail? 'misbehaved])
     (with-limits time-limit-sec #f (send plyr take-turn plyr-state))))
-
-;; -> (Any -> Boolean)
-;; Creates a contract for instances of referee
-(define referee?
-  (is-a?/c referee%))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -175,13 +181,13 @@
   (require (submod "../Players/player.rkt" examples))
   (define example-referee0 (new referee%
                                 [init-player-list (list player0 player1 player2)]
-                                [init-gamestate gamestate5]))
+                                [init-state gamestate5]))
   (define example-referee1 (new referee%
                                 [init-player-list (list player0 player1 player2 player3)]
-                                [init-gamestate gamestate4]))
+                                [init-state gamestate4]))
   (define example-referee2 (new referee%
                                 [init-player-list (list player0 player1)]
-                                [init-gamestate gamestate1])))
+                                [init-state gamestate1])))
 
 (module+ test
   (test-case
