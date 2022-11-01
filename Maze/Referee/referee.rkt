@@ -40,7 +40,7 @@
 ;; [Listof Player] RefereeState -> Referee
 ;; Create a new Referee
 (define (referee-new player-list state)
-  (new referee% [init-player-list player-list] [init-gamestate state]))
+  (new referee% [init-player-list player-list] [init-state state]))
 
 
 (define referee%
