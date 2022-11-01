@@ -22,6 +22,7 @@
 (require "../Common/tile.rkt")
 (require "../Common/state.rkt")
 (require "../Common/player-info.rkt")
+(require "../Common/rulebook.rkt")
 (require "../Players/strategy.rkt")
 (require "../Players/player.rkt")
 
@@ -112,21 +113,16 @@
     ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
     (define (execute-turn state color)
       (define mv (safe-get-action (hash-ref color) (referee-state->player-state state color)))
-      (define move-is-valid (valid-move? (gamestate-board state)
-                                         (gamestate-extra-tile state)
-                                         (gamestate-prev-shift state)
-                                         (gamestate-get-by-color state color)
-                                         (move-orientation mv)
-                                         (move-shift mv)
-                                         (move-pos mv)))
+      (define move-is-valid (valid-move? state mv))
       (cond
         [(false? mv) (values #t (end-current-turn state))]
-        [move-is-valid (values #f (end-current-turn (gamestate-move-player
+        [(or (equal? 'misbehaved mv) (not (valid-move? mv))) (values #f (remove-player state))]
+        [else 
+              (values #f (end-current-turn (gamestate-move-player
                                                      (gamestate-shift-and-insert state
                                                                                  (move-shift mv)
                                                                                  (move-orientation mv))
-                                                     (move-pos mv))))]
-        [(not move-is-valid) (values #f (remove-player state))]))
+                                                     (move-pos mv))))]))
 
     ;; Gamestate -> [Listof AvatarColor]
     ;; Determine which players (if any) won the game
@@ -159,20 +155,6 @@
 ;; Creates a contract for instances of referee
 (define referee?
   (is-a?/c referee%))
-
-;; TODO: REFACTOR THIS INTO RULEBOOK ***********************************************************************************************************************************
-;; Board Tile Shift PlayerInfo Move -> Boolean
-;; Returns true if the move is valid
-;; PlayerState Move -> Boolean
-;; Returns True if the move is valid in the state
-(define (valid-move? board extra-tile prev-shift plyr-info orientation shift pos)
-  (define-values
-    (new-board new-extra-tile)
-    (board-shift-and-insert board shift (tile-rotate extra-tile orientation)))
-  (define new-player (first (shift-players (list plyr-info) board shift)))
-  (and (not (equal? pos (player-info-curr-pos new-player)))
-       (not (shift-undoes-shift? shift prev-shift))
-       (member pos (board-all-reachable-from new-board (player-info-curr-pos new-player)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -223,11 +205,3 @@
          (send example-referee2 run-game)])
      (check-equal? empty criminals)
      (check-equal? (list "blue") winners))))
-
-; test valid-move? board extra-tile prev-shift plyr-info orientation shift pos)
-(module+ test
-  (check-false (valid-move? board1 tile-extra (shift-new 'down 2) player-info1 0 (shift-new 'down 2) (cons 3 1)))
-  (check-false (valid-move? board1 tile-extra (shift-new 'up 2) player-info1 90 (shift-new 'right 2) (cons 5 1)))
-  (check-false (valid-move? board1 tile-extra (shift-new 'right 2) player-info1 180 (shift-new 'down 2) (cons 3 3)))
-  (check-false (valid-move? board1 tile-extra (shift-new 'left 2) player-info1 270 (shift-new 'left 2) (cons 3 1)))
-  (check-not-false (valid-move? board1 tile-extra (shift-new 'down 2) player-info1 0 (shift-new 'down 2) (cons 2 1))))

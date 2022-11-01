@@ -19,6 +19,11 @@
   [gamestate-board (-> gamestate? board?)]
   [gamestate-extra-tile (-> gamestate? tile?)]
   [gamestate-prev-shift (-> gamestate? shift?)]
+  [move?          contract?]
+  [move-orientation (-> move? orientation?)]
+  [move-shift (-> move? shift?)]
+  [move-pos (-> move? grid-posn?)]
+  [move-new (-> grid-posn? shift? orientation? move?)]
   ; Get the current player
   [gamestate-current-player (-> gamestate? player-info?)]
   ; Create a new player state
@@ -28,7 +33,7 @@
   ; Shifts a row or column and inserts a tile in the empty space
   [gamestate-shift-and-insert (-> gamestate? shift? orientation? gamestate?)]
   ; Move players that were on a row or column that was shifted
-  [shift-players (-> (listof player-info?) board? shift? (listof player-info?))]
+  [shift-players (-> gamestate? shift? (listof player-info?))]
   ; Move the currently active player to a new position
   [gamestate-move-player (-> gamestate? grid-posn? gamestate?)]
   ; Check if the current player can reach a position from their current position
@@ -110,6 +115,15 @@
 (define (referee-state-new board extra-tile players prev-shift)
   (gamestate board extra-tile players prev-shift))
 
+;; A Move is a structure:
+;;    (struct GridPosn Shift Orientation)
+;; interpretation: A Move has a position to move the currently active player to after the shift,
+;;                 a shift, and the number of degrees to rotate the spare tile
+(struct move [pos shift orientation] #:transparent)
+
+(define (move-new pos shft orientation)
+  (move pos shft orientation))
+
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
@@ -122,17 +136,19 @@
     (board-shift-and-insert
      (gamestate-board state) shft (tile-rotate (gamestate-extra-tile state) orientation)))
   (define players-after-shift
-    (shift-players (gamestate-players state) (gamestate-board state) shft))
+    (shift-players state shft))
   (gamestate new-board new-extra-tile players-after-shift shft))
 
 
-;; [Listof PlayerInfo] Board Shift -> [Listof PlayerInfo]
-;; Move players that were on a row or column that was shifted
-(define (shift-players players board shft)
-  (define shift-step (if (shifts-forward? (shift-direction shft)) DEFAULT-SHIFT-STEP (* -1 DEFAULT-SHIFT-STEP)))
-  (for/list ([plyr players])
+;; Gamestate Shift -> [Listof PlayerInfo]
+;; Move the gamestates list of players that were on a row or column that was shifted
+(define (shift-players state shft)
+  (define shift-step (if (shifts-forward? (shift-direction shft))
+                         DEFAULT-SHIFT-STEP
+                         (* -1 DEFAULT-SHIFT-STEP)))
+  (for/list ([plyr (gamestate-players state)])
     (if (player-shifted? shft plyr)
-        (shift-player plyr board (shift-direction shft) shift-step)
+        (shift-player plyr (gamestate-board state) (shift-direction shft) shift-step)
         plyr)))
 
 
@@ -359,8 +375,7 @@
 (module+ test
   ; test moving players on moved row
   (check-equal? (shift-players
-                 (gamestate-players gamestate4)
-                 (gamestate-board gamestate4)
+                 gamestate4
                  (shift-new 'right 0))
                 (list
                  (ref-player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
@@ -368,8 +383,7 @@
                  player-info2
                  (ref-player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
   (check-equal? (shift-players
-                 (gamestate-players gamestate4)
-                 (gamestate-board gamestate4)
+                 gamestate4
                  (shift-new 'left 0))
                 (list
                  (ref-player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
