@@ -27,7 +27,9 @@
   ;; Convert a hashtable to a referee state
   [hash->referee-state (-> hash? referee-state?)]
   ; Convert an Action to json
-  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]))
+  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]
+  ; Convert a list to a Player
+  [list->player (-> (listof string?) player?)]))
 
 
 ;; --------------------------------------------------------------------

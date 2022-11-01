@@ -7,6 +7,7 @@
 (require "../Maze/Common/state.rkt")
 (require "../Maze/Common/board.rkt")
 (require "../Maze/Players/strategy.rkt")
+(require "../Maze/Referee/referee.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -28,4 +29,4 @@
 
   (define-values (winners cheaters) (send ref run-game))
 
-  (write-json (sort string<? winners)))
+  (write-json (map (λ (col) (send ref get-player-name-by-color col)) winners)))

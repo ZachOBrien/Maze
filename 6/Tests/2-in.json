@@ -1,4 +1,4 @@
-["Zach", "Euclid"], ["asldk", "Riemann"]]
+[["Zach", "Euclid"], ["asldk", "Riemann"]]
 {
     "board" : {
         "connectors" :
@@ -116,5 +116,5 @@
             "color"   : "A9F4B1"
         }
     ],
-    "last": [6, "DOWN"]
+    "last": [2, "DOWN"]
 }

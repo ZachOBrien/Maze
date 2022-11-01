@@ -51,6 +51,11 @@
 
     (super-new)
 
+    ;; AvatarColor -> String
+    ;; Get a players name by their avatar color
+    (define/public (get-player-name-by-color color)
+      (send (hash-ref active-players color) name))
+
     ;; Void -> [Listof AvatarColor] [Listof AvatarColor]
     ;; Runs a game from start to finish, 
     (define/public (run-game)
