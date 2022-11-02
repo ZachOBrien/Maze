@@ -10,8 +10,14 @@
 (provide
  (contract-out
   [gem? contract?]
-  [gems (listof gem?)]))
+  [gems (listof gem?)]
+  [gem->image (-> gem? image?)]))
 
+
+;; --------------------------------------------------------------------
+;; DEPENDENCIES
+
+(require 2htdp/image)
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -123,3 +129,17 @@
               'zoisite))
 
 (define gem? (apply or/c gems))
+
+
+;; --------------------------------------------------------------------
+;; FUNCTIONALITY IMPLEMENTATION
+
+(define IMAGES-PATH "../Assets/gems/")
+(define IMAGES-EXTENSION ".png")
+
+;; Gem -> Image
+;; Render a gem as an image
+(define (gem->image gem)
+  (bitmap/file (string-append IMAGES-PATH (symbol->string gem) IMAGES-EXTENSION)))
+
+
