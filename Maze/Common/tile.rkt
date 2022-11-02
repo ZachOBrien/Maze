@@ -100,8 +100,8 @@
 ;; Tile Orientation -> Tile
 (define (tile-rotate t rotation)
   (tile-new (tile-connector t)
-             (modulo (+ (tile-orientation t) rotation) 360)
-             (tile-gems t)))
+            (modulo (+ (tile-orientation t) rotation) 360)
+            (tile-gems t)))
 
 ;; Tile Tile -> Boolean
 (define (tile-connected-horizontal? left right)
@@ -162,6 +162,81 @@
   (define ornt (first (shuffle orientations)))
   (tile conn ornt gems))
 
+
+(module+ draw
+  (require 2htdp/image)
+
+  (provide
+   (contract-out
+    [draw-tile (-> tile? natural-number/c image?)]))
+
+  (define TILE-SIZE 100)
+  (define ARM-LENGTH (/ TILE-SIZE 10))
+  
+  ;; Orientation -> Image
+  ;; Draw one arm of a connector
+  (define (arm-image orientation arm-length)
+    (define arm-width (/ arm-length 5))
+    (define vert0degree (put-pinhole (/ arm-width 2) arm-length
+                                     (rectangle arm-width arm-length "solid" "sienna")))
+    (rotate orientation vert0degree))
+
+  ;; Orientation -> Image
+  ;; Draw an elbow connector
+  (define (elbow-image orientation arm-length)
+    (define elbow0degree (overlay/pinhole (arm-image 0 arm-length)
+                                          (arm-image 270 arm-length)))
+    (rotate orientation elbow0degree))
+
+  ;; Orientation -> Image
+  ;; Draw a straight connector
+  (define (straight-image orientation arm-length)
+    (define straight0degree (overlay/pinhole (arm-image 0 arm-length)
+                                             (arm-image 180 arm-length)))
+    (rotate orientation straight0degree))
+
+  ;; Orientation -> Image
+  ;; Draw a tri connector
+  (define (tri-image orientation arm-length)
+    (define tri0degree (overlay/pinhole (arm-image 0 arm-length)
+                                        (arm-image 90 arm-length)
+                                        (arm-image 270 arm-length)))
+    (rotate orientation tri0degree))
+
+  ;; Orientation -> Image
+  ;; Draw a cross connector
+  (define (cross-image orientation arm-length)
+    (define cross0degree (overlay/pinhole (arm-image 0 arm-length)
+                                          (arm-image 90 arm-length)
+                                          (arm-image 180 arm-length)
+                                          (arm-image 270 arm-length)))
+    (rotate orientation cross0degree))
+
+
+  ;; Connector Orientation Natural -> Image
+  ;; Draw a connector with some orientation and with arms of length `arm-length`
+  (define (draw-connector connector orientation arm-length)
+    (match connector
+      ['straight (straight-image orientation arm-length)]
+      ['elbow (elbow-image orientation arm-length)]
+      ['tri (tri-image orientation arm-length)]
+      ['cross (cross-image orientation arm-length)]))
+
+
+  ;; Tile [MultipleOf 10] -> Image
+  ;; Draw a tile, a square with side lengths `size`
+  (define (draw-tile t size)
+    (define base-tile
+      (clear-pinhole (overlay/pinhole (draw-connector (tile-connector t)
+                                                      (tile-orientation t)
+                                                      (/ size 2))
+                                      (square size "solid" "navajowhite"))))
+    (define gems-to-draw (set->list (tile-gems t)))
+    (underlay/xy (underlay/xy base-tile
+                              10 10
+                              (scale 0.25 (gem->image (first gems-to-draw))))
+                 (- size 30) (- size 30)
+                 (scale 0.25 (gem->image (second gems-to-draw))))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
