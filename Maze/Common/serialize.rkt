@@ -59,12 +59,12 @@
         "─" (cons 'straight 90)
         "┐" (cons 'elbow 180)
         "└" (cons 'elbow 0)
-        "┌" (cons 'elbow 90)
-        "┘" (cons 'elbow 270)
+        "┌" (cons 'elbow 270)
+        "┘" (cons 'elbow 90)
         "┬" (cons 'tri 0)
-        "├" (cons 'tri 270)
+        "├" (cons 'tri 90)
         "┴" (cons 'tri 180)
-        "┤" (cons 'tri 90)
+        "┤" (cons 'tri 270)
         "┼" (cons 'cross 0)))
 
 
@@ -143,7 +143,7 @@
   (check-equal? (hash->spare-tile (hash 'tilekey "┌"
                                         '1-image "goldstone"
                                         '2-image "heliotrope"))
-                (tile-new 'elbow 90 (set 'goldstone 'heliotrope)))
+                (tile-new 'elbow 270 (set 'goldstone 'heliotrope)))
   (check-equal? (hash->spare-tile (hash 'tilekey "┼"
                                         '1-image "diamond"
                                         '2-image "unakite"))
@@ -260,59 +260,59 @@
       (tile-new 'straight 90 (set 'stilbite 'zircon))
       (tile-new 'elbow 180 (set 'stilbite 'zircon))
       (tile-new 'elbow 0 (set 'stilbite 'zircon))
-      (tile-new 'elbow 90 (set 'stilbite 'zircon))
       (tile-new 'elbow 270 (set 'stilbite 'zircon))
+      (tile-new 'elbow 90 (set 'stilbite 'zircon))
       (tile-new 'tri 0 (set 'stilbite 'zircon)))
      (list
       (tile-new 'straight 0 (set 'prasiolite 'carnelian))
       (tile-new 'straight 90 (set 'prasiolite 'carnelian))
       (tile-new 'elbow 180 (set 'prasiolite 'carnelian))
       (tile-new 'elbow 0 (set 'prasiolite 'carnelian))
-      (tile-new 'elbow 90 (set 'prasiolite 'carnelian))
       (tile-new 'elbow 270 (set 'prasiolite 'carnelian))
+      (tile-new 'elbow 90 (set 'prasiolite 'carnelian))
       (tile-new 'tri 0 (set 'prasiolite 'carnelian)))
      (list
       (tile-new 'straight 0 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'straight 90 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'elbow 180 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'elbow 0 (set 'fancy-spinel-marquise 'jasper))
-      (tile-new 'elbow 90 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'elbow 270 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 90 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'tri 0 (set 'fancy-spinel-marquise 'jasper)))
      (list
       (tile-new 'straight 0 (set 'peridot 'purple-cabochon))
       (tile-new 'straight 90 (set 'peridot 'purple-cabochon))
       (tile-new 'elbow 180 (set 'peridot 'purple-cabochon))
       (tile-new 'elbow 0 (set 'peridot 'purple-cabochon))
-      (tile-new 'elbow 90 (set 'peridot 'purple-cabochon))
       (tile-new 'elbow 270 (set 'peridot 'purple-cabochon))
+      (tile-new 'elbow 90 (set 'peridot 'purple-cabochon))
       (tile-new 'tri 0 (set 'peridot 'purple-cabochon)))
      (list
       (tile-new 'straight 0 (set 'diamond 'lapis-lazuli))
       (tile-new 'straight 90 (set 'diamond 'lapis-lazuli))
       (tile-new 'elbow 180 (set 'diamond 'lapis-lazuli))
       (tile-new 'elbow 0 (set 'diamond 'lapis-lazuli))
-      (tile-new 'elbow 90 (set 'diamond 'lapis-lazuli))
       (tile-new 'elbow 270 (set 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 90 (set 'diamond 'lapis-lazuli))
       (tile-new 'tri 0 (set 'diamond 'lapis-lazuli)))
      (list
       (tile-new 'straight 0 (set 'cordierite 'mexican-opal))
       (tile-new 'straight 90 (set 'cordierite 'mexican-opal))
       (tile-new 'elbow 180 (set 'cordierite 'mexican-opal))
       (tile-new 'elbow 0 (set 'cordierite 'mexican-opal))
-      (tile-new 'elbow 90 (set 'cordierite 'mexican-opal))
       (tile-new 'elbow 270 (set 'cordierite 'mexican-opal))
+      (tile-new 'elbow 90 (set 'cordierite 'mexican-opal))
       (tile-new 'tri 0 (set 'cordierite 'mexican-opal)))
      (list
       (tile-new 'straight 0 (set 'pink-opal 'red-diamond))
       (tile-new 'straight 90 (set 'pink-opal 'red-diamond))
       (tile-new 'elbow 180 (set 'pink-opal 'red-diamond))
       (tile-new 'elbow 0 (set 'pink-opal 'red-diamond))
-      (tile-new 'elbow 90 (set 'pink-opal 'red-diamond))
       (tile-new 'elbow 270 (set 'pink-opal 'red-diamond))
+      (tile-new 'elbow 90 (set 'pink-opal 'red-diamond))
       (tile-new 'tri 0 (set 'pink-opal 'red-diamond)))))
 
-  (define spare-tile (tile-new 'elbow 270 (set 'lapis-lazuli 'pink-opal)))
+  (define spare-tile (tile-new 'elbow 90 (set 'lapis-lazuli 'pink-opal)))
 
   (define example-treasures
     (list

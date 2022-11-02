@@ -71,19 +71,19 @@
 ;; interpretation: A direction a tile could be facing. Connector shapes
 ;;                 have the following orientations:
 ;; "│" 0
-;; "─" 90
-;; "│" 180
 ;; "─" 270
+;; "│" 180
+;; "─" 90
 ;;
 ;; "└" 0
-;; "┌" 90
+;; "┘" 90
 ;; "┐" 180
-;; "┘" 270
+;; "┌" 270
 ;;
 ;; "┬" 0
-;; "┤" 90
+;; "├" 90
 ;; "┴" 180
-;; "├" 270
+;; "┤" 270
 ;;
 ;; "┼" 0
 (define orientations (list 0 90 180 270))
@@ -121,7 +121,7 @@
   (match* (connector orientation)
     [('cross _)     #t]
     [('tri o)      (not (= 0 o))]
-    [('elbow o)    (or (= 0 o) (= 270 o))]
+    [('elbow o)    (or (= 0 o) (= 90 o))]
     [('straight o) (or (= 0 o) (= 180 o))]))
 
 
@@ -131,7 +131,7 @@
   (match* (connector orientation)
     [('cross _)     #t]
     [('tri o)      (not (= 180 o))]
-    [('elbow o)    (or (= 90 o) (= 180 o))]
+    [('elbow o)    (or (= 270 o) (= 180 o))]
     [('straight o) (or (= 0 o) (= 180 o))]))
 
 
@@ -140,9 +140,9 @@
 (define (open-on-left? connector orientation)
   (match* (connector orientation)
     [('cross _)     #t]
-    [('tri o)      (not (= 270 o))]
-    [('elbow o)    (or (= 180 o) (= 270 o))]
-    [('straight o) (or (= 90 o) (= 270 o))]))
+    [('tri o)      (not (= 90 o))]
+    [('elbow o)    (or (= 180 o) (= 90 o))]
+    [('straight o) (or (= 270 o) (= 90 o))]))
 
 
 ;; Connector Orientation -> Boolean
@@ -150,9 +150,9 @@
 (define (open-on-right? connector orientation)
   (match* (connector orientation)
     [('cross _)     #t]
-    [('tri o)      (not (= 90 o))]
-    [('elbow o)    (or (= 0 o) (= 90 o))]
-    [('straight o) (or (= 90 o) (= 270 o))]))
+    [('tri o)      (not (= 270 o))]
+    [('elbow o)    (or (= 0 o) (= 270 o))]
+    [('straight o) (or (= 270 o) (= 90 o))]))
 
 
 ;; [Setof Gem] -> Tile
@@ -331,7 +331,7 @@
 (module+ test
   (check-true (tile-connected-horizontal? tile00 tile01))
   (check-false (tile-connected-horizontal? tile01 tile02))
-  (check-true (tile-connected-horizontal? tile55 tile56))
+  (check-false (tile-connected-horizontal? tile55 tile56))
   (check-false (tile-connected-horizontal? tile60 tile61)))
 
 ;; test tile-connected-vertical
@@ -348,9 +348,9 @@
   (check-false (open-on-top? 'straight 270))
   
   (check-true (open-on-top? 'elbow 0))
-  (check-false (open-on-top? 'elbow 90))
+  (check-true (open-on-top? 'elbow 90))
   (check-false (open-on-top? 'elbow 180))
-  (check-true (open-on-top? 'elbow 270))
+  (check-false (open-on-top? 'elbow 270))
   
   (check-false (open-on-top? 'tri 0))
   (check-true (open-on-top? 'tri 90))
@@ -370,14 +370,14 @@
   (check-true (open-on-right? 'straight 270))
   
   (check-true (open-on-right? 'elbow 0))
-  (check-true (open-on-right? 'elbow 90))
+  (check-false (open-on-right? 'elbow 90))
   (check-false (open-on-right? 'elbow 180))
-  (check-false (open-on-right? 'elbow 270))
+  (check-true (open-on-right? 'elbow 270))
   
   (check-true (open-on-right? 'tri 0))
-  (check-false (open-on-right? 'tri 90))
+  (check-true (open-on-right? 'tri 90))
   (check-true (open-on-right? 'tri 180))
-  (check-true (open-on-right? 'tri 270))
+  (check-false (open-on-right? 'tri 270))
   
   (check-true (open-on-right? 'cross 0))
   (check-true (open-on-right? 'cross 90))
@@ -392,9 +392,9 @@
   (check-false (open-on-bottom? 'straight 270))
   
   (check-false (open-on-bottom? 'elbow 0))
-  (check-true (open-on-bottom? 'elbow 90))
+  (check-false (open-on-bottom? 'elbow 90))
   (check-true (open-on-bottom? 'elbow 180))
-  (check-false (open-on-bottom? 'elbow 270))
+  (check-true (open-on-bottom? 'elbow 270))
   
   (check-true (open-on-bottom? 'tri 0))
   (check-true (open-on-bottom? 'tri 90))
@@ -414,14 +414,14 @@
   (check-true (open-on-left? 'straight 270))
   
   (check-false (open-on-left? 'elbow 0))
-  (check-false (open-on-left? 'elbow 90))
+  (check-true (open-on-left? 'elbow 90))
   (check-true (open-on-left? 'elbow 180))
-  (check-true (open-on-left? 'elbow 270))
+  (check-false (open-on-left? 'elbow 270))
   
   (check-true (open-on-left? 'tri 0))
-  (check-true (open-on-left? 'tri 90))
+  (check-false (open-on-left? 'tri 90))
   (check-true (open-on-left? 'tri 180))
-  (check-false (open-on-left? 'tri 270))
+  (check-true (open-on-left? 'tri 270))
 
   (check-true (open-on-left? 'cross 0))
   (check-true (open-on-left? 'cross 90))
