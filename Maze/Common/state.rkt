@@ -362,14 +362,14 @@
                 tile-extra)
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'down 6) 90)) 0) 6)
-                (tile-new 'straight 270 (set)))
+                (tile-new 'straight 270 (set 'yellow-baguette 'yellow-beryl-oval)))
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'left 0) 180)) 0) 6)
-                (tile-new 'straight 0 (set)))
+                (tile-new 'straight 0 (set 'yellow-baguette 'yellow-beryl-oval)))
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'right 6) 270)) 6)
                  0)
-                (tile-new 'straight 90 (set))))
+                (tile-new 'straight 90 (set 'yellow-baguette 'yellow-beryl-oval))))
 
 ;; test players on a shifted row/col are moved accordingly
 (module+ test

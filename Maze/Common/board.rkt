@@ -112,7 +112,7 @@
 ;; interpretation: A direction in which a row or column can be shifted.
 ;;                 Columns may only be shifted up and down. Rows may
 ;;                 only be shifted left and right.
-(define shift-directions (list 'up 'down 'left 'right))
+(define shift-directions (list 'left 'right 'up 'down))
 (define shift-direction? (apply or/c shift-directions))
 
 ;; A Shift is a structure:
@@ -358,10 +358,6 @@
   (define row5 (list tile50 tile51 tile52 tile53 tile54 tile55 tile56))
   (define row6 (list tile60 tile61 tile62 tile63 tile64 tile65 tile66))
   (define board1 (list row0 row1 row2 row3 row4 row5 row6))
-
-  (require (submod ".." draw))
-  (require (submod "tile.rkt" draw))
-  (board->image board1 100)
   
   (define row0_2 (list tile00 tile01 tile02))
   (define row1_2 (list tile10 tile11 tile12))

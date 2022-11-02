@@ -121,11 +121,15 @@
 ;; Board -> [Listof Move]
 ;; Get all possible moves that can be made on a board
 (define (get-all-candidate-moves board candidates)
-  (map (curry apply move-new)
-       (cartesian-product candidates
-                          (map (curry apply shift-new) (cartesian-product shift-directions (get-valid-shift-indices board)))
-                          orientations)))
 
+  (define lr-shifts
+    (map (curry apply shift-new) (map reverse (cartesian-product (get-valid-shift-indices board) (list 'left 'right)))))
+  (define ud-shifts
+    (map (curry apply shift-new) (map reverse (cartesian-product (get-valid-shift-indices board) (list 'up 'down)))))
+  
+  (define shifts (append lr-shifts ud-shifts))
+  (map (curry apply move-new)
+       (cartesian-product candidates shifts orientations)))
 
 
 ;; --------------------------------------------------------------------
@@ -170,7 +174,7 @@
 ; test riemann-strategy
 (module+ test
   ; Player can reach goal tile
-  (check-equal? (riemann-strategy player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0))
+  (check-equal? (riemann-strategy player-state0) (move-new (cons 3 3) (shift-new 'left 0) 0))
   ; Player cannot reach goal tile, reaches closest
   (check-equal? (riemann-strategy player-state1) (move-new (cons 0 4) (shift-new 'down 6) 90))
   ; Player cannot go anywhere
@@ -183,7 +187,7 @@
   ; Player cannot reach goal tile, reaches closest tile
   (check-equal? (euclidean-strategy player-state1) (move-new (cons 6 1) (shift-new 'right 6) 90))
   ; Player can reach goal tile
-  (check-equal? (euclidean-strategy player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0)))
+  (check-equal? (euclidean-strategy player-state0) (move-new (cons 3 3) (shift-new 'left 0) 0)))
 
 ; test get-euclidean-strategy
 (module+ test
@@ -306,6 +310,6 @@
 
 ; test get-first-valid-move
 (module+ test
-  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-1) (move-new (cons 1 1) (shift-new 'up 2) 0))
-  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-2) (move-new (cons 1 3) (shift-new 'up 0) 0))
+  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-1) (move-new (cons 1 1) (shift-new 'left 2) 0))
+  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-2) (move-new (cons 1 3) (shift-new 'left 0) 0))
   (check-equal? (get-first-valid-candidate-move player-state1 cand-list-3) (move-new (cons 0 4) (shift-new 'down 6) 90)))
