@@ -74,4 +74,10 @@
                 (move-new (cons 1 1) (shift-new 'left 2) 270)))
   (check-not-false (valid-move?
                     (referee-state-new board1 tile-extra (list player-info1) (shift-new 'down 2))
-                    (move-new (cons 2 1) (shift-new 'down 2) 0))))
+                    (move-new (cons 1 2) (shift-new 'right 6) 0)))
+  (check-not-false (valid-move?
+                    (referee-state-new board1 tile-extra (list player-info1) (shift-new 'down 6))
+                    (move-new (cons 0 0) (shift-new 'right 6) 0)))
+  (check-not-false (valid-move?
+                    (referee-state-new board1 tile-extra (list player-info1) (shift-new 'down 6))
+                    (move-new (cons 2 0) (shift-new 'right 2) 90))))

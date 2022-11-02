@@ -436,8 +436,8 @@
 ;; test player-can-reach-pos?
 (module+ test
   (check-true (player-can-reach-pos? gamestate0 (cons 1 1)))
-  (check-true (player-can-reach-pos? gamestate0 (cons 5 0)))
-  (check-true (player-can-reach-pos? gamestate0 (cons 1 0)))
+  (check-true (player-can-reach-pos? gamestate0 (cons 1 2)))
+  (check-false (player-can-reach-pos? gamestate0 (cons 1 0)))
   (check-false (player-can-reach-pos? gamestate0 (cons 0 3)))
   (check-false (player-can-reach-pos? gamestate0 (cons 6 6))))
 

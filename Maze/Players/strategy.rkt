@@ -170,9 +170,9 @@
 ; test riemann-strategy
 (module+ test
   ; Player can reach goal tile
-  (check-equal? (riemann-strategy player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  ; Player cannot reach goal tile, reaches 0 0
-  (check-equal? (riemann-strategy player-state1) (move-new (cons 0 0) (shift-new 'right 6) 90))
+  (check-equal? (riemann-strategy player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0))
+  ; Player cannot reach goal tile, reaches closest
+  (check-equal? (riemann-strategy player-state1) (move-new (cons 0 4) (shift-new 'down 6) 90))
   ; Player cannot go anywhere
   (check-false (riemann-strategy player-state-nowhere-to-go)))
 
@@ -181,9 +181,9 @@
   ; Player cannot go anywhere
   (check-false (euclidean-strategy player-state-nowhere-to-go))
   ; Player cannot reach goal tile, reaches closest tile
-  (check-equal? (euclidean-strategy player-state1) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (euclidean-strategy player-state1) (move-new (cons 6 1) (shift-new 'right 6) 90))
   ; Player can reach goal tile
-  (check-equal? (euclidean-strategy player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0)))
+  (check-equal? (euclidean-strategy player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0)))
 
 ; test get-euclidean-strategy
 (module+ test
@@ -252,11 +252,11 @@
 
 ; test valid-move?
 (module+ test
-  (check-not-false (valid-move? player-state0 (move-new (cons 3 1) (shift-new 'down 2) 0)))
+  (check-true (valid-move? player-state0 (move-new (cons 3 1) (shift-new 'down 2) 0)))
   ; Check that undoing the previous move is invalid, even if the rest of the move is legal
   (check-false (valid-move? player-state0 (move-new (cons 3 1) (shift-new 'up 2) 0)))
-  (check-not-false (valid-move? player-state0 (move-new (cons 3 3) (shift-new 'right 2) 0)))
-  (check-false (valid-move? player-state0 (move-new (cons 3 3) (shift-new 'up 0) 0)))
+  (check-true (valid-move? player-state0 (move-new (cons 3 3) (shift-new 'right 2) 0)))
+  (check-true (valid-move? player-state0 (move-new (cons 3 3) (shift-new 'up 0) 0)))
   (check-false (valid-move? player-state0 (move-new (cons 3 2) (shift-new 'down 2) 0)))
   (check-false (valid-move? player-state0 (move-new (cons 1 1) (shift-new 'right 6) 0)))
   (check-false (valid-move? player-state0 (move-new (cons 3 1) (shift-new 'left 6) 0))))
@@ -306,6 +306,6 @@
 
 ; test get-first-valid-move
 (module+ test
-  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-1) (move-new (cons 3 1) (shift-new 'down 2) 0))
-  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-2) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (get-first-valid-candidate-move player-state1 cand-list-3) (move-new (cons 3 3) (shift-new 'up 0) 0)))
+  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-1) (move-new (cons 1 1) (shift-new 'up 2) 0))
+  (check-equal? (get-first-valid-candidate-move player-state0 cand-list-2) (move-new (cons 1 3) (shift-new 'up 0) 0))
+  (check-equal? (get-first-valid-candidate-move player-state1 cand-list-3) (move-new (cons 0 4) (shift-new 'down 6) 90)))

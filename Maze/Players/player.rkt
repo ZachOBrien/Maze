@@ -109,14 +109,14 @@
 
 ;; test take-turn
 (module+ test
-  (check-equal? (send player0 take-turn player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player0 take-turn player-state1) (move-new (cons 0 0) (shift-new 'right 6) 90))
+  (check-equal? (send player0 take-turn player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0))
+  (check-equal? (send player0 take-turn player-state1) (move-new (cons 0 4) (shift-new 'down 6) 90))
   (check-equal? (send player0 take-turn player-state-nowhere-to-go) #f)
-  (check-equal? (send player1 take-turn player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player1 take-turn player-state1) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (send player1 take-turn player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0))
+  (check-equal? (send player1 take-turn player-state1) (move-new (cons 6 1) (shift-new 'right 6) 90))
   (check-equal? (send player1 take-turn player-state-nowhere-to-go) #f)
-  (check-equal? (send player2 take-turn player-state0) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player2 take-turn player-state1) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (send player2 take-turn player-state0) (move-new (cons 3 3) (shift-new 'up 0) 0))
+  (check-equal? (send player2 take-turn player-state1) (move-new (cons 6 1) (shift-new 'right 6) 90))
   (check-equal? (send player2 take-turn player-state-nowhere-to-go) #f))
 
 ;; test name

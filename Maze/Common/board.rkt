@@ -596,40 +596,26 @@
 ;; test board-all-reachable-from
 (module+ test
   (check-equal? (board-all-reachable-from board1 (cons 0 2))
-                (list (cons 0 2)))
+                (list (cons 0 2) (cons 0 3)))
   (check-equal? (board-all-reachable-from board1 (cons 0 6))
-                (list (cons 0 6) (cons 1 6)))
+                (list (cons 0 6) (cons 0 5) (cons 1 6) (cons 0 4)))
   (check-equal? (board-all-reachable-from board1 (cons 1 6))
-                (list (cons 1 6) (cons 0 6)))
-  (check-equal? (board-all-reachable-from board1 (cons 1 6))
-                (list (cons 1 6) (cons 0 6)))
+                (list (cons 1 6) (cons 0 6) (cons 0 5) (cons 0 4)))
   (check-equal? (board-all-reachable-from board1 (cons 0 0))
                 (list
                  (cons 0 0)
                  (cons 0 1)
                  (cons 1 1)
-                 (cons 1 0)
-                 (cons 2 1)
-                 (cons 2 0)
-                 (cons 3 0)
-                 (cons 4 0)
-                 (cons 5 0)
-                 (cons 4 1)
-                 (cons 4 2)
-                 (cons 3 2)
-                 (cons 5 2)
-                 (cons 3 1)
-                 (cons 5 1)
-                 (cons 6 1)))
+                 (cons 1 2)))
   (check-equal? (board-all-reachable-from board3 (cons 0 0))
-                (list (cons 0 0) (cons 1 0) (cons 0 1) (cons 1 1))))
+                (list (cons 0 0))))
          
 
 ;; test board-adjacent-connected?
 (module+ test
   (check-true (board-adjacent-connected? board1 (cons 0 0) (cons 0 1)))
   (check-false (board-adjacent-connected? board1 (cons 0 0) (cons 1 0)))
-  (check-true (board-adjacent-connected? board1 (cons 6 6) (cons 5 6)))
+  (check-false (board-adjacent-connected? board1 (cons 6 6) (cons 5 6)))
   (check-false (board-adjacent-connected? board1 (cons 6 0) (cons 6 0))))
 
 ;; test board-get-at
