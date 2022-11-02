@@ -168,7 +168,7 @@
 
   (provide
    (contract-out
-    [draw-tile (-> tile? natural-number/c image?)]))
+    [tile->image (-> tile? natural-number/c image?)]))
 
   (define TILE-SIZE 100)
   (define ARM-LENGTH (/ TILE-SIZE 10))
@@ -176,7 +176,7 @@
   ;; Orientation -> Image
   ;; Draw one arm of a connector
   (define (arm-image orientation arm-length)
-    (define arm-width (/ arm-length 5))
+    (define arm-width (/ arm-length 3))
     (define vert0degree (put-pinhole (/ arm-width 2) arm-length
                                      (rectangle arm-width arm-length "solid" "sienna")))
     (rotate orientation vert0degree))
@@ -198,7 +198,7 @@
   ;; Orientation -> Image
   ;; Draw a tri connector
   (define (tri-image orientation arm-length)
-    (define tri0degree (overlay/pinhole (arm-image 0 arm-length)
+    (define tri0degree (overlay/pinhole (arm-image 180 arm-length)
                                         (arm-image 90 arm-length)
                                         (arm-image 270 arm-length)))
     (rotate orientation tri0degree))
@@ -225,13 +225,17 @@
 
   ;; Tile [MultipleOf 10] -> Image
   ;; Draw a tile, a square with side lengths `size`
-  (define (draw-tile t size)
+  (define (tile->image t size)
     (define base-tile
-      (clear-pinhole (overlay/pinhole (draw-connector (tile-connector t)
-                                                      (tile-orientation t)
-                                                      (/ size 2))
-                                      (square size "solid" "navajowhite"))))
+      (overlay (square size "outline" "black")
+               (clear-pinhole (overlay/pinhole (draw-connector (tile-connector t)
+                                                               (tile-orientation t)
+                                                               (/ size 2))
+                                               (square size "solid" "navajowhite")))))
+    base-tile
+    #;
     (define gems-to-draw (set->list (tile-gems t)))
+    #;
     (underlay/xy (underlay/xy base-tile
                               10 10
                               (scale 0.25 (gem->image (first gems-to-draw))))

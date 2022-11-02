@@ -328,6 +328,22 @@
 (define (get-valid-shift-indices board)
   (filter (valid-shift-index? board) (range 0 (num-cols board) 2)))
 
+
+(module+ draw
+  (require 2htdp/image)
+  (require racket/function)
+  (require (submod "tile.rkt" draw))
+
+  (provide
+   (contract-out
+    [board->image (-> board? natural-number/c image?)]))
+
+  ;; Board [MultipleOf 10] -> Image
+  ;; Draw a board
+  (define (board->image board tile-size)
+    (apply above (for/list ([row board])
+                   (apply beside (map (curryr tile->image tile-size) row))))))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 
@@ -343,6 +359,10 @@
   (define row6 (list tile60 tile61 tile62 tile63 tile64 tile65 tile66))
   (define board1 (list row0 row1 row2 row3 row4 row5 row6))
 
+  (require (submod ".." draw))
+  (require (submod "tile.rkt" draw))
+  (board->image board1 100)
+  
   (define row0_2 (list tile00 tile01 tile02))
   (define row1_2 (list tile10 tile11 tile12))
   (define row2_2 (list tile20 tile21 tile22))
@@ -367,7 +387,7 @@
   (define row-horiz (list tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz))
   (define row-one-vert (list tile-horiz tile-horiz tile-horiz tile-vert tile-horiz tile-horiz tile-horiz))
   (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz)))
-  
+
 (module+ test
   (require rackunit)
   (require (submod "tile.rkt" examples))
