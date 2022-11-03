@@ -96,14 +96,6 @@
 (define (euclidian-dist pos1 pos2)
   (sqrt (+ (expt (- (car pos2) (car pos1)) 2) (expt (- (cdr pos2) (cdr pos1)) 2))))
 
-;; RefPlayerInfo -> GridPosn
-;; Determines the current goal for the player. If a player has already visited their treasure,
-;; their goal is to return home.
-(define (get-goal-pos plyr)
-  (if (player-info-visited-treasure? plyr)
-      (player-info-home-pos plyr)
-      (player-info-treasure-pos plyr)))
-
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a board
 (define (get-all-positions board)
