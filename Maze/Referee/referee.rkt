@@ -56,7 +56,7 @@
     ;; AvatarColor -> String
     ;; Get a players name by their avatar color
     (define/public (get-player-name-by-color color)
-      (execute-safe (send (hash-ref players color) name)))
+      (execute-safe (thunk (send (hash-ref players color) name))))
 
     ;; Void -> [Listof AvatarColor] [Listof AvatarColor]
     ;; Runs a game from start to finish, 
@@ -74,9 +74,9 @@
     (define (send-setup)
       (hash-for-each players
                      (lambda (color plyr)
-                       (execute-safe (send plyr setup
-                                           (referee-state->player-state state0 color)
-                                           (player-info-treasure-pos (gamestate-get-by-color state0 color)))))))))
+                       (execute-safe (thunk (send plyr setup
+                                                  (referee-state->player-state state0 color)
+                                                  (player-info-treasure-pos (gamestate-get-by-color state0 color))))))))))
 
 ;; RefereeState HashTable Natural -> RefereeState
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
@@ -160,13 +160,13 @@
 ;;    2. The call to the Player's take-turn method exceeds a time limit
 ;; If the player misbehaves in any of these ways, 'misbehaved is returned.
 (define (safe-get-action plyr plyr-state [time-limit-sec 4])
-  (execute-safe (send plyr take-turn plyr-state) time-limit-sec))
+  (execute-safe (thunk (send plyr take-turn plyr-state)) time-limit-sec))
 
-;; Thunk Number -> (U Any 'misbehaved)
-;; Evaluate a thunk safely
-(define (execute-safe request [time-limit-sec 4])
+;; Thunk Natural -> (U Any 'misbehaved)
+;; Evaluate a Thunk safely
+(define (execute-safe thnk [time-limit-sec 4])
   (with-handlers ([exn:fail? (λ (exn) 'misbehaved)])
-    (with-limits time-limit-sec #f request)))
+    (call-with-limits time-limit-sec #f thnk)))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -226,3 +226,9 @@
   (check-equal? (determine-winners gamestate5) '("red"))
   (check-equal? (determine-winners gamestate4) '("purple"))
   (check-equal? (determine-winners gamestate1) '("blue")))
+
+;; test execute-safe
+(module+ test
+  (check-equal? (execute-safe (thunk (error 'hi))) 'misbehaved)
+  (check-equal? (execute-safe (thunk (sleep 2)) 1) 'misbehaved)
+  (check-equal? (execute-safe (thunk 2)) 2))
