@@ -275,9 +275,9 @@
   ;; Convert a tile to a hash
   (define (tile->hash t)
     (define gem-list (set->list (tile-gems t)))
-    (hash "tilekey" (get-json-connector t)
-          "1-image" (first gem-list)
-          "2-image" (first (rest gem-list)))))
+    (hash 'tilekey (get-json-connector t)
+          '1-image (symbol->string (first gem-list))
+          '2-image (symbol->string (first (rest gem-list))))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS

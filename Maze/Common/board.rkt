@@ -355,7 +355,7 @@
     ; Converts a Board into a HashTable according to spec
     [board->hash (-> board? hash?)]
     ; Convert a shift to a spec-specified Action
-    [shift->json-action (-> (or/c shift? #f) (or/c "null" (listof string?)))]))
+    [shift->json-action (-> (or/c shift? #f) (or/c "null" (cons/c natural-number/c (cons/c string? empty))))]))
 
   ;; GridPosn -> HashTable
   ;; Converts a GridPosn into a HashTable according to spec
@@ -368,15 +368,15 @@
   (define (board->hash b)
     (define connectors (map (λ (row) (map get-json-connector row)) b))
     (define treasures (map (λ (row) (map get-json-gems row)) b))
-    (hash "connectors" connectors
-          "treasures" treasures))
+    (hash 'connectors connectors
+          'treasures treasures))
 
   ;; Shift -> [Listof String]
   ;; Convert a shift to a spec-specified Action
   (define (shift->json-action shft)
     (if (false? shft)
-        "null"
-        (list (shift-index shft) (shift-direction shft)))))
+        'null
+        (list (shift-index shft) (symbol->string (shift-direction shft))))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS

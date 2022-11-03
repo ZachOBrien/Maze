@@ -165,17 +165,17 @@
   ;; RefereePlayer -> HashTable
   ;; Make a referee player into a hash
   (define (referee-player-info->hash ref-plyr)
-    (hash "current" (gridposn->hash (player-info-curr-pos ref-plyr))
-          "home"    (gridposn->hash (player-info-home-pos ref-plyr))
-          "goto"    (gridposn->hash (get-goal-pos ref-plyr))
-          "color" (player-info-color ref-plyr)))
+    (hash 'current (gridposn->hash (player-info-curr-pos ref-plyr))
+          'home    (gridposn->hash (player-info-home-pos ref-plyr))
+          'goto    (gridposn->hash (get-goal-pos ref-plyr))
+          'color (player-info-color ref-plyr)))
 
   ;; PublicPlayer -> HashTable
   ;; Make a public player into a hash
   (define (public-player-info->hash ref-plyr)
-    (hash "current" (gridposn->hash (player-info-curr-pos ref-plyr))
-          "home"    (gridposn->hash (player-info-home-pos ref-plyr))
-          "color" (player-info-color ref-plyr))))
+    (hash 'current (gridposn->hash (player-info-curr-pos ref-plyr))
+          'home    (gridposn->hash (player-info-home-pos ref-plyr))
+          'color (player-info-color ref-plyr))))
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
