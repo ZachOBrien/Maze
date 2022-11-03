@@ -329,7 +329,15 @@
     (define goal-x-pos (- (+ (/ tile-size 2) (* treasure-x-pos tile-size)) avatar-size))
     (define goal-y-pos (- (+ (/ tile-size 2) (* treasure-y-pos tile-size)) avatar-size))
     (define board-img-with-goal (underlay/xy board-img-with-avatar goal-x-pos goal-y-pos goal))
-    board-img-with-goal))
+
+    (define home-size (/ tile-size 4))
+    (define home (triangle home-size "solid" (player-info-color plyr-info)))
+    (define-values (home-y-pos home-x-pos)
+      (values (car (player-info-home-pos plyr-info)) (cdr (player-info-home-pos plyr-info))))
+    (define home-token-x-pos (- (+ (/ tile-size 2) (* home-x-pos tile-size)) avatar-size))
+    (define home-token-y-pos (- (+ (/ tile-size 2) (* home-y-pos tile-size)) avatar-size))
+    (define board-img-with-home (underlay/xy board-img-with-goal home-token-x-pos home-token-y-pos home))
+    board-img-with-home))
 
 (module+ serialize
   (require json)

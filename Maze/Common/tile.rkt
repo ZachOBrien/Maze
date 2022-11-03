@@ -232,9 +232,9 @@
     (define gems-to-draw (set->list (tile-gems t)))
     (underlay/xy (underlay/xy base-tile
                               10 10
-                              (scale 0.25 (gem->image (first gems-to-draw))))
+                              (scale 0.20 (gem->image (first gems-to-draw))))
                  (- size 30) (- size 30)
-                 (scale 0.25 (gem->image (second gems-to-draw))))))
+                 (scale 0.20 (gem->image (second gems-to-draw))))))
 
 (module+ serialize
   (require json)
