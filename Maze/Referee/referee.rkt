@@ -47,16 +47,16 @@
     
     (define state0 init-state)
     (define players (make-hash
-                            (for/list ([p init-player-list]
-                                       [c (get-player-color-list state0)])
-                              (cons c p))))
+                     (for/list ([p init-player-list]
+                                [c (get-player-color-list state0)])
+                       (cons c p))))
 
     (super-new)
 
     ;; AvatarColor -> String
     ;; Get a players name by their avatar color
     (define/public (get-player-name-by-color color)
-      (send (hash-ref players color) name))
+      (execute-safe (send (hash-ref players color) name)))
 
     ;; Void -> [Listof AvatarColor] [Listof AvatarColor]
     ;; Runs a game from start to finish, 
@@ -74,9 +74,9 @@
     (define (send-setup)
       (hash-for-each players
                      (lambda (color plyr)
-                       (send plyr setup
-                             (referee-state->player-state state0 color)
-                             (player-info-treasure-pos (gamestate-get-by-color state0 color))))))))
+                       (execute-safe (send plyr setup
+                                           (referee-state->player-state state0 color)
+                                           (player-info-treasure-pos (gamestate-get-by-color state0 color)))))))))
 
 ;; RefereeState HashTable Natural -> RefereeState
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
@@ -136,8 +136,8 @@
     (filter (λ (plyr-info) (player-info-visited-treasure? plyr-info))
             (gamestate-players state)))
   (map player-info-color (if (empty? players-that-visited-treasure)
-                         (all-min-distance (gamestate-players state))
-                         (all-min-distance players-that-visited-treasure))))
+                             (all-min-distance (gamestate-players state))
+                             (all-min-distance players-that-visited-treasure))))
 
 
 ;; -> (Any -> Boolean)
@@ -160,8 +160,13 @@
 ;;    2. The call to the Player's take-turn method exceeds a time limit
 ;; If the player misbehaves in any of these ways, 'misbehaved is returned.
 (define (safe-get-action plyr plyr-state [time-limit-sec 4])
+  (execute-safe (send plyr take-turn plyr-state) time-limit-sec))
+
+;; Thunk Number -> (U Any 'misbehaved)
+;; Evaluate a thunk safely
+(define (execute-safe request [time-limit-sec 4])
   (with-handlers ([exn:fail? (λ (exn) 'misbehaved)])
-    (with-limits time-limit-sec #f (send plyr take-turn plyr-state))))
+    (with-limits time-limit-sec #f request)))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -197,8 +202,8 @@
   (test-case
    "Run a game of Maze"
    (let-values
-     ([(winners criminals)
-      (send example-referee0 run-game)])
+       ([(winners criminals)
+         (send example-referee0 run-game)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
   (test-case
