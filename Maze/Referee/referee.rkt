@@ -64,7 +64,7 @@
     (define/public (run-game)
       (begin
         (send-setup)
-        (define intermediate-states (play-until-completion state0 players))
+        (define intermediate-states (play-until-completion state0 players MAX-ROUNDS (list state0)))
         (define final-state (first intermediate-states))
         (define winners (determine-winners final-state))
         (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
@@ -86,7 +86,7 @@
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
 ;; gamestate when the game has ended. Accumulates the states after each player move
 ;; in reverse order
-(define (play-until-completion state players [rounds-remaining MAX-ROUNDS] [prev-states '()])
+(define (play-until-completion state players rounds-remaining prev-states)
   (cond
     [(<= rounds-remaining 0) prev-states]
     [else (play-until-completion-help state players rounds-remaining prev-states)]))
@@ -234,7 +234,7 @@
 (module+ test
   (check-equal? (determine-winners gamestate5) '("red"))
   (check-equal? (determine-winners gamestate4) '("purple"))
-  (check-equal? (determine-winners gamestate1) '("blue")))
+  (check-equal? (determine-winners gamestate1) '("black")))
 
 ;; test execute-safe
 (module+ test

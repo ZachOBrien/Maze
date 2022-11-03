@@ -238,7 +238,7 @@
      (cons 2 2)
      (cons 5 5)
      #f
-     "blue"))
+     "black"))
   (define player-info5
     (player-info
      (cons 0 6)
@@ -252,28 +252,28 @@
      (cons 4 4)
      (cons 3 1)
      #f
-     "green"))
+     "pink"))
   (define player-info7
     (player-info
      (cons 6 6)
      (cons 3 3)
      (cons 5 3)
      #f
-     "yellow"))
+     "white"))
   (define player-info8
     (player-info
      (cons 5 5)
      (cons 3 3)
      (cons 5 1)
      #f
-     "yellow"))
+     "orange"))
   (define player-info9
     (player-info
      (cons 5 5)
      (cons 3 3)
      (cons 5 1)
      #t
-     "yellow")))
+     "A5B4C1"))) ; ice blue gray ish
 
 (module+ test
   (require (submod ".." examples)))
