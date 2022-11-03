@@ -286,6 +286,43 @@
     [(not (member elem lst)) lst]
     [else (cons elem (remove elem lst))]))
 
+
+(module+ draw
+  (require 2htdp/image)
+  (require racket/function)
+  (require (submod "tile.rkt" draw))
+  (require (submod "board.rkt" draw))
+
+  (define DEFAULT-TILE-SIZE 100)
+  (define ARM-LENGTH (/ DEFAULT-TILE-SIZE 10))
+
+  (provide
+   (contract-out
+    ;; Draw a referee state
+    [referee-state->image (-> referee-state? natural-number/c image?)]))
+
+  ;; RefereeState [MultipleOf 10] -> Image
+  ;; Draw a referee state
+  (define (referee-state->image state tile-size)
+    (define board-with-players-img (board-and-players->image (gamestate-board state) (gamestate-players state) tile-size))
+    (beside/align "bottom" board-with-players-img (rectangle tile-size 1 "solid" "white") (tile->image (gamestate-extra-tile state) tile-size)))
+
+  ;; Board [Listof RefPlayerInfo] [MultipleOf 10] -> Image
+  ;; Given a board image, adds player avatars, home locations, and goal positions
+  (define (board-and-players->image board player-infos tile-size)
+    (define base-board-img (board->image board tile-size))
+    (foldl (curryr add-player-info-to-board-image tile-size) base-board-img player-infos))
+
+  ;; Image [MultipleOf 10] RefPlayerInfo -> Image
+  (define (add-player-info-to-board-image plyr-info board-img tile-size)
+    (define avatar-size (/ tile-size 5))
+    (define avatar (circle avatar-size "solid" (player-info-color plyr-info)))
+    (define-values (plyr-x-pos plyr-y-pos) (values (car (player-info-curr-pos plyr-info)) (cdr (player-info-curr-pos plyr-info))))
+    (define avatar-x-pos (- (+ (/ tile-size 2) (* plyr-x-pos tile-size)) avatar-size))
+    (define avatar-y-pos (- (+ (/ tile-size 2) (* plyr-y-pos tile-size)) avatar-size))
+    (underlay/xy board-img avatar-x-pos avatar-y-pos avatar)))
+
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 
@@ -299,6 +336,10 @@
   ; player-info0 (a) not on treasure or home
   ; first top left
   (define gamestate0 (gamestate board1 tile-extra player-infos0 #f))
+
+  (require (submod ".." draw))
+  #;
+  (referee-state->image gamestate0 100)
 
   (define player-infos1 (list player-info3 player-info4))
   ; player-info1 (a) not on treasure on home

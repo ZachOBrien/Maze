@@ -169,9 +169,6 @@
   (provide
    (contract-out
     [tile->image (-> tile? natural-number/c image?)]))
-
-  (define TILE-SIZE 100)
-  (define ARM-LENGTH (/ TILE-SIZE 10))
   
   ;; Orientation -> Image
   ;; Draw one arm of a connector
