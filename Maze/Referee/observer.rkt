@@ -29,7 +29,7 @@
 
   ; Make a static text message in the frame
   (define msg (new message% [parent frame]
-                   [label (string-append "Viewing state " (number->string current-state) "/" (number->string (length states)))]))
+                   [label (string-append "Viewing state " (number->string (add1 current-state)) "/" (number->string (length states)))]))
   
   ; Make a button in the frame
   (new button% [parent frame]
@@ -40,7 +40,7 @@
                    (begin
                      (set! current-state (add1 current-state))
                      (send button enable (< -1 current-state (sub1 (length states))))
-                     (send msg set-label (string-append "Viewing state " (add1 (number->string current-state)) "/" (number->string (length states))))
+                     (send msg set-label (string-append "Viewing state " (number->string (add1 current-state)) "/" (number->string (length states))))
                      (send canvas refresh-now)))])
 
   ; Make a button in the frame
