@@ -344,6 +344,40 @@
     (apply above (for/list ([row board])
                    (apply beside (map (curryr tile->image tile-size) row))))))
 
+(module+ serialize
+  (require json)
+  (require (submod "tile.rkt" serialize))
+
+  (provide
+   (contract-out
+    ; Converts a GridPosn into a HashTable according to spec
+    [gridposn->hash (-> grid-posn? hash?)]
+    ; Converts a Board into a HashTable according to spec
+    [board->hash (-> board? hash?)]
+    ; Convert a shift to a spec-specified Action
+    [shift->json-action (-> (or/c shift? #f) (or/c "null" (listof string?)))]))
+
+  ;; GridPosn -> HashTable
+  ;; Converts a GridPosn into a HashTable according to spec
+  (define (gridposn->hash pos)
+    (hash 'row# (car pos)
+          'column# (cdr pos)))
+
+  ;; Board -> HashTable
+  ;; Converts a Board into a HashTable according to spec
+  (define (board->hash b)
+    (define connectors (map (λ (row) (map get-json-connector row)) b))
+    (define treasures (map (λ (row) (map get-json-gems row)) b))
+    (hash "connectors" connectors
+          "treasures" treasures))
+
+  ;; Shift -> [Listof String]
+  ;; Convert a shift to a spec-specified Action
+  (define (shift->json-action shft)
+    (if (false? shft)
+        "null"
+        (list (shift-index shft) (shift-direction shft)))))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 

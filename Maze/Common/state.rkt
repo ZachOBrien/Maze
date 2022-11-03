@@ -286,6 +286,23 @@
     [(not (member elem lst)) lst]
     [else (cons elem (remove elem lst))]))
 
+(module+ serialize
+  (require json)
+  
+  (require (submod "board.rkt" serialize))
+  (require (submod "tile.rkt" serialize))
+  (require (submod "player-info.rkt" serialize))
+
+  (provide
+   (contract-out
+    [ref-state->hash (-> referee-state? hash?)]))
+
+  (define (ref-state->hash ref-state)
+    (hash "board" (board->hash (gamestate-board ref-state))
+          "spare" (tile->hash (gamestate-extra-tile ref-state))
+          "plmt" (map referee-player-info->hash (gamestate-players ref-state))
+          "last" (shift->json-action (gamestate-prev-shift ref-state)))))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 

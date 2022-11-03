@@ -239,6 +239,49 @@
                  (- size 30) (- size 30)
                  (scale 0.25 (gem->image (second gems-to-draw))))))
 
+(module+ serialize
+  (require json)
+
+  (provide
+   (contract-out
+    ; Converts a tile into a string connector according to spec
+    [get-json-connector (-> tile? string?)]
+    ; Converts a tile into a list of gems according to spec
+    [get-json-gems (-> tile? (listof string?))]
+    ; Convert a tile to a hash
+    [tile->hash (-> tile? hash?)]))
+
+  ;; Tile -> String
+  ;; Converts a tile into a string connector according to spec
+  (define (get-json-connector t)
+    (match (cons (tile-connector t) (tile-orientation t))
+      [(cons 'straight 0)   "│"]
+      [(cons 'straight 180) "│"]
+      [(cons 'straight 90)  "─"]
+      [(cons 'straight 270) "─"]
+      [(cons 'elbow 180)    "┐"]
+      [(cons 'elbow 0)      "└"]
+      [(cons 'elbow 270)    "┌"]
+      [(cons 'elbow 90)     "┘"]
+      [(cons 'tri 0)        "┬"]
+      [(cons 'tri 90)       "├"]
+      [(cons 'tri 180)      "┴"]
+      [(cons 'tri 270)      "┤"]
+      [(cons 'cross _)      "┼"]))
+
+  ;; Tile -> [Listof Gems]
+  ;; Converts a tile into a list of gems according to spec
+  (define (get-json-gems t)
+    (map symbol->string (set->list (tile-gems t))))
+
+  ;; Tile -> Hash
+  ;; Convert a tile to a hash
+  (define (tile->hash t)
+    (define gem-list (set->list (tile-gems t)))
+    (hash "tilekey" (get-json-connector t)
+          "1-image" (first gem-list)
+          "2-image" (first (rest gem-list)))))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 

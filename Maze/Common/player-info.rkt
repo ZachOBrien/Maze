@@ -38,6 +38,9 @@
   [on-treasure? (-> ref-player-info? boolean?)]
   ; Is the player both at home and has visited their treasure?
   [visited-treasure-and-on-home? (-> ref-player-info? boolean?)]
+  ; Determines the current goal for the player. If a player has already visited their treasure,
+  ; their goal is to return home.
+  [get-goal-pos (-> ref-player-info? grid-posn?)]
    ; Determine the distance of a player from their objective. If they have not found their treasure,
   ; that is their objective. If they have found their treasure, getting home is their objective.
   [distance-from-objective (-> ref-player-info? (-> grid-posn? grid-posn? (not/c negative?)) (not/c negative?))]))
@@ -132,6 +135,13 @@
 (define (on-treasure? plyr)
   (equal? (player-info-curr-pos plyr) (player-info-treasure-pos plyr)))
 
+;; RefPlayerInfo -> GridPosn
+;; Determines the current goal for the player. If a player has already visited their treasure,
+;; their goal is to return home.
+(define (get-goal-pos plyr)
+  (if (player-info-visited-treasure? plyr)
+      (player-info-home-pos plyr)
+      (player-info-treasure-pos plyr)))
 
 ;; RefPlayerInfo (-> GridPosn GridPosn PositiveReal) -> PositiveReal
 ;; Determine the distance of a player from their objective. If they have not found their treasure,
@@ -141,6 +151,31 @@
       (dist-func (player-info-curr-pos plyr-info) (player-info-home-pos plyr-info))
       (dist-func (player-info-curr-pos plyr-info) (player-info-treasure-pos plyr-info))))
 
+
+(module+ serialize
+  (require json)
+  (require (submod "board.rkt" serialize))
+  (provide
+   (contract-out
+    ; Make a referee player into a hash
+    [referee-player-info->hash (-> ref-player-info? hash?)]
+    ; Make a public player into a hash
+    [public-player-info->hash (-> pub-player-info? hash?)]))
+
+  ;; RefereePlayer -> HashTable
+  ;; Make a referee player into a hash
+  (define (referee-player-info->hash ref-plyr)
+    (hash "current" (gridposn->hash (player-info-curr-pos ref-plyr))
+          "home"    (gridposn->hash (player-info-home-pos ref-plyr))
+          "goto"    (gridposn->hash (get-goal-pos ref-plyr))
+          "color" (player-info-color ref-plyr)))
+
+  ;; PublicPlayer -> HashTable
+  ;; Make a public player into a hash
+  (define (public-player-info->hash ref-plyr)
+    (hash "current" (gridposn->hash (player-info-curr-pos ref-plyr))
+          "home"    (gridposn->hash (player-info-home-pos ref-plyr))
+          "color" (player-info-color ref-plyr))))
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
