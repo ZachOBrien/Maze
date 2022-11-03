@@ -320,7 +320,16 @@
     (define-values (plyr-x-pos plyr-y-pos) (values (car (player-info-curr-pos plyr-info)) (cdr (player-info-curr-pos plyr-info))))
     (define avatar-x-pos (- (+ (/ tile-size 2) (* plyr-x-pos tile-size)) avatar-size))
     (define avatar-y-pos (- (+ (/ tile-size 2) (* plyr-y-pos tile-size)) avatar-size))
-    (underlay/xy board-img avatar-x-pos avatar-y-pos avatar)))
+    (define board-img-with-avatar (underlay/xy board-img avatar-x-pos avatar-y-pos avatar))
+
+    (define goal-size (/ tile-size 4))
+    (define goal (star goal-size "solid" (player-info-color plyr-info)))
+    (define-values (treasure-x-pos treasure-y-pos)
+      (values (car (player-info-treasure-pos plyr-info)) (cdr (player-info-treasure-pos plyr-info))))
+    (define goal-x-pos (- (+ (/ tile-size 2) (* treasure-x-pos tile-size)) avatar-size))
+    (define goal-y-pos (- (+ (/ tile-size 2) (* treasure-y-pos tile-size)) avatar-size))
+    (define board-img-with-goal (underlay/xy board-img-with-avatar goal-x-pos goal-y-pos goal))
+    board-img-with-goal))
 
 (module+ serialize
   (require json)
@@ -352,10 +361,6 @@
   ; player-info0 (a) not on treasure or home
   ; first top left
   (define gamestate0 (gamestate board1 tile-extra player-infos0 #f))
-
-  (require (submod ".." draw))
-  #;
-  (referee-state->image gamestate0 100)
 
   (define player-infos1 (list player-info3 player-info4))
   ; player-info1 (a) not on treasure on home
