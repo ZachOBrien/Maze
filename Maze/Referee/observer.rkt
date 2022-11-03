@@ -7,9 +7,11 @@
 
 
 (require racket/gui)
+(require json)
 (require "../Common/state.rkt")
 (require (submod "../Common/state.rkt" examples))
 (require (submod "../Common/state.rkt" draw))
+(require (submod "../Common/state.rkt" serialize))
 (require (only-in mrlib/image-core render-image))
 
 
@@ -50,6 +52,6 @@
        [callback (lambda (button event)
                    (let
                        ([file-name (put-file)])
-                     (with-output-to-file file-name (λ () (write "hi there")))))])
+                     (with-output-to-file file-name (λ () (write-json (ref-state->hash (list-ref states current-state)))))))])
   
   (send frame show #t))
