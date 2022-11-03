@@ -23,6 +23,7 @@
 (require "../Common/state.rkt")
 (require "../Common/player-info.rkt")
 (require "../Common/rulebook.rkt")
+(require "../Common/math.rkt")
 (require "../Players/strategy.rkt")
 (require "../Players/player.rkt")
 
@@ -48,7 +49,7 @@
     (init init-player-list init-state)
     
     (define state0 init-state)
-    (define active-players (make-hash
+    (define players (make-hash
                             (for/list ([p init-player-list]
                                        [c (get-player-color-list state0)])
                               (cons c p))))
@@ -58,14 +59,14 @@
     ;; AvatarColor -> String
     ;; Get a players name by their avatar color
     (define/public (get-player-name-by-color color)
-      (send (hash-ref active-players color) name))
+      (send (hash-ref players color) name))
 
     ;; Void -> [Listof AvatarColor] [Listof AvatarColor]
     ;; Runs a game from start to finish, 
     (define/public (run-game)
       (begin
         (send-setup)
-        (define final-state (play-until-completion state0))
+        (define final-state (play-until-completion state0 players))
         (define winners (determine-winners final-state))
         (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                                   (get-player-color-list state0)))
@@ -74,69 +75,67 @@
     ;; Void -> Void
     ;; Update each player with the initial board and their treasure position
     (define (send-setup)
-      (hash-for-each active-players
+      (hash-for-each players
                      (lambda (color plyr)
                        (send plyr setup
-                        (referee-state->player-state state0 color)
-                        (player-info-treasure-pos (gamestate-get-by-color state0 color))))))
+                             (referee-state->player-state state0 color)
+                             (player-info-treasure-pos (gamestate-get-by-color state0 color))))))))
 
-    ;; RefereeState Natural -> RefereeState
-    ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
-    ;; gamestate when the game has ended
-    (define (play-until-completion state [rounds-remaining MAX-ROUNDS])
-      (cond
-        [(<= 0 rounds-remaining) state]
-        [else (play-until-completion-help state rounds-remaining)]))
+;; RefereeState HashTable Natural -> RefereeState
+;; Plays at most `rounds-remaining` rounds of Maze, and returns the
+;; gamestate when the game has ended
+(define (play-until-completion state players [rounds-remaining MAX-ROUNDS])
+  (cond
+    [(<= rounds-remaining 0) state]
+    [else (play-until-completion-help state players rounds-remaining)]))
          
-    ;; RefereeState Natural -> RefereeState
-    ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
-    ;; gamestate when the game has ended
-    (define (play-until-completion-help state rounds-remaining)
-      (define players (get-player-color-list state))
-      (define-values (next-state plyrs-passed-turn) (run-round state players))
-      (define all-players-passed (equal? players plyrs-passed-turn))
-      (cond
-        [(or (game-over? next-state) all-players-passed) next-state]
-        [else (play-until-completion next-state (sub1 rounds-remaining))]))
+;; RefereeState HashTable Natural -> RefereeState
+;; Plays at most `rounds-remaining` rounds of Maze, and returns the
+;; gamestate when the game has ended
+(define (play-until-completion-help state players rounds-remaining)
+  (define player-infos (get-player-color-list state))
+  (define-values (next-state plyrs-passed-turn) (run-round state players player-infos))
+  (define all-players-passed (equal? player-infos plyrs-passed-turn))
+  (cond
+    [(or (game-over? next-state) all-players-passed) next-state]
+    [else (play-until-completion next-state players (sub1 rounds-remaining))]))
 
-    ;; [Listof AvatarColor] [Listof AvatarColor] [Listof AvatarColor] ->
-    ;;                                           (values RefereeState [Listof AvatarColor])
-    ;; Run a round
-    (define (run-round state queue [passed-plyrs '()])
-      (cond [(empty? queue) (values state passed-plyrs)]
-            [else (let-values ([(passed-turn next-state) (execute-turn state (first queue))])
-                    (cond
-                      [(game-over? next-state) (values next-state passed-plyrs)]
-                      [else (if passed-turn
-                                (run-round next-state (rest queue) (cons (first queue) passed-plyrs))
-                                (run-round next-state (rest queue) passed-plyrs))]))]))
+;; [Listof AvatarColor] HashTable [Listof AvatarColor] [Listof AvatarColor] ->
+;;                                           (values RefereeState [Listof AvatarColor])
+;; Run a round
+(define (run-round state players player-info-queue [passed-plyrs '()])
+  (cond [(empty? player-info-queue) (values state passed-plyrs)]
+        [else (let-values ([(passed-turn next-state) (execute-turn state players (first player-info-queue))])
+                (cond
+                  [(game-over? next-state) (values next-state passed-plyrs)]
+                  [else (if passed-turn
+                            (run-round next-state (rest player-info-queue) (cons (first player-info-queue) passed-plyrs))
+                            (run-round next-state (rest player-info-queue) passed-plyrs))]))]))
 
     
-    ;; RefereeState AvatarColor -> Boolean RefereeState
-    ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
-    (define (execute-turn state color)
-      (define mv (safe-get-action (hash-ref color) (referee-state->player-state state color)))
-      (define move-is-valid (valid-move? state mv))
-      (cond
-        [(false? mv) (values #t (end-current-turn state))]
-        [(or (equal? 'misbehaved mv) (not (valid-move? mv))) (values #f (remove-player state))]
-        [else 
-              (values #f (end-current-turn (gamestate-move-player
-                                                     (gamestate-shift-and-insert state
-                                                                                 (move-shift mv)
-                                                                                 (move-orientation mv))
-                                                     (move-pos mv))))]))
+;; RefereeState HashTable AvatarColor -> Boolean RefereeState
+;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
+(define (execute-turn state players color)
+  (define mv (safe-get-action (hash-ref players color) (referee-state->player-state state color)))
+  (cond
+    [(false? mv) (values #t (end-current-turn state))]
+    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
+    [else 
+     (values #f (end-current-turn (gamestate-move-player
+                                   (gamestate-shift-and-insert state
+                                                               (move-shift mv)
+                                                               (move-orientation mv))
+                                   (move-pos mv))))]))
 
-    ;; RefereeState -> [Listof AvatarColor]
-    ;; Determine which players (if any) won the game
-    (define (determine-winners state)
-      (define players (get-player-color-list state))
-      (define players-that-visited-treasure
-        (filter (λ (color) (player-info-visited-treasure? (gamestate-get-by-color state color)))
-                players))
-      (if (empty? players-that-visited-treasure)
-          (all-min-distance state players)
-          (all-min-distance state players-that-visited-treasure)))))
+;; RefereeState -> [Listof AvatarColor]
+;; Determine which players (if any) won the game
+(define (determine-winners state)
+  (define players-that-visited-treasure
+    (filter (λ (plyr-info) (player-info-visited-treasure? plyr-info))
+            (gamestate-players state)))
+  (map player-info-color (if (empty? players-that-visited-treasure)
+                         (all-min-distance state (gamestate-players state))
+                         (all-min-distance state players-that-visited-treasure))))
 
 
 ;; -> (Any -> Boolean)
@@ -148,9 +147,9 @@
 ;; RefereeState [Listof Player] -> [Listof Player]
 ;; Get all players which are minimum distance from their objective
 (define (all-min-distance state players)
-  (define distances (map (curry euclidean-distance-from-objective state) players))
+  (define distances (map (curryr distance-from-objective euclidean-dist) players))
   (define min-dist (apply min distances))
-  (filter (λ (plyr) (= (euclidean-distance-from-objective state plyr) min-dist)) players))
+  (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))
 
 
 ;; Player -> (U Action 'misbehaved)
@@ -159,8 +158,10 @@
 ;;    2. The call to the Player's take-turn method exceeds a time limit
 ;; If the player misbehaves in any of these ways, 'misbehaved is returned.
 (define (safe-get-action plyr plyr-state [time-limit-sec 4])
-  (with-handlers ([exn:fail? 'misbehaved])
+  (with-handlers ([exn:fail? (λ (exn) 'misbehaved)])
     (with-limits time-limit-sec #f (send plyr take-turn plyr-state))))
+#;(
+  (send plyr take-turn plyr-state))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -173,12 +174,15 @@
   (require (submod ".." examples))
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/tile.rkt" examples))
-  (require (submod "../Common/player-info.rkt" examples)))
+  (require (submod "../Common/player-info.rkt" examples))
+  (require (submod "../Players/player.rkt" examples))
+  (require (submod "../Common/state.rkt" examples)))
 
 
 (module+ examples
   (require (submod "../Common/state.rkt" examples))
   (require (submod "../Players/player.rkt" examples))
+  (require (submod "../Common/player-info.rkt" examples))
   (define example-referee0 (new referee%
                                 [init-player-list (list player0 player1 player2)]
                                 [init-state gamestate5]))
@@ -211,3 +215,9 @@
          (send example-referee2 run-game)])
      (check-equal? empty criminals)
      (check-equal? (list "blue") winners))))
+
+
+(module+ test
+  (check-equal? (determine-winners gamestate5) '())
+  (check-equal? (determine-winners gamestate4) '())
+  (check-equal? (determine-winners gamestate1) '()))

@@ -37,7 +37,10 @@
   ; Is the player currently on their treasure?
   [on-treasure? (-> ref-player-info? boolean?)]
   ; Is the player both at home and has visited their treasure?
-  [visited-treasure-and-on-home? (-> ref-player-info? boolean?)]))
+  [visited-treasure-and-on-home? (-> ref-player-info? boolean?)]
+   ; Determine the distance of a player from their objective. If they have not found their treasure,
+  ; that is their objective. If they have found their treasure, getting home is their objective.
+  [distance-from-objective (-> ref-player-info? (-> grid-posn? grid-posn? (not/c negative?)) (not/c negative?))]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -128,6 +131,15 @@
 ;; Returns true if the player is currently on their treasure
 (define (on-treasure? plyr)
   (equal? (player-info-curr-pos plyr) (player-info-treasure-pos plyr)))
+
+
+;; RefPlayerInfo (-> GridPosn GridPosn PositiveReal) -> PositiveReal
+;; Determine the distance of a player from their objective. If they have not found their treasure,
+;; that is their objective. If they have found their treasure, getting home is their objective.
+(define (distance-from-objective plyr-info dist-func)
+  (if (player-info-visited-treasure? plyr-info)
+      (dist-func (player-info-curr-pos plyr-info) (player-info-home-pos plyr-info))
+      (dist-func (player-info-curr-pos plyr-info) (player-info-treasure-pos plyr-info))))
 
 
 ;; --------------------------------------------------------------------

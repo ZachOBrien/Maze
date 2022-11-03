@@ -18,7 +18,8 @@
   [player-state? contract?]
   [gamestate-board (-> gamestate? board?)]
   [gamestate-extra-tile (-> gamestate? tile?)]
-  [gamestate-prev-shift (-> gamestate? shift?)]
+  [gamestate-prev-shift (-> gamestate? (or/c shift? #f))]
+  [gamestate-players (-> gamestate? (listof player-info?))]
   [move?          contract?]
   [move-orientation (-> move? orientation?)]
   [move-shift (-> move? shift?)]
@@ -56,9 +57,6 @@
   [change-active-player-treasure (-> gamestate? grid-posn? gamestate?)]
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
-  ; Determine the distance of a player from their objective. If they have not found their treasure,
-  ; that is their objective. If they have found their treasure, getting home is their objective.
-  [euclidean-distance-from-objective (-> referee-state? avatar-color? number?)]
   ; Get a PlayerInfo by color
   [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
   ; Has the game ended?
@@ -272,21 +270,12 @@
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
 
-;; Gamestate AvatarColor -> Number
-;; Determine the distance of a player from their objective. If they have not found their treasure,
-;; that is their objective. If they have found their treasure, getting home is their objective.
-(define (euclidean-distance-from-objective state color)
-  (define plyr (gamestate-get-by-color state color))
-  (if (player-info-visited-treasure? plyr)
-      (euclidean-dist (player-info-curr-pos plyr) (player-info-home-pos plyr))
-      (euclidean-dist (player-info-curr-pos plyr) (player-info-treasure-pos plyr))))
-
 ;; Gamestate -> Boolean
 ;; Has the game ended?
 (define (game-over? state)
   (or
    (empty? (gamestate-players state))
-   (not (empty? (filter (λ (plyr) (visited-treasure-and-on-home? plyr))) (gamestate-players state)))))
+   (not (empty? (filter (λ (plyr) (visited-treasure-and-on-home? plyr)) (gamestate-players state))))))
 
 
 ;; [Listof Any] -> [Listof Any]
