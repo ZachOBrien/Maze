@@ -63,12 +63,14 @@
     (define/public (run-game)
       (begin
         (send-setup)
-        (define final-state (play-until-completion state0 players))
+        (define intermediate-states (play-until-completion state0 players))
+        (define final-state (first intermediate-states))
         (define winners (determine-winners final-state))
         (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                                   (get-player-color-list state0)))
         (values winners criminals)))
 
+   
     ;; Void -> Void
     ;; Update each player with the initial board and their treasure position
     (define (send-setup)
@@ -78,42 +80,47 @@
                                                   (referee-state->player-state state0 color)
                                                   (player-info-treasure-pos (gamestate-get-by-color state0 color))))))))))
 
-;; RefereeState HashTable Natural -> RefereeState
+;; RefereeState HashTable Natural -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
-;; gamestate when the game has ended
-(define (play-until-completion state players [rounds-remaining MAX-ROUNDS])
+;; gamestate when the game has ended. Accumulates the states after each player move
+;; in reverse order
+(define (play-until-completion state players [rounds-remaining MAX-ROUNDS] [prev-states '()])
   (cond
-    [(<= rounds-remaining 0) state]
-    [else (play-until-completion-help state players rounds-remaining)]))
+    [(<= rounds-remaining 0) prev-states]
+    [else (play-until-completion-help state players rounds-remaining prev-states)]))
          
-;; RefereeState HashTable Natural -> RefereeState
+;; RefereeState HashTable Natural -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
 ;; gamestate when the game has ended
-(define (play-until-completion-help state players rounds-remaining)
+(define (play-until-completion-help state players rounds-remaining prev-states)
   (define player-colors (get-player-color-list state))
-  (define-values (next-state plyrs-passed-turn) (run-round state players player-colors))
+  (define-values (states-after-round plyrs-passed-turn) (run-round state players player-colors '() '()))
   (define all-players-passed (equal? player-colors plyrs-passed-turn))
   (cond
-    [(or (game-over? next-state) all-players-passed) next-state]
-    [else (play-until-completion next-state players (sub1 rounds-remaining))]))
+    [(or (game-over? (first states-after-round)) all-players-passed) (append states-after-round prev-states)]
+    [else (play-until-completion (first states-after-round) players (sub1 rounds-remaining) (append states-after-round prev-states))]))
+
 
 ;; [Listof AvatarColor] HashTable [Listof AvatarColor] [Listof AvatarColor] ->
-;;                                           (values RefereeState [Listof AvatarColor])
-;; Run a round of the game, end the round early if the game is over
-(define (run-round state players player-colors [passed-plyrs '()])
-  (cond [(empty? player-colors) (values state passed-plyrs)]
-        [else (let-values ([(passed-turn next-state)
+;;                                           (values [Listof RefereeState] [Listof AvatarColor])
+;; Run a round of the game, end the round early if the game is over. Accumulates states after
+;; each move in reverse order.
+(define (run-round state players player-colors passed-plyrs intermediate-states)
+  (cond [(empty? player-colors) (values intermediate-states passed-plyrs)]
+        [else (let*-values ([(passed-turn next-state)
                             (execute-turn state
                                           (hash-ref players (first player-colors))
-                                          (first player-colors))])
+                                          (first player-colors))]
+                           [(new-passed-plyrs) (if passed-turn (cons (first player-colors) passed-plyrs) passed-plyrs)])
                 (cond
-                  [(game-over? next-state) (values next-state passed-plyrs)]
-                  [else (if passed-turn
-                            (run-round next-state (rest player-colors)
-                                       (cons (first player-colors) passed-plyrs))
-                            (run-round next-state (rest player-colors) passed-plyrs))]))]))
+                  [(game-over? next-state) (values (cons next-state intermediate-states) passed-plyrs)]
+                  [else (run-round next-state
+                                   players
+                                   (rest player-colors)
+                                   new-passed-plyrs
+                                   (cons next-state intermediate-states))]))]))
 
-    
+
 ;; RefereeState HashTable AvatarColor -> Boolean RefereeState
 ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
 (define (execute-turn state player color)
