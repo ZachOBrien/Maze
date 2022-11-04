@@ -27,6 +27,6 @@
 
   (define ref (referee-new players ref-state))
 
-  (define-values (winners cheaters) (send ref run-game #f))
+  (define-values (winners cheaters) (send ref run-game #t))
 
   (write-json (map (λ (col) (send ref get-player-name-by-color col)) winners)))

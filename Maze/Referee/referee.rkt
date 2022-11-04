@@ -42,7 +42,9 @@
   (new referee% [init-player-list player-list] [init-state state]))
 
 
-(define referee%
+(define/contract referee%
+  (class/c
+   [run-game (->m boolean? (values (listof avatar-color?) (listof avatar-color?)))])
   (class object%
     (init init-player-list init-state)
     
@@ -59,9 +61,9 @@
     (define/public (get-player-name-by-color color)
       (execute-safe (thunk (send (hash-ref players color) name))))
 
-    ;; Void -> [Listof AvatarColor] [Listof AvatarColor]
+    ;; Boolean -> [Listof AvatarColor] [Listof AvatarColor]
     ;; Runs a game from start to finish, 
-    (define/public (run-game)
+    (define/public (run-game observer?)
       (begin
         (send-setup)
         (define intermediate-states (play-until-completion state0 players MAX-ROUNDS (list state0)))
@@ -69,7 +71,7 @@
         (define winners (determine-winners final-state))
         (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                                   (get-player-color-list state0)))
-        (run-observer (reverse intermediate-states))
+        (if observer? (run-observer (reverse intermediate-states)) #f)
         (values winners criminals)))
 
    
@@ -212,21 +214,21 @@
    "Run a game of Maze"
    (let-values
        ([(winners criminals)
-         (send example-referee0 run-game)])
+         (send example-referee0 run-game #f)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
-  #;(test-case
+  (test-case
    "Run a game of Maze gs4"
    (let-values
        ([(winners criminals)
-         (send example-referee1 run-game)])
+         (send example-referee1 run-game #f)])
      (check-equal? empty criminals)
      (check-equal? (list "green") winners)))
-  #;(test-case
+  (test-case
    "Run a game of Maze gs5"
    (let-values
        ([(winners criminals)
-         (send example-referee2 run-game)])
+         (send example-referee2 run-game #f)])
      (check-equal? empty criminals)
      (check-equal? (list "yellow") winners))))
 

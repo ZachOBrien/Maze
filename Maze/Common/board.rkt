@@ -355,7 +355,7 @@
     ; Converts a Board into a HashTable according to spec
     [board->hash (-> board? hash?)]
     ; Convert a shift to a spec-specified Action
-    [shift->json-action (-> (or/c shift? #f) (or/c "null" (cons/c natural-number/c (cons/c string? empty))))]))
+    [shift->json-action (-> (or/c shift? #f) (or/c 'null (cons/c natural-number/c (cons/c string? empty))))]))
 
   ;; GridPosn -> HashTable
   ;; Converts a GridPosn into a HashTable according to spec
@@ -421,7 +421,8 @@
 (module+ test
   (require rackunit)
   (require (submod "tile.rkt" examples))
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod ".." serialize)))
 
 ;; Test create-random-board
 (module+ test
@@ -703,3 +704,65 @@
   (check-false (shift-undoes-shift? (shift-new 'right 2) #f))
   (check-false (shift-undoes-shift? #f (shift-new 'up 3)))
   (check-false (shift-undoes-shift? #f #f)))
+
+;; test board->hash
+(module+ test
+  (check-equal? (board->hash board1)
+                (hash 'connectors
+                      (list (list "─" "┐" "└" "┘" "┌" "┬" "┤")
+                            (list "┴" "├" "┼" "│" "─" "┐" "└")
+                            (list "┘" "┌" "┬" "┤" "┴" "├" "┼")
+                            (list "│" "─" "┐" "└" "┘" "┌" "┬")
+                            (list "┤" "┴" "├" "┼" "│" "─" "┐")
+                            (list "└" "┘" "┌" "┬" "┤" "┴" "├")
+                            (list "┼" "│" "─" "┐" "└" "┘" "┌"))
+                      'treasures
+                      (list (list (list "alexandrite-pear-shape" "alexandrite")
+                                  (list "amethyst" "almandine-garnet")
+                                  (list "amethyst" "ametrine")
+                                  (list "apatite" "ammolite")
+                                  (list "apricot-square-radiant" "aplite")
+                                  (list "aquamarine" "australian-marquise")
+                                  (list "aventurine" "azurite"))
+                            (list (list "black-obsidian" "beryl")
+                                  (list "black-obsidian" "black-onyx")
+                                  (list "blue-ceylon-sapphire" "black-spinel-cushion")
+                                  (list "blue-pear-shape" "blue-cushion")
+                                  (list "bulls-eye" "blue-spinel-heart")
+                                  (list "carnelian" "chrome-diopside")
+                                  (list "chrysolite" "chrysoberyl-cushion"))
+                            (list (list "citrine" "citrine-checkerboard")
+                                  (list "color-change-oval" "clinohumite")
+                                  (list "cordierite" "diamond")
+                                  (list "emerald" "dumortierite")
+                                  (list "fancy-spinel-marquise" "garnet")
+                                  (list "golden-diamond-cut" "goldstone")
+                                  (list "grandidierite" "gray-agate"))
+                            (list (list "green-beryl-antique" "green-aventurine")
+                                  (list "green-beryl" "green-princess-cut")
+                                  (list "grossular-garnet" "hackmanite")
+                                  (list "hematite" "heliotrope")
+                                  (list "jasper" "iolite-emerald-cut")
+                                  (list "kunzite-oval" "jaspilite")
+                                  (list "kunzite" "labradorite"))
+                            (list (list "lapis-lazuli" "lemon-quartz-briolette")
+                                  (list "mexican-opal" "magnesite")
+                                  (list "morganite-oval" "moonstone")
+                                  (list "moss-agate" "orange-radiant")
+                                  (list "padparadscha-oval" "padparadscha-sapphire")
+                                  (list "peridot" "pink-emerald-cut")
+                                  (list "pink-opal" "pink-round"))
+                            (list (list "prasiolite" "pink-spinel-cushion")
+                                  (list "prehnite" "purple-cabochon")
+                                  (list "purple-oval" "purple-spinel-trillion")
+                                  (list "purple-square-cushion" "raw-beryl")
+                                  (list "raw-citrine" "red-diamond")
+                                  (list "red-spinel-square-emerald-cut" "rhodonite")
+                                  (list "rock-quartz" "rose-quartz"))
+                            (list (list "ruby" "ruby-diamond-profile")
+                                  (list "sphalerite" "spinel")
+                                  (list "star-cabochon" "stilbite")
+                                  (list "super-seven" "sunstone")
+                                  (list "tanzanite-trillion" "tigers-eye")
+                                  (list "tourmaline" "tourmaline-laser-cut")
+                                  (list "unakite" "white-square"))))))

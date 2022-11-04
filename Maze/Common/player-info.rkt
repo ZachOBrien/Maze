@@ -274,9 +274,31 @@
      (cons 5 1)
      #t
      "A5B4C1"))) ; ice blue gray ish
+  (define public-player-info0
+    (player-info
+     (cons 0 0)
+     (cons 6 6)
+     'hidden
+     'hidden
+     "blue"))
+  (define public-player-info1
+    (player-info
+     (cons 1 1)
+     (cons 5 5)
+     'hidden
+     'hidden
+     "purple"))
+  (define public-player-info2
+    (player-info
+     (cons 2 2)
+     (cons 4 4)
+     'hidden
+     'hidden
+     "green"))
 
 (module+ test
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod ".." serialize)))
 
 ;; test hex-color-code?
 (module+ test
@@ -295,4 +317,38 @@
                              (cons 3 3)
                              'hidden
                              'hidden
-                             "yellow")))
+                             "A5B4C1")))
+
+;; test referee-player-info->hash
+(module+ test
+  (check-equal? (referee-player-info->hash player-info0)
+                (hash 'current (hash 'row# 0 'column# 0)
+                      'goto (hash 'row# 5 'column# 1)
+                      'home (hash 'row# 6 'column# 6)
+                      'color "blue"))
+  (check-equal? (referee-player-info->hash player-info1)
+                (hash 'current (hash 'row# 1 'column# 1)
+                      'goto (hash 'row# 1 'column# 1)
+                      'home (hash 'row# 5 'column# 5)
+                      'color "purple"))
+  (check-equal? (referee-player-info->hash player-info2)
+                (hash 'current (hash 'row# 2 'column# 2)
+                      'goto (hash 'row# 3 'column# 3)
+                      'home (hash 'row# 4 'column# 4)
+                      'color "green")))
+
+;; test public-player-info->hash
+(module+ test
+  (check-equal? (public-player-info->hash public-player-info0)
+                (hash 'current (hash 'row# 0 'column# 0)
+                      'home (hash 'row# 6 'column# 6)
+                      'color "blue"))
+  (check-equal? (public-player-info->hash public-player-info1)
+                (hash 'current (hash 'row# 1 'column# 1)
+                      'home (hash 'row# 5 'column# 5)
+                      'color "purple"))
+  (check-equal? (public-player-info->hash public-player-info2)
+                (hash 'current (hash 'row# 2 'column# 2)
+                      'home (hash 'row# 4 'column# 4)
+                      'color "green")))
+  

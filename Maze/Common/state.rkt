@@ -396,7 +396,8 @@
   (require (submod ".." examples))
   (require (submod "board.rkt" examples))
   (require (submod "tile.rkt" examples))
-  (require (submod "player-info.rkt" examples)))
+  (require (submod "player-info.rkt" examples))
+  (require (submod ".." serialize)))
 
 ;; test execute-move shifts rows and cols
 (module+ test
@@ -560,10 +561,11 @@
                                  (ref-player-info->pub-player-info player-info3)
                                  (ref-player-info->pub-player-info player-info4))
                            #f)))
-
+; test get-player-color-list
 (module+ test
-  (check-equal? (get-player-color-list gamestate0) (list "blue" "purple" "green" "yellow" "blue")))
+  (check-equal? (get-player-color-list gamestate0) (list "blue" "purple" "green" "yellow" "black")))
 
+; test move-to-front
 (module+ test
   (check-equal? (move-to-front 1 '(2 3 1 4)) '(1 2 3 4))
   (check-equal? (move-to-front 1 '(2 3 4)) '(2 3 4))
@@ -571,3 +573,88 @@
   (check-equal? (move-to-front 5 '(5 6 7)) '(5 6 7))
   (check-equal? (move-to-front 7 '(5 6 7)) '(7 5 6))
   (check-equal? (move-to-front 1 '(5 6 1 8 1 7)) '(1 5 6 8 1 7)))
+
+; test ref-state->hash
+(module+ test
+  (check-equal? (ref-state->hash gamestate0)
+                (hash 'spare (hash 'tilekey "│"
+                                   '1-image "yellow-beryl-oval"
+                                   '2-image "yellow-baguette")
+                      'plmt (list (hash 'color  "blue"
+                                        'current  (hash 'column# 0 'row# 0)
+                                        'goto (hash 'column# 1 'row# 5)
+                                        'home (hash 'column# 6 'row# 6))
+                                  (hash 'color  "purple"
+                                        'current  (hash 'column# 1 'row# 1)
+                                        'goto (hash 'column# 1 'row# 1)
+                                        'home (hash 'column# 5 'row# 5))
+                                  (hash 'color "green"
+                                        'current (hash 'column# 2 'row# 2)
+                                        'goto (hash 'column# 3 'row# 3)
+                                        'home (hash 'column# 4 'row# 4))
+                                  (hash 'color "yellow"
+                                        'current (hash 'column# 3 'row# 3)
+                                        'goto (hash 'column# 3 'row# 1)
+                                        'home (hash 'column# 3 'row# 3))
+                                  (hash 'color "black"
+                                        'current (hash 'column# 4 'row# 4)
+                                        'goto (hash 'column# 5 'row# 5)
+                                        'home (hash 'column# 2 'row# 2)))
+                      'last 'null
+                      'board (hash 'connectors (list (list "─" "┐" "└" "┘" "┌" "┬" "┤")
+                                                     (list "┴" "├" "┼" "│" "─" "┐" "└")
+                                                     (list "┘" "┌" "┬" "┤" "┴" "├" "┼")
+                                                     (list "│" "─" "┐" "└" "┘" "┌" "┬")
+                                                     (list "┤" "┴" "├" "┼" "│" "─" "┐")
+                                                     (list "└" "┘" "┌" "┬" "┤" "┴" "├")
+                                                     (list "┼" "│" "─" "┐" "└" "┘" "┌"))
+                                   'treasures (list (list (list "alexandrite-pear-shape" "alexandrite")
+                                                          (list "amethyst" "almandine-garnet")
+                                                          (list "amethyst" "ametrine")
+                                                          (list "apatite" "ammolite")
+                                                          (list "apricot-square-radiant" "aplite")
+                                                          (list "aquamarine" "australian-marquise")
+                                                          (list "aventurine" "azurite"))
+                                                    (list (list "black-obsidian" "beryl")
+                                                          (list "black-obsidian" "black-onyx")
+                                                          (list "blue-ceylon-sapphire" "black-spinel-cushion")
+                                                          (list "blue-pear-shape" "blue-cushion")
+                                                          (list "bulls-eye" "blue-spinel-heart")
+                                                          (list "carnelian" "chrome-diopside")
+                                                          (list "chrysolite" "chrysoberyl-cushion"))
+                                                    (list (list "citrine" "citrine-checkerboard")
+                                                          (list "color-change-oval" "clinohumite")
+                                                          (list "cordierite" "diamond")
+                                                          (list "emerald" "dumortierite")
+                                                          (list "fancy-spinel-marquise" "garnet")
+                                                          (list "golden-diamond-cut" "goldstone")
+                                                          (list "grandidierite" "gray-agate"))
+                                                    (list (list "green-beryl-antique" "green-aventurine")
+                                                          (list "green-beryl" "green-princess-cut")
+                                                          (list "grossular-garnet" "hackmanite")
+                                                          (list "hematite" "heliotrope")
+                                                          (list "jasper" "iolite-emerald-cut")
+                                                          (list "kunzite-oval" "jaspilite")
+                                                          (list "kunzite" "labradorite"))
+                                                    (list (list "lapis-lazuli" "lemon-quartz-briolette")
+                                                          (list "mexican-opal" "magnesite")
+                                                          (list "morganite-oval" "moonstone")
+                                                          (list "moss-agate" "orange-radiant")
+                                                          (list "padparadscha-oval" "padparadscha-sapphire")
+                                                          (list "peridot" "pink-emerald-cut")
+                                                          (list "pink-opal" "pink-round"))
+                                                    (list (list "prasiolite" "pink-spinel-cushion")
+                                                          (list "prehnite" "purple-cabochon")
+                                                          (list "purple-oval" "purple-spinel-trillion")
+                                                          (list "purple-square-cushion" "raw-beryl")
+                                                          (list "raw-citrine" "red-diamond")
+                                                          (list "red-spinel-square-emerald-cut" "rhodonite")
+                                                          (list "rock-quartz" "rose-quartz"))
+                                                    (list (list "ruby" "ruby-diamond-profile")
+                                                          (list "sphalerite" "spinel")
+                                                          (list "star-cabochon" "stilbite")
+                                                          (list "super-seven" "sunstone")
+                                                          (list "tanzanite-trillion" "tigers-eye")
+                                                          (list "tourmaline" "tourmaline-laser-cut")
+                                                          (list "unakite" "white-square")))))))
+  

@@ -348,7 +348,8 @@
 
 (module+ test
   (require rackunit)
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod ".." serialize)))
 
 ;; test tile-has-gems?
 (module+ test
@@ -479,3 +480,47 @@
   (check-equal?
    (tile-new 'straight 0 (set 'beryl 'aplite))
    (tile-new 'straight 0 (set 'aplite 'beryl))))
+
+; test get-json-connector
+(module+ test
+  (check-equal? (get-json-connector (tile-new 'straight 90 (set))) "─")
+  (check-equal? (get-json-connector (tile-new 'straight 270 (set))) "─")
+  (check-equal? (get-json-connector (tile-new 'straight 0 (set))) "│")
+  (check-equal? (get-json-connector (tile-new 'straight 180 (set))) "│")
+
+  (check-equal? (get-json-connector (tile-new 'elbow 90 (set))) "┘")
+  (check-equal? (get-json-connector (tile-new 'elbow 270 (set))) "┌")
+  (check-equal? (get-json-connector (tile-new 'elbow 0 (set))) "└")
+  (check-equal? (get-json-connector (tile-new 'elbow 180 (set))) "┐")
+
+  (check-equal? (get-json-connector (tile-new 'tri 90 (set))) "├")
+  (check-equal? (get-json-connector (tile-new 'tri 270 (set))) "┤")
+  (check-equal? (get-json-connector (tile-new 'tri 0 (set))) "┬")
+  (check-equal? (get-json-connector (tile-new 'tri 180 (set))) "┴")
+
+  (check-equal? (get-json-connector (tile-new 'cross 90 (set))) "┼")
+  (check-equal? (get-json-connector (tile-new 'cross 270 (set))) "┼")
+  (check-equal? (get-json-connector (tile-new 'cross 0 (set))) "┼")
+  (check-equal? (get-json-connector (tile-new 'cross 180 (set))) "┼"))
+
+
+; test get-json-gems
+(module+ test
+  (check-equal? (get-json-gems (tile-new 'straight 90 (set 'aplite 'beryl)))
+                (list "beryl" "aplite"))
+  (check-equal? (get-json-gems (tile-new 'straight 90 (set 'spinel 'kunzite)))
+                (list "spinel" "kunzite"))
+  (check-equal? (get-json-gems (tile-new 'straight 90 (set 'unakite 'beryl)))
+                (list "beryl" "unakite")))
+
+; test tile->hash
+(module+ test
+  (check-equal? (tile->hash tile00)
+                (hash 'tilekey "─"
+                      '1-image "alexandrite-pear-shape"
+                      '2-image "alexandrite"))
+  (check-equal? (tile->hash tile66)
+                (hash 'tilekey "┌"
+                      '1-image "unakite"
+                      '2-image "white-square")))
+                   
