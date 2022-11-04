@@ -15,6 +15,8 @@
 (require (only-in mrlib/image-core render-image))
 
 
+;; [Listof RefereeState] -> Void
+;; Runs a GUI which renders a game, captured as all intermediate states in that game
 (define (run-observer states)
   (define current-state 0)
 
@@ -28,22 +30,30 @@
 
   (define canvas (new canvas% [parent frame]
                       [paint-callback (lambda (canvas dc) (draw dc))]))
-
-  ; Make a static text message in the frame
-  (define msg (new message% [parent frame]
-                   [label (string-append "Viewing state " (number->string (add1 current-state)) "/" (number->string (length states)))]))
   
   ; Make a button in the frame
-  (new button% [parent frame]
-       [label "Next"]
-       [enabled #t]
-       ; Callback procedure for a button click:
-       [callback (lambda (button event)
-                   (begin
-                     (set! current-state (add1 current-state))
-                     (send button enable (< -1 current-state (sub1 (length states))))
-                     (send msg set-label (string-append "Viewing state " (number->string (add1 current-state)) "/" (number->string (length states))))
-                     (send canvas refresh-now)))])
+  (define next-btn (new button% [parent frame]
+                        [label "Next"]
+                        [enabled #t]
+                        ; Callback procedure for a button click:
+                        [callback (lambda (button event)
+                                    (begin
+                                      (set! current-state (add1 current-state))
+                                      (send button enable (< -1 current-state (sub1 (length states))))
+                                      (send prev-btn enable (< 0 current-state (length states)))
+                                      (send canvas refresh-now)))]))
+
+    ; Make a button in the frame
+  (define prev-btn (new button% [parent frame]
+                        [label "Prev"]
+                        [enabled #f]
+                        ; Callback procedure for a button click:
+                        [callback (lambda (button event)
+                                    (begin
+                                      (set! current-state (sub1 current-state))
+                                      (send next-btn enable (< -1 current-state (sub1 (length states))))
+                                      (send button enable (< 0 current-state (length states)))
+                                      (send canvas refresh-now)))]))
 
   ; Make a button in the frame
   (new button% [parent frame]
