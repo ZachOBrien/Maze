@@ -210,12 +210,12 @@
 (module+ test
   (test-case
    "Run a game of Maze"
-   (let-values
+   #;(let-values
        ([(winners criminals)
          (send example-referee0 run-game)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
-  #;(test-case
+  (test-case
    "Run a game of Maze gs4"
    (let-values
        ([(winners criminals)
