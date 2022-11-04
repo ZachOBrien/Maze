@@ -313,17 +313,31 @@
     (define base-board-img (board->image board tile-size))
     (foldl (curryr add-player-info-to-board-image tile-size) base-board-img player-infos))
 
+  ;; String -> Number
+  ;; Convert a hexidecimal string to a number
+  (define (hex->number h)
+    (string->number (string-append "#x" h)))
+
+  ;; AvatarColor -> Color
+  ;; Convert a AvatarColor to a usable color
+  (define (usable-player-color color)
+    (if (hex-color-code? color)
+        (make-color (hex->number (substring color 0 2))
+                    (hex->number (substring color 2 4))
+                    (hex->number (substring color 4)))
+        color))
+
   ;; Image [MultipleOf 10] RefPlayerInfo -> Image
   (define (add-player-info-to-board-image plyr-info board-img tile-size)
     (define avatar-size (/ tile-size 5))
-    (define avatar (circle avatar-size "solid" (player-info-color plyr-info)))
+    (define avatar (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info))))
     (define-values (plyr-y-pos plyr-x-pos) (values (car (player-info-curr-pos plyr-info)) (cdr (player-info-curr-pos plyr-info))))
     (define avatar-x-pos (- (+ (/ tile-size 2) (* plyr-x-pos tile-size)) avatar-size))
     (define avatar-y-pos (- (+ (/ tile-size 2) (* plyr-y-pos tile-size)) avatar-size))
     (define board-img-with-avatar (underlay/xy board-img avatar-x-pos avatar-y-pos avatar))
 
     (define goal-size (/ tile-size 4))
-    (define goal (star goal-size "solid" (player-info-color plyr-info)))
+    (define goal (star goal-size "solid" (usable-player-color (player-info-color plyr-info))))
     (define-values (treasure-y-pos treasure-x-pos)
       (values (car (player-info-treasure-pos plyr-info)) (cdr (player-info-treasure-pos plyr-info))))
     (define goal-x-pos (- (+ (/ tile-size 2) (* treasure-x-pos tile-size)) avatar-size))
@@ -331,7 +345,7 @@
     (define board-img-with-goal (underlay/xy board-img-with-avatar goal-x-pos goal-y-pos goal))
 
     (define home-size (/ tile-size 4))
-    (define home (triangle home-size "solid" (player-info-color plyr-info)))
+    (define home (triangle home-size "solid" (usable-player-color (player-info-color plyr-info))))
     (define-values (home-y-pos home-x-pos)
       (values (car (player-info-home-pos plyr-info)) (cdr (player-info-home-pos plyr-info))))
     (define home-token-x-pos (- (+ (/ tile-size 2) (* home-x-pos tile-size)) avatar-size))

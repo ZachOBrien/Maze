@@ -12,6 +12,7 @@
   [pub-player-info? contract?]
   [ref-player-info? contract?]
   [avatar-color?    contract?]
+  [hex-color-code?  contract?]
   ; Create a new public player info
   [pub-player-info-new (-> grid-posn? grid-posn? 'hidden 'hidden avatar-color? player-info?)]
   ; Create a new referee player info
