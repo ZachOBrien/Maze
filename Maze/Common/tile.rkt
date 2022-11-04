@@ -71,19 +71,19 @@
 ;; interpretation: A direction a tile could be facing. Connector shapes
 ;;                 have the following orientations:
 ;; "│" 0
-;; "─" 90
-;; "│" 180
 ;; "─" 270
+;; "│" 180
+;; "─" 90
 ;;
 ;; "└" 0
-;; "┌" 90
+;; "┘" 90
 ;; "┐" 180
-;; "┘" 270
+;; "┌" 270
 ;;
 ;; "┬" 0
-;; "┤" 90
+;; "├" 90
 ;; "┴" 180
-;; "├" 270
+;; "┤" 270
 ;;
 ;; "┼" 0
 (define orientations (list 0 90 180 270))
@@ -100,8 +100,8 @@
 ;; Tile Orientation -> Tile
 (define (tile-rotate t rotation)
   (tile-new (tile-connector t)
-             (modulo (+ (tile-orientation t) rotation) 360)
-             (tile-gems t)))
+            (modulo (+ (tile-orientation t) rotation) 360)
+            (tile-gems t)))
 
 ;; Tile Tile -> Boolean
 (define (tile-connected-horizontal? left right)
@@ -121,7 +121,7 @@
   (match* (connector orientation)
     [('cross _)     #t]
     [('tri o)      (not (= 0 o))]
-    [('elbow o)    (or (= 0 o) (= 270 o))]
+    [('elbow o)    (or (= 0 o) (= 90 o))]
     [('straight o) (or (= 0 o) (= 180 o))]))
 
 
@@ -131,7 +131,7 @@
   (match* (connector orientation)
     [('cross _)     #t]
     [('tri o)      (not (= 180 o))]
-    [('elbow o)    (or (= 90 o) (= 180 o))]
+    [('elbow o)    (or (= 270 o) (= 180 o))]
     [('straight o) (or (= 0 o) (= 180 o))]))
 
 
@@ -140,9 +140,9 @@
 (define (open-on-left? connector orientation)
   (match* (connector orientation)
     [('cross _)     #t]
-    [('tri o)      (not (= 270 o))]
-    [('elbow o)    (or (= 180 o) (= 270 o))]
-    [('straight o) (or (= 90 o) (= 270 o))]))
+    [('tri o)      (not (= 90 o))]
+    [('elbow o)    (or (= 180 o) (= 90 o))]
+    [('straight o) (or (= 270 o) (= 90 o))]))
 
 
 ;; Connector Orientation -> Boolean
@@ -150,9 +150,9 @@
 (define (open-on-right? connector orientation)
   (match* (connector orientation)
     [('cross _)     #t]
-    [('tri o)      (not (= 90 o))]
-    [('elbow o)    (or (= 0 o) (= 90 o))]
-    [('straight o) (or (= 90 o) (= 270 o))]))
+    [('tri o)      (not (= 270 o))]
+    [('elbow o)    (or (= 0 o) (= 270 o))]
+    [('straight o) (or (= 270 o) (= 90 o))]))
 
 
 ;; [Setof Gem] -> Tile
@@ -163,68 +163,184 @@
   (tile conn ornt gems))
 
 
+(module+ draw
+  (require 2htdp/image)
+
+  (provide
+   (contract-out
+    [tile->image (-> tile? natural-number/c image?)]))
+  
+  ;; Orientation -> Image
+  ;; Draw one arm of a connector
+  (define (arm-image orientation arm-length)
+    (define arm-width (/ arm-length 3))
+    (define vert0degree (put-pinhole (/ arm-width 2) arm-length
+                                     (rectangle arm-width arm-length "solid" "sienna")))
+    (rotate orientation vert0degree))
+
+  ;; Orientation -> Image
+  ;; Draw an elbow connector
+  (define (elbow-image orientation arm-length)
+    (define elbow0degree (overlay/pinhole (arm-image 0 arm-length)
+                                          (arm-image 270 arm-length)))
+    (rotate orientation elbow0degree))
+
+  ;; Orientation -> Image
+  ;; Draw a straight connector
+  (define (straight-image orientation arm-length)
+    (define straight0degree (overlay/pinhole (arm-image 0 arm-length)
+                                             (arm-image 180 arm-length)))
+    (rotate orientation straight0degree))
+
+  ;; Orientation -> Image
+  ;; Draw a tri connector
+  (define (tri-image orientation arm-length)
+    (define tri0degree (overlay/pinhole (arm-image 180 arm-length)
+                                        (arm-image 90 arm-length)
+                                        (arm-image 270 arm-length)))
+    (rotate orientation tri0degree))
+
+  ;; Orientation -> Image
+  ;; Draw a cross connector
+  (define (cross-image orientation arm-length)
+    (define cross0degree (overlay/pinhole (arm-image 0 arm-length)
+                                          (arm-image 90 arm-length)
+                                          (arm-image 180 arm-length)
+                                          (arm-image 270 arm-length)))
+    (rotate orientation cross0degree))
+
+
+  ;; Connector Orientation Natural -> Image
+  ;; Draw a connector with some orientation and with arms of length `arm-length`
+  (define (draw-connector connector orientation arm-length)
+    (match connector
+      ['straight (straight-image orientation arm-length)]
+      ['elbow (elbow-image orientation arm-length)]
+      ['tri (tri-image orientation arm-length)]
+      ['cross (cross-image orientation arm-length)]))
+
+
+  ;; Tile [MultipleOf 10] -> Image
+  ;; Draw a tile, a square with side lengths `size`
+  (define (tile->image t size)
+    (define base-tile
+      (overlay (square size "outline" "black")
+               (clear-pinhole (overlay/pinhole (draw-connector (tile-connector t)
+                                                               (tile-orientation t)
+                                                               (/ size 2))
+                                               (square size "solid" "navajowhite")))))
+    (define gems-to-draw (set->list (tile-gems t)))
+    (underlay/xy (underlay/xy base-tile
+                              10 10
+                              (scale 0.20 (gem->image (first gems-to-draw))))
+                 (- size 30) (- size 30)
+                 (scale 0.20 (gem->image (second gems-to-draw))))))
+
+(module+ serialize
+  (require json)
+
+  (provide
+   (contract-out
+    ; Converts a tile into a string connector according to spec
+    [get-json-connector (-> tile? string?)]
+    ; Converts a tile into a list of gems according to spec
+    [get-json-gems (-> tile? (listof string?))]
+    ; Convert a tile to a hash
+    [tile->hash (-> tile? hash?)]))
+
+  ;; Tile -> String
+  ;; Converts a tile into a string connector according to spec
+  (define (get-json-connector t)
+    (match (cons (tile-connector t) (tile-orientation t))
+      [(cons 'straight 0)   "│"]
+      [(cons 'straight 180) "│"]
+      [(cons 'straight 90)  "─"]
+      [(cons 'straight 270) "─"]
+      [(cons 'elbow 180)    "┐"]
+      [(cons 'elbow 0)      "└"]
+      [(cons 'elbow 270)    "┌"]
+      [(cons 'elbow 90)     "┘"]
+      [(cons 'tri 0)        "┬"]
+      [(cons 'tri 90)       "├"]
+      [(cons 'tri 180)      "┴"]
+      [(cons 'tri 270)      "┤"]
+      [(cons 'cross _)      "┼"]))
+
+  ;; Tile -> [Listof Gems]
+  ;; Converts a tile into a list of gems according to spec
+  (define (get-json-gems t)
+    (map symbol->string (set->list (tile-gems t))))
+
+  ;; Tile -> Hash
+  ;; Convert a tile to a hash
+  (define (tile->hash t)
+    (define gem-list (set->list (tile-gems t)))
+    (hash 'tilekey (get-json-connector t)
+          '1-image (symbol->string (first gem-list))
+          '2-image (symbol->string (first (rest gem-list))))))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 
 (module+ examples
   (provide (all-defined-out))
-  (define tile00 (tile 'straight 90 (set)))
-  (define tile01 (tile 'elbow 180 (set)))
-  (define tile02 (tile 'elbow 0 (set)))
-  (define tile03 (tile 'elbow 90 (set)))
-  (define tile04 (tile 'elbow 270 (set)))
-  (define tile05 (tile 'tri 0 (set)))
-  (define tile06 (tile 'tri 270 (set)))
+  (define tile00 (tile 'straight 90 (set 'alexandrite-pear-shape 'alexandrite)))
+  (define tile01 (tile 'elbow 180 (set 'almandine-garnet 'amethyst)))
+  (define tile02 (tile 'elbow 0 (set 'amethyst 'ametrine)))
+  (define tile03 (tile 'elbow 90 (set 'ammolite 'apatite)))
+  (define tile04 (tile 'elbow 270 (set 'aplite 'apricot-square-radiant)))
+  (define tile05 (tile 'tri 0 (set 'aquamarine 'australian-marquise)))
+  (define tile06 (tile 'tri 270 (set 'aventurine 'azurite)))
 
-  (define tile10 (tile 'tri 180 (set)))
-  (define tile11 (tile 'tri 90 (set 'blue-ceylon-sapphire 'bulls-eye)))
-  (define tile12 (tile 'cross 0 (set)))
-  (define tile13 (tile 'straight 0 (set)))
-  (define tile14 (tile 'straight 270 (set)))
-  (define tile15 (tile 'elbow 180 (set)))
-  (define tile16 (tile 'elbow 0 (set)))
+  (define tile10 (tile 'tri 180 (set 'beryl 'black-obsidian)))
+  (define tile11 (tile 'tri 90 (set 'black-obsidian 'black-onyx)))
+  (define tile12 (tile 'cross 0 (set 'black-spinel-cushion 'blue-ceylon-sapphire)))
+  (define tile13 (tile 'straight 0 (set 'blue-cushion 'blue-pear-shape)))
+  (define tile14 (tile 'straight 270 (set 'blue-spinel-heart 'bulls-eye)))
+  (define tile15 (tile 'elbow 180 (set 'carnelian 'chrome-diopside)))
+  (define tile16 (tile 'elbow 0 (set 'chrysoberyl-cushion 'chrysolite)))
 
-  (define tile20 (tile 'elbow 90 (set)))
-  (define tile21 (tile 'elbow 270 (set)))
-  (define tile22 (tile 'tri 0 (set)))
-  (define tile23 (tile 'tri 270 (set)))
-  (define tile24 (tile 'tri 180 (set)))
-  (define tile25 (tile 'tri 90 (set)))
-  (define tile26 (tile 'cross 270 (set)))
+  (define tile20 (tile 'elbow 90 (set 'citrine-checkerboard 'citrine)))
+  (define tile21 (tile 'elbow 270 (set 'clinohumite 'color-change-oval)))
+  (define tile22 (tile 'tri 0 (set 'cordierite 'diamond)))
+  (define tile23 (tile 'tri 270 (set 'dumortierite 'emerald)))
+  (define tile24 (tile 'tri 180 (set 'fancy-spinel-marquise 'garnet)))
+  (define tile25 (tile 'tri 90 (set 'golden-diamond-cut 'goldstone)))
+  (define tile26 (tile 'cross 270 (set 'grandidierite 'gray-agate)))
 
-  (define tile30 (tile 'straight 180 (set)))
-  (define tile31 (tile 'straight 270 (set)))
-  (define tile32 (tile 'elbow 180 (set)))
-  (define tile33 (tile 'elbow 0 (set)))
-  (define tile34 (tile 'elbow 90 (set)))
-  (define tile35 (tile 'elbow 270 (set)))
-  (define tile36 (tile 'tri 0 (set)))
+  (define tile30 (tile 'straight 180 (set 'green-aventurine 'green-beryl-antique)))
+  (define tile31 (tile 'straight 270 (set 'green-beryl 'green-princess-cut)))
+  (define tile32 (tile 'elbow 180 (set 'grossular-garnet 'hackmanite)))
+  (define tile33 (tile 'elbow 0 (set 'heliotrope 'hematite)))
+  (define tile34 (tile 'elbow 90 (set 'iolite-emerald-cut 'jasper)))
+  (define tile35 (tile 'elbow 270 (set 'jaspilite 'kunzite-oval)))
+  (define tile36 (tile 'tri 0 (set 'kunzite 'labradorite)))
 
-  (define tile40 (tile 'tri 270 (set)))
-  (define tile41 (tile 'tri 180 (set)))
-  (define tile42 (tile 'tri 90 (set)))
-  (define tile43 (tile 'cross 0 (set)))
-  (define tile44 (tile 'straight 0 (set)))
-  (define tile45 (tile 'straight 90 (set)))
-  (define tile46 (tile 'elbow 180 (set)))
+  (define tile40 (tile 'tri 270 (set 'lapis-lazuli 'lemon-quartz-briolette)))
+  (define tile41 (tile 'tri 180 (set 'magnesite 'mexican-opal)))
+  (define tile42 (tile 'tri 90 (set 'moonstone 'morganite-oval)))
+  (define tile43 (tile 'cross 0 (set 'moss-agate 'orange-radiant)))
+  (define tile44 (tile 'straight 0 (set 'padparadscha-oval 'padparadscha-sapphire)))
+  (define tile45 (tile 'straight 90 (set 'peridot 'pink-emerald-cut)))
+  (define tile46 (tile 'elbow 180 (set 'pink-opal 'pink-round)))
   
-  (define tile50 (tile 'elbow 0 (set)))
-  (define tile51 (tile 'elbow 90 (set)))
-  (define tile52 (tile 'elbow 270 (set)))
-  (define tile53 (tile 'tri 0 (set)))
-  (define tile54 (tile 'tri 270 (set)))
-  (define tile55 (tile 'tri 180 (set)))
-  (define tile56 (tile 'tri 90 (set)))
+  (define tile50 (tile 'elbow 0 (set 'pink-spinel-cushion 'prasiolite)))
+  (define tile51 (tile 'elbow 90 (set 'prehnite 'purple-cabochon)))
+  (define tile52 (tile 'elbow 270 (set 'purple-oval 'purple-spinel-trillion)))
+  (define tile53 (tile 'tri 0 (set 'purple-square-cushion 'raw-beryl)))
+  (define tile54 (tile 'tri 270 (set 'raw-citrine 'red-diamond)))
+  (define tile55 (tile 'tri 180 (set 'red-spinel-square-emerald-cut 'rhodonite)))
+  (define tile56 (tile 'tri 90 (set 'rock-quartz 'rose-quartz)))
   
-  (define tile60 (tile 'cross    0 (set)))
-  (define tile61 (tile 'straight 0 (set)))
-  (define tile62 (tile 'straight 90 (set)))
-  (define tile63 (tile 'elbow 180 (set)))
-  (define tile64 (tile 'elbow 0   (set)))
-  (define tile65 (tile 'elbow 90 (set)))
-  (define tile66 (tile 'elbow 270 (set)))
+  (define tile60 (tile 'cross    0 (set 'ruby-diamond-profile 'ruby)))
+  (define tile61 (tile 'straight 0 (set 'sphalerite 'spinel)))
+  (define tile62 (tile 'straight 90 (set 'star-cabochon 'stilbite)))
+  (define tile63 (tile 'elbow 180 (set 'sunstone 'super-seven)))
+  (define tile64 (tile 'elbow 0   (set 'tanzanite-trillion 'tigers-eye)))
+  (define tile65 (tile 'elbow 90 (set 'tourmaline-laser-cut 'tourmaline)))
+  (define tile66 (tile 'elbow 270 (set 'unakite 'white-square)))
 
-  (define tile-extra (tile 'straight 180 (set)))
+  (define tile-extra (tile 'straight 180 (set 'yellow-baguette 'yellow-beryl-oval)))
 
   (define tile-horiz (tile 'straight 90 (set 'bulls-eye 'blue-ceylon-sapphire)))
   (define tile-vert (tile 'straight 0 (set 'alexandrite 'blue-ceylon-sapphire))))
@@ -232,27 +348,28 @@
 
 (module+ test
   (require rackunit)
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod ".." serialize)))
 
 ;; test tile-has-gems?
 (module+ test
-  (check-true (tile-has-gems? tile11 (set 'blue-ceylon-sapphire 'bulls-eye)))
-  (check-true (tile-has-gems? tile11 (set 'bulls-eye 'blue-ceylon-sapphire)))
+  (check-true (tile-has-gems? tile11 (set 'black-obsidian 'black-onyx)))
+  (check-true (tile-has-gems? tile11 (set 'black-onyx 'black-obsidian)))
   (check-false (tile-has-gems? tile11 (set 'alexandrite 'blue-ceylon-sapphire))))
 
 ;; test tile-rotate
 (module+ test
-  (check-equal? (tile-rotate tile00 90) (tile 'straight 180 (set)))
-  (check-equal? (tile-rotate tile00 180) (tile 'straight 270 (set)))
-  (check-equal? (tile-rotate tile00 270) (tile 'straight 0 (set)))
-  (check-equal? (tile-rotate tile00 0) (tile 'straight 90 (set)))
-  (check-equal? (tile-rotate tile66 270) (tile 'elbow 180 (set))))
+  (check-equal? (tile-rotate tile00 90) (tile 'straight 180 (set 'alexandrite-pear-shape 'alexandrite)))
+  (check-equal? (tile-rotate tile00 180) (tile 'straight 270 (set 'alexandrite-pear-shape 'alexandrite)))
+  (check-equal? (tile-rotate tile00 270) (tile 'straight 0 (set 'alexandrite-pear-shape 'alexandrite)))
+  (check-equal? (tile-rotate tile00 0) (tile 'straight 90 (set 'alexandrite-pear-shape 'alexandrite)))
+  (check-equal? (tile-rotate tile66 270) (tile 'elbow 180 (set 'white-square 'unakite))))
 
 ;; test tile-connected-horizontal
 (module+ test
   (check-true (tile-connected-horizontal? tile00 tile01))
   (check-false (tile-connected-horizontal? tile01 tile02))
-  (check-true (tile-connected-horizontal? tile55 tile56))
+  (check-false (tile-connected-horizontal? tile55 tile56))
   (check-false (tile-connected-horizontal? tile60 tile61)))
 
 ;; test tile-connected-vertical
@@ -269,9 +386,9 @@
   (check-false (open-on-top? 'straight 270))
   
   (check-true (open-on-top? 'elbow 0))
-  (check-false (open-on-top? 'elbow 90))
+  (check-true (open-on-top? 'elbow 90))
   (check-false (open-on-top? 'elbow 180))
-  (check-true (open-on-top? 'elbow 270))
+  (check-false (open-on-top? 'elbow 270))
   
   (check-false (open-on-top? 'tri 0))
   (check-true (open-on-top? 'tri 90))
@@ -291,14 +408,14 @@
   (check-true (open-on-right? 'straight 270))
   
   (check-true (open-on-right? 'elbow 0))
-  (check-true (open-on-right? 'elbow 90))
+  (check-false (open-on-right? 'elbow 90))
   (check-false (open-on-right? 'elbow 180))
-  (check-false (open-on-right? 'elbow 270))
+  (check-true (open-on-right? 'elbow 270))
   
   (check-true (open-on-right? 'tri 0))
-  (check-false (open-on-right? 'tri 90))
+  (check-true (open-on-right? 'tri 90))
   (check-true (open-on-right? 'tri 180))
-  (check-true (open-on-right? 'tri 270))
+  (check-false (open-on-right? 'tri 270))
   
   (check-true (open-on-right? 'cross 0))
   (check-true (open-on-right? 'cross 90))
@@ -313,9 +430,9 @@
   (check-false (open-on-bottom? 'straight 270))
   
   (check-false (open-on-bottom? 'elbow 0))
-  (check-true (open-on-bottom? 'elbow 90))
+  (check-false (open-on-bottom? 'elbow 90))
   (check-true (open-on-bottom? 'elbow 180))
-  (check-false (open-on-bottom? 'elbow 270))
+  (check-true (open-on-bottom? 'elbow 270))
   
   (check-true (open-on-bottom? 'tri 0))
   (check-true (open-on-bottom? 'tri 90))
@@ -335,14 +452,14 @@
   (check-true (open-on-left? 'straight 270))
   
   (check-false (open-on-left? 'elbow 0))
-  (check-false (open-on-left? 'elbow 90))
+  (check-true (open-on-left? 'elbow 90))
   (check-true (open-on-left? 'elbow 180))
-  (check-true (open-on-left? 'elbow 270))
+  (check-false (open-on-left? 'elbow 270))
   
   (check-true (open-on-left? 'tri 0))
-  (check-true (open-on-left? 'tri 90))
+  (check-false (open-on-left? 'tri 90))
   (check-true (open-on-left? 'tri 180))
-  (check-false (open-on-left? 'tri 270))
+  (check-true (open-on-left? 'tri 270))
 
   (check-true (open-on-left? 'cross 0))
   (check-true (open-on-left? 'cross 90))
@@ -363,3 +480,47 @@
   (check-equal?
    (tile-new 'straight 0 (set 'beryl 'aplite))
    (tile-new 'straight 0 (set 'aplite 'beryl))))
+
+; test get-json-connector
+(module+ test
+  (check-equal? (get-json-connector (tile-new 'straight 90 (set))) "─")
+  (check-equal? (get-json-connector (tile-new 'straight 270 (set))) "─")
+  (check-equal? (get-json-connector (tile-new 'straight 0 (set))) "│")
+  (check-equal? (get-json-connector (tile-new 'straight 180 (set))) "│")
+
+  (check-equal? (get-json-connector (tile-new 'elbow 90 (set))) "┘")
+  (check-equal? (get-json-connector (tile-new 'elbow 270 (set))) "┌")
+  (check-equal? (get-json-connector (tile-new 'elbow 0 (set))) "└")
+  (check-equal? (get-json-connector (tile-new 'elbow 180 (set))) "┐")
+
+  (check-equal? (get-json-connector (tile-new 'tri 90 (set))) "├")
+  (check-equal? (get-json-connector (tile-new 'tri 270 (set))) "┤")
+  (check-equal? (get-json-connector (tile-new 'tri 0 (set))) "┬")
+  (check-equal? (get-json-connector (tile-new 'tri 180 (set))) "┴")
+
+  (check-equal? (get-json-connector (tile-new 'cross 90 (set))) "┼")
+  (check-equal? (get-json-connector (tile-new 'cross 270 (set))) "┼")
+  (check-equal? (get-json-connector (tile-new 'cross 0 (set))) "┼")
+  (check-equal? (get-json-connector (tile-new 'cross 180 (set))) "┼"))
+
+
+; test get-json-gems
+(module+ test
+  (check-equal? (get-json-gems (tile-new 'straight 90 (set 'aplite 'beryl)))
+                (list "beryl" "aplite"))
+  (check-equal? (get-json-gems (tile-new 'straight 90 (set 'spinel 'kunzite)))
+                (list "spinel" "kunzite"))
+  (check-equal? (get-json-gems (tile-new 'straight 90 (set 'unakite 'beryl)))
+                (list "beryl" "unakite")))
+
+; test tile->hash
+(module+ test
+  (check-equal? (tile->hash tile00)
+                (hash 'tilekey "─"
+                      '1-image "alexandrite-pear-shape"
+                      '2-image "alexandrite"))
+  (check-equal? (tile->hash tile66)
+                (hash 'tilekey "┌"
+                      '1-image "unakite"
+                      '2-image "white-square")))
+                   

@@ -10,8 +10,14 @@
 (provide
  (contract-out
   [gem? contract?]
-  [gems (listof gem?)]))
+  [gems (listof gem?)]
+  [gem->image (-> gem? image?)]))
 
+
+;; --------------------------------------------------------------------
+;; DEPENDENCIES
+
+(require 2htdp/image)
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -123,3 +129,29 @@
               'zoisite))
 
 (define gem? (apply or/c gems))
+
+
+;; --------------------------------------------------------------------
+;; FUNCTIONALITY IMPLEMENTATION
+
+;(define IMAGES-PATH "../Assets/gems/")
+(define IMAGES-EXTENSION ".png")
+
+(define-values (up-path cur-path bool) (split-path (current-directory)))
+
+(define (get-project-root [path (current-directory)])
+  (define path-string (path->string path))
+  (if (string-contains? path-string "Maze")
+      (let-values ([(up-path cur-dir root?) (split-path path)])
+        (get-project-root up-path))
+      path))
+  
+
+(define IMAGES-PATH (build-path (get-project-root up-path) "Maze/Assets/gems/"))
+
+;; Gem -> Image
+;; Render a gem as an image
+(define (gem->image gem)
+  (bitmap/file (string-append (path->string IMAGES-PATH) (symbol->string gem) IMAGES-EXTENSION)))
+
+

@@ -8,8 +8,9 @@
 
 (provide
  (contract-out
+  [player? contract?]
   ; Create a new player
-  [player-new (-> string? strategy? (is-a?/c player%))]))
+  [player-new (-> string? strategy? player?)]))
      
 
 ;; --------------------------------------------------------------------
@@ -17,6 +18,7 @@
 
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
+(require "../Common/state.rkt")
 (require "strategy.rkt")
 
 ;; --------------------------------------------------------------------
@@ -30,6 +32,8 @@
 ;; Create a new player
 (define (player-new name strat)
   (new player% [init-plyr-name name] [init-strategy strat]))
+
+
 
 (define/contract player%
   (class/c
@@ -62,7 +66,7 @@
                                board-size)))
   
     ;; PlayerState GridPosn -> Any
-    ;; Sets initial state and goal position
+    ;; Sets initial state and treasure position
     (define/public (setup plyr-state new-goal)
       (set! plyr-state0 plyr-state)
       (set! goal new-goal))
@@ -81,6 +85,11 @@
     (define/public (get-plyr-state0) plyr-state0)
     (define/public (get-won-game) won-game)))
 
+;; -> (Any -> Boolean)
+;; Is an instance of player?
+(define player?
+  (is-a?/c player%))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 
@@ -96,19 +105,18 @@
   (require (submod ".." examples))
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/state.rkt" examples))
-  (require (submod "player-state.rkt" examples))
   (require (submod "../Common/player-info.rkt" examples)))
 
 ;; test take-turn
 (module+ test
-  (check-equal? (send player0 take-turn player-state-1) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player0 take-turn player-state-2) (move-new (cons 0 0) (shift-new 'right 6) 90))
+  (check-equal? (send player0 take-turn player-state0) (move-new (cons 3 3) (shift-new 'left 0) 0))
+  (check-equal? (send player0 take-turn player-state1) (move-new (cons 0 4) (shift-new 'down 6) 90))
   (check-equal? (send player0 take-turn player-state-nowhere-to-go) #f)
-  (check-equal? (send player1 take-turn player-state-1) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player1 take-turn player-state-2) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (send player1 take-turn player-state0) (move-new (cons 3 3) (shift-new 'left 0) 0))
+  (check-equal? (send player1 take-turn player-state1) (move-new (cons 6 1) (shift-new 'right 6) 90))
   (check-equal? (send player1 take-turn player-state-nowhere-to-go) #f)
-  (check-equal? (send player2 take-turn player-state-1) (move-new (cons 3 3) (shift-new 'right 2) 0))
-  (check-equal? (send player2 take-turn player-state-2) (move-new (cons 5 2) (shift-new 'right 6) 90))
+  (check-equal? (send player2 take-turn player-state0) (move-new (cons 3 3) (shift-new 'left 0) 0))
+  (check-equal? (send player2 take-turn player-state1) (move-new (cons 6 1) (shift-new 'right 6) 90))
   (check-equal? (send player2 take-turn player-state-nowhere-to-go) #f))
 
 ;; test name
@@ -122,9 +130,9 @@
 (module+ test
   (check-equal? (send player0 get-goal) #f)
   (check-equal? (send player0 get-plyr-state0) #f)
-  (send player0 setup player-state-1 (cons 0 0))
+  (send player0 setup player-state0 (cons 0 0))
   (check-equal? (send player0 get-goal) (cons 0 0))
-  (check-equal? (send player0 get-plyr-state0) player-state-1))
+  (check-equal? (send player0 get-plyr-state0) player-state0))
 
 ;; test won
 (module+ test

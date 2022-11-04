@@ -24,7 +24,7 @@
   (define-values (strategy state-ht goal-ht) (read-state-input (current-input-port)))
 
   (define goal (hash->gridposn goal-ht))
-  (define gstate (change-active-player-goal (hash->gamestate state-ht) goal))
-  (define pstate (gamestate->player-state gstate (current-player-color gstate)))
+  (define gstate (change-active-player-treasure (hash->gamestate state-ht) goal))
+  (define pstate (referee-state->player-state gstate (current-player-color gstate)))
 
   (write-json (action->json (if (equal? strategy "Riemann") (riemann-strategy pstate) (euclidean-strategy pstate)))))

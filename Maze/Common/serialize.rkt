@@ -23,7 +23,13 @@
   ;; Convert a json action to a Move
   [json-action->last-action (-> (or/c (listof any/c) 'null) shift?)]
   ;; Convert a string direction to a symbol
-  [string-direction->symbol (-> string? symbol?)]))
+  [string-direction->symbol (-> string? symbol?)]
+  ;; Convert a hashtable to a referee state
+  [hash->referee-state (-> hash? referee-state?)]
+  ; Convert an Action to json
+  [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]
+  ; Convert a list to a Player
+  [list->player (-> (listof string?) player?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -33,6 +39,8 @@
 (require "board.rkt")
 (require "state.rkt")
 (require "player-info.rkt")
+(require "../Players/strategy.rkt")
+(require "../Players/player.rkt")
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -51,12 +59,12 @@
         "─" (cons 'straight 90)
         "┐" (cons 'elbow 180)
         "└" (cons 'elbow 0)
-        "┌" (cons 'elbow 90)
-        "┘" (cons 'elbow 270)
+        "┌" (cons 'elbow 270)
+        "┘" (cons 'elbow 90)
         "┬" (cons 'tri 0)
-        "├" (cons 'tri 270)
+        "├" (cons 'tri 90)
         "┴" (cons 'tri 180)
-        "┤" (cons 'tri 90)
+        "┤" (cons 'tri 270)
         "┼" (cons 'cross 0)))
 
 
@@ -127,7 +135,7 @@
 (define (hash->spare-tile ht)
   (define conn (hash-ref ht 'tilekey))
   (define treasures (set (string->symbol (hash-ref ht '1-image))
-                          (string->symbol (hash-ref ht '2-image))))
+                         (string->symbol (hash-ref ht '2-image))))
   (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
   (tile-new connector orientation treasures))
 
@@ -135,7 +143,7 @@
   (check-equal? (hash->spare-tile (hash 'tilekey "┌"
                                         '1-image "goldstone"
                                         '2-image "heliotrope"))
-                (tile-new 'elbow 90 (set 'goldstone 'heliotrope)))
+                (tile-new 'elbow 270 (set 'goldstone 'heliotrope)))
   (check-equal? (hash->spare-tile (hash 'tilekey "┼"
                                         '1-image "diamond"
                                         '2-image "unakite"))
@@ -161,21 +169,38 @@
 ;; HashTable -> PlayerInfo
 ;; Create a player-info from a HashTable
 (define (hash->player-info ht)
-  (player-info-new (hash->gridposn (hash-ref ht 'current))
+  (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
+                       (hash->gridposn (hash-ref ht 'home))
+                       (cons 1 1)
+                       #f
+                       (hash-ref ht 'color)))
+
+;; HashTable -> PlayerInfo
+;; Create a player-info from a HashTable
+(define (hash->referee-player-info ht)
+  (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
                    (hash->gridposn (hash-ref ht 'home))
-                   (cons 1 1)
+                   (hash->gridposn (hash-ref ht 'goto))
                    #f
                    (hash-ref ht 'color)))
 
 (module+ test
   (check-equal? (hash->player-info (hash 'current (hash 'row# 0 'column# 0)
-                                    'home (hash 'row# 2 'column# 2)
-                                    'color "blue"))
-                (player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
+                                         'home (hash 'row# 2 'column# 2)
+                                         'color "blue"))
+                (ref-player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
   (check-equal? (hash->player-info (hash 'current (hash 'row# 6 'column# 1)
-                                    'home (hash 'row# 3 'column# 4)
-                                    'color "red"))
-                (player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
+                                         'home (hash 'row# 3 'column# 4)
+                                         'color "red"))
+                (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
+
+;; [Listof Strings] -> Player
+;; Make a player from the json array
+(define (list->player inp)
+  (define strat (if (equal? (first (rest inp)) "Riemann")
+                    riemann-strategy
+                    euclidean-strategy))
+  (player-new (first inp) strat))
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list
@@ -189,7 +214,7 @@
   (check-equal? (json-action->last-action (list 0 "UP"))
                 (shift-new 'up 0))
   (check-equal? (json-action->last-action (list 4 "RIGHT"))
-                    (shift-new 'right 4))
+                (shift-new 'right 4))
   (check-equal? (json-action->last-action 'null)
                 #f))
 
@@ -198,14 +223,33 @@
 (define (string-direction->symbol str)
   (string->symbol (string-downcase str)))
 
+;; HashTable -> RefereeState
+;; Makes a RefereeState from a hashtable
+(define (hash->referee-state ht)
+  (referee-state-new
+   (hash->board (hash-ref ht 'board))
+   (hash->spare-tile (hash-ref ht 'spare))
+   (map hash->referee-player-info (hash-ref ht 'plmt))
+   (json-action->last-action (hash-ref ht 'last))))
+
 ;; HashTable -> Gamestate
 ;; Makes a gamestate from a hashtable
 (define (hash->gamestate ht)
-  (gamestate-new
+  (referee-state-new
    (hash->board (hash-ref ht 'board))
    (hash->spare-tile (hash-ref ht 'spare))
    (map hash->player-info (hash-ref ht 'plmt))
    (json-action->last-action (hash-ref ht 'last))))
+
+;; Action -> (U String List)
+;; Convert an action to json
+(define (action->json act)
+  (cond
+    [(move? act) (list (shift-index (move-shift act))
+                       (string-upcase (symbol->string (shift-direction (move-shift act))))
+                       (move-orientation act)
+                       (gridposn->hash (move-pos act)))]
+    [(false? act) "PASS"]))
    
 
 (module+ examples
@@ -216,59 +260,59 @@
       (tile-new 'straight 90 (set 'stilbite 'zircon))
       (tile-new 'elbow 180 (set 'stilbite 'zircon))
       (tile-new 'elbow 0 (set 'stilbite 'zircon))
-      (tile-new 'elbow 90 (set 'stilbite 'zircon))
       (tile-new 'elbow 270 (set 'stilbite 'zircon))
+      (tile-new 'elbow 90 (set 'stilbite 'zircon))
       (tile-new 'tri 0 (set 'stilbite 'zircon)))
      (list
       (tile-new 'straight 0 (set 'prasiolite 'carnelian))
       (tile-new 'straight 90 (set 'prasiolite 'carnelian))
       (tile-new 'elbow 180 (set 'prasiolite 'carnelian))
       (tile-new 'elbow 0 (set 'prasiolite 'carnelian))
-      (tile-new 'elbow 90 (set 'prasiolite 'carnelian))
       (tile-new 'elbow 270 (set 'prasiolite 'carnelian))
+      (tile-new 'elbow 90 (set 'prasiolite 'carnelian))
       (tile-new 'tri 0 (set 'prasiolite 'carnelian)))
      (list
       (tile-new 'straight 0 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'straight 90 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'elbow 180 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'elbow 0 (set 'fancy-spinel-marquise 'jasper))
-      (tile-new 'elbow 90 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'elbow 270 (set 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 90 (set 'fancy-spinel-marquise 'jasper))
       (tile-new 'tri 0 (set 'fancy-spinel-marquise 'jasper)))
      (list
       (tile-new 'straight 0 (set 'peridot 'purple-cabochon))
       (tile-new 'straight 90 (set 'peridot 'purple-cabochon))
       (tile-new 'elbow 180 (set 'peridot 'purple-cabochon))
       (tile-new 'elbow 0 (set 'peridot 'purple-cabochon))
-      (tile-new 'elbow 90 (set 'peridot 'purple-cabochon))
       (tile-new 'elbow 270 (set 'peridot 'purple-cabochon))
+      (tile-new 'elbow 90 (set 'peridot 'purple-cabochon))
       (tile-new 'tri 0 (set 'peridot 'purple-cabochon)))
      (list
       (tile-new 'straight 0 (set 'diamond 'lapis-lazuli))
       (tile-new 'straight 90 (set 'diamond 'lapis-lazuli))
       (tile-new 'elbow 180 (set 'diamond 'lapis-lazuli))
       (tile-new 'elbow 0 (set 'diamond 'lapis-lazuli))
-      (tile-new 'elbow 90 (set 'diamond 'lapis-lazuli))
       (tile-new 'elbow 270 (set 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 90 (set 'diamond 'lapis-lazuli))
       (tile-new 'tri 0 (set 'diamond 'lapis-lazuli)))
      (list
       (tile-new 'straight 0 (set 'cordierite 'mexican-opal))
       (tile-new 'straight 90 (set 'cordierite 'mexican-opal))
       (tile-new 'elbow 180 (set 'cordierite 'mexican-opal))
       (tile-new 'elbow 0 (set 'cordierite 'mexican-opal))
-      (tile-new 'elbow 90 (set 'cordierite 'mexican-opal))
       (tile-new 'elbow 270 (set 'cordierite 'mexican-opal))
+      (tile-new 'elbow 90 (set 'cordierite 'mexican-opal))
       (tile-new 'tri 0 (set 'cordierite 'mexican-opal)))
      (list
       (tile-new 'straight 0 (set 'pink-opal 'red-diamond))
       (tile-new 'straight 90 (set 'pink-opal 'red-diamond))
       (tile-new 'elbow 180 (set 'pink-opal 'red-diamond))
       (tile-new 'elbow 0 (set 'pink-opal 'red-diamond))
-      (tile-new 'elbow 90 (set 'pink-opal 'red-diamond))
       (tile-new 'elbow 270 (set 'pink-opal 'red-diamond))
+      (tile-new 'elbow 90 (set 'pink-opal 'red-diamond))
       (tile-new 'tri 0 (set 'pink-opal 'red-diamond)))))
 
-  (define spare-tile (tile-new 'elbow 270 (set 'lapis-lazuli 'pink-opal)))
+  (define spare-tile (tile-new 'elbow 90 (set 'lapis-lazuli 'pink-opal)))
 
   (define example-treasures
     (list
@@ -339,10 +383,10 @@
           (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
 
   (define expected-player-infos1
-    (list (player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
-          (player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
-          (player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
-          (player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
+    (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
+          (ref-player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
+          (ref-player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
+          (ref-player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
 
   (define example-board-hash
     (hash 'connectors example-connectors
@@ -360,7 +404,7 @@
                                                     '2-image "pink-opal")
                                        'plmt example-player-infos1
                                        'last (list 0 "LEFT")))
-                (gamestate-new example-board
-                               spare-tile
-                               expected-player-infos1
-                               (shift-new 'left 0))))
+                (referee-state-new example-board
+                                   spare-tile
+                                   expected-player-infos1
+                                   (shift-new 'left 0))))

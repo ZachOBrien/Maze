@@ -14,24 +14,34 @@
 (provide
  (contract-out
   [gamestate?  contract?]
+  [referee-state? contract?]
+  [player-state? contract?]
   [gamestate-board (-> gamestate? board?)]
   [gamestate-extra-tile (-> gamestate? tile?)]
-  [gamestate-prev-shift (-> gamestate? shift?)]
-  ; Create a new Gamestate
-  [gamestate-new
-   (-> board? tile? (non-empty-listof player-info?) (or/c #f shift?) gamestate?)]
+  [gamestate-prev-shift (-> gamestate? (or/c shift? #f))]
+  [gamestate-players (-> gamestate? (listof player-info?))]
+  [move?          contract?]
+  [move-orientation (-> move? orientation?)]
+  [move-shift (-> move? shift?)]
+  [move-pos (-> move? grid-posn?)]
+  [move-new (-> grid-posn? shift? orientation? move?)]
+  ; Get the current player
+  [gamestate-current-player (-> gamestate? player-info?)]
+  ; Create a new player state
+  [player-state-new (-> board? tile? player-state-player-infos? (or/c #f shift?) player-state?)]
+  ; Create a new referee state
+  [referee-state-new (-> board? tile? (listof ref-player-info?) (or/c #f shift?) referee-state?)]
   ; Shifts a row or column and inserts a tile in the empty space
-  [gamestate-shift-and-insert
-   (-> gamestate? shift? orientation? gamestate?)]
+  [gamestate-shift-and-insert (-> gamestate? shift? orientation? gamestate?)]
   ; Move players that were on a row or column that was shifted
-  [shift-players (-> (listof player-info?) board? shift? (listof player-info?))]
+  [shift-players (-> gamestate? shift? (listof player-info?))]
   ; Move the currently active player to a new position
   [gamestate-move-player (-> gamestate? grid-posn? gamestate?)]
-  ; Check if a player can reach a position from their current position
+  ; Check if the current player can reach a position from their current position
   [player-can-reach-pos? (-> gamestate? grid-posn? boolean?)]
-  ; Check if a player is currently placed on their goal tile
-  [player-on-goal? (-> gamestate? boolean?)]
-  ; Check if a player is currently placed on their home tile
+  ; Check if the current player is currently placed on their treasure tile
+  [player-on-treasure? (-> gamestate? boolean?)]
+  ; Check if the curent player is currently placed on their home tile
   [player-on-home? (-> gamestate? boolean?)]
   ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
@@ -41,15 +51,12 @@
   [end-current-turn (-> gamestate? gamestate?)]
   ;; All reachable from current player current position
   [all-reachable-from-active (-> gamestate? (listof grid-posn?))]
-  ; Makes a playerstate for the currently active player from the gamestate
-  [gamestate->player-state (-> gamestate? avatar-color? player-state?)]
-  ; Changes the goal tile of the active player
-  [change-active-player-goal (-> gamestate? grid-posn? gamestate?)]
+  ; Makes a playerstate for a specific player in the referee state. 
+  [referee-state->player-state (-> referee-state? avatar-color? player-state?)]
+  ; Changes the treasure tile of the active player
+  [change-active-player-treasure (-> gamestate? grid-posn? gamestate?)]
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
-  ; Determine the distance of a player from their objective. If they have not found their treasure,
-  ; that is their objective. If they have found their treasure, getting home is their objective.
-  [euclidean-distance-from-objective (-> gamestate? avatar-color? number?)]
   ; Get a PlayerInfo by color
   [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
   ; Has the game ended?
@@ -61,8 +68,7 @@
 (require "tile.rkt")
 (require "board.rkt")
 (require "gem.rkt")
-(require "rulebook.rkt")
-(require "../Players/player-state.rkt")
+(require "math.rkt")
 
 
 ;; --------------------------------------------------------------------
@@ -70,17 +76,51 @@
 
 (define DEFAULT-SHIFT-STEP 1)
 
-;; A Gamestate is a structure:
-;;    (struct Board Tile [NonEmptyListof PlayerInfo] (U Shift #f))
+;; A Gamestate is one of:
+;;    - PlayerState
+;;    - RefereeState
+;; interpretation: A gamestate either has all the information a referee knows, or
+;;                 only the information that one player should know
+
+;; (struct Board Tile [NonEmptyListof PlayerInfo] (U Shift #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
 ;;                 and the last shift made
 (struct gamestate [board extra-tile players prev-shift] #:transparent)
 
-;; Board Tile [NonEmptyListof PlayerInfo] -> Gamestate
-;; Create a new gamestate
-(define (gamestate-new board extra-tile players prev-shift)
+(define player-state-player-infos?
+  (or/c empty? (cons/c ref-player-info? (listof pub-player-info?))))
+
+;; Gamestate -> Boolean
+;; Is this gamestate a PlayerState?
+(define (player-state? state)
+  (and (gamestate? state)
+       (player-state-player-infos? (gamestate-players state))))
+
+;; Gamestate -> Boolean
+;; Is this gamestate a RefereeState?
+(define (referee-state? state)
+  (and (gamestate? state)
+       ((listof ref-player-info?) (gamestate-players state))))
+  
+;; Board Tile (U empty (cons RefPlayerInfo [Listof PubPlayerInfo])) Shift -> Gamestate
+;; Create a new player state
+(define (player-state-new board extra-tile players prev-shift)
   (gamestate board extra-tile players prev-shift))
+
+;; Board Tile [Listof RefPlayerInfo] Shift -> Gamestate
+;; Create a new referee state
+(define (referee-state-new board extra-tile players prev-shift)
+  (gamestate board extra-tile players prev-shift))
+
+;; A Move is a structure:
+;;    (struct GridPosn Shift Orientation)
+;; interpretation: A Move has a position to move the currently active player to after the shift,
+;;                 a shift, and the number of degrees to rotate the spare tile
+(struct move [pos shift orientation] #:transparent)
+
+(define (move-new pos shft orientation)
+  (move pos shft orientation))
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -94,17 +134,19 @@
     (board-shift-and-insert
      (gamestate-board state) shft (tile-rotate (gamestate-extra-tile state) orientation)))
   (define players-after-shift
-    (shift-players (gamestate-players state) (gamestate-board state) shft))
+    (shift-players state shft))
   (gamestate new-board new-extra-tile players-after-shift shft))
 
 
-;; [Listof PlayerInfo] Board Shift -> [Listof PlayerInfo]
-;; Move players that were on a row or column that was shifted
-(define (shift-players players board shft)
-  (define shift-step (if (shifts-forward? (shift-direction shft)) DEFAULT-SHIFT-STEP (* -1 DEFAULT-SHIFT-STEP)))
-  (for/list ([plyr players])
+;; Gamestate Shift -> [Listof PlayerInfo]
+;; Move the gamestates list of players that were on a row or column that was shifted
+(define (shift-players state shft)
+  (define shift-step (if (shifts-forward? (shift-direction shft))
+                         DEFAULT-SHIFT-STEP
+                         (* -1 DEFAULT-SHIFT-STEP)))
+  (for/list ([plyr (gamestate-players state)])
     (if (player-shifted? shft plyr)
-        (shift-player plyr board (shift-direction shft) shift-step)
+        (shift-player plyr (gamestate-board state) (shift-direction shft) shift-step)
         plyr)))
 
 
@@ -159,19 +201,18 @@
 ;; Gamestate -> [Listof Grid-Posn]
 ;; Find all positions reachable from the current active player's position
 (define (all-reachable-from-active state)
-  (board-all-reachable-from (gamestate-board state) (player-info-curr-pos (get-current-player state))))
+  (board-all-reachable-from (gamestate-board state) (player-info-curr-pos (gamestate-current-player state))))
 
 ;; Gamestate -> Boolean
-;; Check if a player is currently placed on their goal tile
-(define (player-on-goal? state)
-  (define curr-player (get-current-player state))
-  (equal? (player-info-curr-pos curr-player) (player-info-goal-pos curr-player)))
+;; Check if a player is currently placed on their treasure tile
+(define (player-on-treasure? state)
+  (on-treasure? (gamestate-current-player state)))
 
 
 ;; Gamestate -> Boolean
 ;; Check if a player is currently placed on their home tile
 (define (player-on-home? state)
-  (define curr-player (get-current-player state))
+  (define curr-player (gamestate-current-player state))
   (equal? (player-info-curr-pos curr-player) (player-info-home-pos curr-player)))
 
 
@@ -192,22 +233,25 @@
 
 ;; Gamestate -> PlayerInfo
 ;; Get the current player
-(define (get-current-player state)
+(define (gamestate-current-player state)
   (first (gamestate-players state)))
 
 ;; Gamestate AvatarColor -> PlayerState
 ;; Makes a playerstate for the player who is represented by the color from the gamestate
-(define (gamestate->player-state state color)
-  (player-state-new
+;; WARNING: In a PlayerState, the list of players does not signify turn order as in RefereeState
+(define (referee-state->player-state state color)
+  (define plyr (gamestate-get-by-color state color))
+  (define plyr-infos (move-to-front plyr (gamestate-players state)))
+  (gamestate
    (gamestate-board state)
    (gamestate-extra-tile state)
-   (gamestate-get-by-color state color)
+   (cons (first plyr-infos) (map ref-player-info->pub-player-info (rest plyr-infos)))
    (gamestate-prev-shift state)))
 
 ;; Gamestate GridPosn -> Gamestate
-;; Changes the goal tile of the active player
-(define (change-active-player-goal state new-goal)
-  (define new-players (cons (player-info-change-goal (get-current-player state) new-goal)
+;; Changes the treasure position of the active player
+(define (change-active-player-treasure state new-treasure)
+  (define new-players (cons (change-treasure (gamestate-current-player state) new-treasure)
                             (rest (gamestate-players state))))
   (struct-copy gamestate state [players new-players]))
 
@@ -216,33 +260,115 @@
 (define (gamestate-get-by-color state color)
   (findf (lambda (plyr) (equal? color (player-info-color plyr))) (gamestate-players state)))
   
-
 ;; Gamestate -> AvatarColor
 ;; Get the current player's color
 (define (current-player-color gstate)
-  (player-info-color (get-current-player gstate)))
+  (player-info-color (gamestate-current-player gstate)))
 
 ;; Gamestate -> [Listof AvatarColor]
 ;; Get the list of avatar player colors
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
 
-;; Gamestate AvatarColor -> Number
-;; Determine the distance of a player from their objective. If they have not found their treasure,
-;; that is their objective. If they have found their treasure, getting home is their objective.
-(define (euclidean-distance-from-objective state color)
-  (define plyr (gamestate-get-by-color state color))
-  (if (player-info-visited-goal? plyr)
-      (euclidean-dist (player-info-curr-pos plyr) (player-info-home-pos plyr))
-      (euclidean-dist (player-info-curr-pos plyr) (player-info-goal-pos plyr))))
-
 ;; Gamestate -> Boolean
 ;; Has the game ended?
 (define (game-over? state)
   (or
    (empty? (gamestate-players state))
-   (not (empty? (filter (λ (plyr) (player-info-visited-goal-returned-home? plyr))) (gamestate-players state)))))
-   
+   (not (empty? (filter (λ (plyr) (visited-treasure-and-on-home? plyr)) (gamestate-players state))))))
+
+
+;; [Listof Any] -> [Listof Any]
+;; Move an item to the front of the list, if it exists. If more than one of the element
+;; exists, only the first occurrence is moved.
+(define (move-to-front elem lst)
+  (cond
+    [(not (member elem lst)) lst]
+    [else (cons elem (remove elem lst))]))
+
+
+(module+ draw
+  (require 2htdp/image)
+  (require racket/function)
+  (require (submod "tile.rkt" draw))
+  (require (submod "board.rkt" draw))
+
+  (define DEFAULT-TILE-SIZE 100)
+  (define ARM-LENGTH (/ DEFAULT-TILE-SIZE 10))
+
+  (provide
+   (contract-out
+    ;; Draw a referee state
+    [referee-state->image (-> referee-state? natural-number/c image?)]))
+
+  ;; RefereeState [MultipleOf 10] -> Image
+  ;; Draw a referee state
+  (define (referee-state->image state tile-size)
+    (define board-with-players-img (board-and-players->image (gamestate-board state) (gamestate-players state) tile-size))
+    (beside/align "bottom" board-with-players-img (rectangle tile-size 1 "solid" "white") (tile->image (gamestate-extra-tile state) tile-size)))
+
+  ;; Board [Listof RefPlayerInfo] [MultipleOf 10] -> Image
+  ;; Given a board image, adds player avatars, home locations, and goal positions
+  (define (board-and-players->image board player-infos tile-size)
+    (define base-board-img (board->image board tile-size))
+    (foldl (curryr add-player-info-to-board-image tile-size) base-board-img player-infos))
+
+  ;; String -> Number
+  ;; Convert a hexidecimal string to a number
+  (define (hex->number h)
+    (string->number (string-append "#x" h)))
+
+  ;; AvatarColor -> Color
+  ;; Convert a AvatarColor to a usable color
+  (define (usable-player-color color)
+    (if (hex-color-code? color)
+        (make-color (hex->number (substring color 0 2))
+                    (hex->number (substring color 2 4))
+                    (hex->number (substring color 4)))
+        color))
+
+  ;; Image [MultipleOf 10] RefPlayerInfo -> Image
+  (define (add-player-info-to-board-image plyr-info board-img tile-size)
+    (define avatar-size (/ tile-size 5))
+    (define avatar (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info))))
+    (define-values (plyr-y-pos plyr-x-pos) (values (car (player-info-curr-pos plyr-info)) (cdr (player-info-curr-pos plyr-info))))
+    (define avatar-x-pos (- (+ (/ tile-size 2) (* plyr-x-pos tile-size)) avatar-size))
+    (define avatar-y-pos (- (+ (/ tile-size 2) (* plyr-y-pos tile-size)) avatar-size))
+    (define board-img-with-avatar (underlay/xy board-img avatar-x-pos avatar-y-pos avatar))
+
+    (define goal-size (/ tile-size 4))
+    (define goal (star goal-size "solid" (usable-player-color (player-info-color plyr-info))))
+    (define-values (treasure-y-pos treasure-x-pos)
+      (values (car (player-info-treasure-pos plyr-info)) (cdr (player-info-treasure-pos plyr-info))))
+    (define goal-x-pos (- (+ (/ tile-size 2) (* treasure-x-pos tile-size)) avatar-size))
+    (define goal-y-pos (- (+ (/ tile-size 2) (* treasure-y-pos tile-size)) avatar-size))
+    (define board-img-with-goal (underlay/xy board-img-with-avatar goal-x-pos goal-y-pos goal))
+
+    (define home-size (/ tile-size 4))
+    (define home (triangle home-size "solid" (usable-player-color (player-info-color plyr-info))))
+    (define-values (home-y-pos home-x-pos)
+      (values (car (player-info-home-pos plyr-info)) (cdr (player-info-home-pos plyr-info))))
+    (define home-token-x-pos (- (+ (/ tile-size 2) (* home-x-pos tile-size)) avatar-size))
+    (define home-token-y-pos (- (+ (/ tile-size 2) (* home-y-pos tile-size)) avatar-size))
+    (define board-img-with-home (underlay/xy board-img-with-goal home-token-x-pos home-token-y-pos home))
+    board-img-with-home))
+
+(module+ serialize
+  (require json)
+  
+  (require (submod "board.rkt" serialize))
+  (require (submod "tile.rkt" serialize))
+  (require (submod "player-info.rkt" serialize))
+
+  (provide
+   (contract-out
+    [ref-state->hash (-> referee-state? hash?)]))
+
+  (define (ref-state->hash ref-state)
+    (hash 'board (board->hash (gamestate-board ref-state))
+          'spare (tile->hash (gamestate-extra-tile ref-state))
+          'plmt (map referee-player-info->hash (gamestate-players ref-state))
+          'last (shift->json-action (gamestate-prev-shift ref-state)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -254,25 +380,29 @@
   (require (submod "player-info.rkt" examples))
 
   (define player-infos0 (list player-info0 player-info1 player-info2 player-info3 player-info4))
-  ; player-info0 (a) not on goal or home
+  ; player-info0 (a) not on treasure or home
   ; first top left
-  (define gamestate0 (gamestate-new board1 tile-extra player-infos0 #f))
+  (define gamestate0 (gamestate board1 tile-extra player-infos0 #f))
 
   (define player-infos1 (list player-info3 player-info4))
-  ; player-info1 (a) not on goal on home
-  (define gamestate1 (gamestate-new board1 tile-extra player-infos1 #f))
+  ; player-info1 (a) not on treasure on home
+  (define gamestate1 (gamestate board1 tile-extra player-infos1 #f))
   (define player-infos2 (list player-info1 player-info2 player-info3 player-info4))
-  ; on goal not home
-  (define gamestate2 (gamestate-new board1 tile-extra player-infos2 #f))
+  ; on treasure not home
+  (define gamestate2 (gamestate board1 tile-extra player-infos2 #f))
 
   (define player-infos3 (list player-info1 player-info0 player-info5 player-info6 player-info7))
-  (define gamestate3 (gamestate-new board1 tile-extra player-infos3 #f))
+  (define gamestate3 (gamestate board1 tile-extra player-infos3 #f))
 
   (define player-infos4 (list player-info0 player-info1 player-info2 player-info5))
   (define gamestate4 (gamestate board1 tile-extra player-infos4 #f))
 
   (define player-infos5 (list player-info8 player-info5 player-info7))
-  (define gamestate5 (gamestate-new board1 tile-extra player-infos5 #f)))
+  (define gamestate5 (gamestate board1 tile-extra player-infos5 #f))
+
+  (define player-state0 (gamestate board1 tile-extra (list player-info2) (shift-new 'up 0)))
+  (define player-state1 (gamestate board1 tile-extra (list player-info7) (shift-new 'down 4)))
+  (define player-state-nowhere-to-go (gamestate board-nowhere-to-go tile-extra (list player-info3) (shift-new 'right 4))))
   
 
 (module+ test
@@ -280,7 +410,8 @@
   (require (submod ".." examples))
   (require (submod "board.rkt" examples))
   (require (submod "tile.rkt" examples))
-  (require (submod "player-info.rkt" examples)))
+  (require (submod "player-info.rkt" examples))
+  (require (submod ".." serialize)))
 
 ;; test execute-move shifts rows and cols
 (module+ test
@@ -305,36 +436,34 @@
                 tile-extra)
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'down 6) 90)) 0) 6)
-                (tile-new 'straight 270 (set)))
+                (tile-new 'straight 270 (set 'yellow-baguette 'yellow-beryl-oval)))
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'left 0) 180)) 0) 6)
-                (tile-new 'straight 0 (set)))
+                (tile-new 'straight 0 (set 'yellow-baguette 'yellow-beryl-oval)))
   (check-equal? (list-ref
                  (list-ref (gamestate-board (gamestate-shift-and-insert gamestate0 (shift-new 'right 6) 270)) 6)
                  0)
-                (tile-new 'straight 90 (set))))
+                (tile-new 'straight 90 (set 'yellow-baguette 'yellow-beryl-oval))))
 
 ;; test players on a shifted row/col are moved accordingly
 (module+ test
   ; test moving players on moved row
   (check-equal? (shift-players
-                 (gamestate-players gamestate4)
-                 (gamestate-board gamestate4)
+                 gamestate4
                  (shift-new 'right 0))
                 (list
-                 (player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
+                 (ref-player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
                  player-info1
                  player-info2
-                 (player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
+                 (ref-player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
   (check-equal? (shift-players
-                 (gamestate-players gamestate4)
-                 (gamestate-board gamestate4)
+                 gamestate4
                  (shift-new 'left 0))
                 (list
-                 (player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
+                 (ref-player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
                  player-info1
                  player-info2
-                 (player-info-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
+                 (ref-player-info-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
   (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'up 0) 0)) 1)
                (cons 6 0)))
@@ -381,16 +510,16 @@
 ;; test player-can-reach-pos?
 (module+ test
   (check-true (player-can-reach-pos? gamestate0 (cons 1 1)))
-  (check-true (player-can-reach-pos? gamestate0 (cons 5 0)))
-  (check-true (player-can-reach-pos? gamestate0 (cons 1 0)))
+  (check-true (player-can-reach-pos? gamestate0 (cons 1 2)))
+  (check-false (player-can-reach-pos? gamestate0 (cons 1 0)))
   (check-false (player-can-reach-pos? gamestate0 (cons 0 3)))
   (check-false (player-can-reach-pos? gamestate0 (cons 6 6))))
 
-;; test player-on-goal?
+;; test player-on-treasure?
 (module+ test
-  (check-false (player-on-goal? gamestate0))
-  (check-false (player-on-goal? gamestate1))
-  (check-true  (player-on-goal? gamestate2)))
+  (check-false (player-on-treasure? gamestate0))
+  (check-false (player-on-treasure? gamestate1))
+  (check-true  (player-on-treasure? gamestate2)))
 
 ;; test player-on-home?
 (module+ test
@@ -409,9 +538,9 @@
 
 ;; test end-current-turn
 (module+ test
-  (check-equal? (get-current-player (end-current-turn gamestate0)) player-info1)
-  (check-equal? (get-current-player (end-current-turn gamestate1)) player-info4)
-  (check-equal? (get-current-player (end-current-turn gamestate2)) player-info2))
+  (check-equal? (gamestate-current-player (end-current-turn gamestate0)) player-info1)
+  (check-equal? (gamestate-current-player (end-current-turn gamestate1)) player-info4)
+  (check-equal? (gamestate-current-player (end-current-turn gamestate2)) player-info2))
 
 ;; Test player-on-pos
 (module+ test
@@ -420,14 +549,14 @@
 ;; Test player-info-move-to
 (module+ test
   (check-equal? (player-info-move-to player-info0 (cons 3 3))
-                (player-info-new
+                (ref-player-info-new
                  (cons 3 3)
                  (cons 6 6)
                  (cons 5 1)
                  #f
                  "blue"))
   (check-equal? (player-info-move-to player-info0 (cons 6 6))
-                (player-info-new
+                (ref-player-info-new
                  (cons 6 6)
                  (cons 6 6)
                  (cons 5 1)
@@ -435,10 +564,111 @@
                  "blue")))
 
 
-;; Test gamestate->player-state
+;; Test referee-state->player-state
 (module+ test
-  (check-equal? (gamestate->player-state gamestate0 (current-player-color gamestate0))
-                (player-state-new board1 tile-extra player-info0 #f)))
+  (check-equal? (referee-state->player-state gamestate0 (current-player-color gamestate0))
+                (gamestate board1
+                           tile-extra
+                           (list player-info0
+                                 (ref-player-info->pub-player-info player-info1)
+                                 (ref-player-info->pub-player-info player-info2)
+                                 (ref-player-info->pub-player-info player-info3)
+                                 (ref-player-info->pub-player-info player-info4))
+                           #f)))
+; test get-player-color-list
+(module+ test
+  (check-equal? (get-player-color-list gamestate0) (list "blue" "purple" "green" "yellow" "black")))
 
+; test move-to-front
 (module+ test
-  (check-equal? (get-player-color-list gamestate0) (list "blue" "purple" "green" "yellow" "blue")))
+  (check-equal? (move-to-front 1 '(2 3 1 4)) '(1 2 3 4))
+  (check-equal? (move-to-front 1 '(2 3 4)) '(2 3 4))
+  (check-equal? (move-to-front 1 '()) '())
+  (check-equal? (move-to-front 5 '(5 6 7)) '(5 6 7))
+  (check-equal? (move-to-front 7 '(5 6 7)) '(7 5 6))
+  (check-equal? (move-to-front 1 '(5 6 1 8 1 7)) '(1 5 6 8 1 7)))
+
+; test ref-state->hash
+(module+ test
+  (check-equal? (ref-state->hash gamestate0)
+                (hash 'spare (hash 'tilekey "│"
+                                   '1-image "yellow-beryl-oval"
+                                   '2-image "yellow-baguette")
+                      'plmt (list (hash 'color  "blue"
+                                        'current  (hash 'column# 0 'row# 0)
+                                        'goto (hash 'column# 1 'row# 5)
+                                        'home (hash 'column# 6 'row# 6))
+                                  (hash 'color  "purple"
+                                        'current  (hash 'column# 1 'row# 1)
+                                        'goto (hash 'column# 1 'row# 1)
+                                        'home (hash 'column# 5 'row# 5))
+                                  (hash 'color "green"
+                                        'current (hash 'column# 2 'row# 2)
+                                        'goto (hash 'column# 3 'row# 3)
+                                        'home (hash 'column# 4 'row# 4))
+                                  (hash 'color "yellow"
+                                        'current (hash 'column# 3 'row# 3)
+                                        'goto (hash 'column# 3 'row# 1)
+                                        'home (hash 'column# 3 'row# 3))
+                                  (hash 'color "black"
+                                        'current (hash 'column# 4 'row# 4)
+                                        'goto (hash 'column# 5 'row# 5)
+                                        'home (hash 'column# 2 'row# 2)))
+                      'last 'null
+                      'board (hash 'connectors (list (list "─" "┐" "└" "┘" "┌" "┬" "┤")
+                                                     (list "┴" "├" "┼" "│" "─" "┐" "└")
+                                                     (list "┘" "┌" "┬" "┤" "┴" "├" "┼")
+                                                     (list "│" "─" "┐" "└" "┘" "┌" "┬")
+                                                     (list "┤" "┴" "├" "┼" "│" "─" "┐")
+                                                     (list "└" "┘" "┌" "┬" "┤" "┴" "├")
+                                                     (list "┼" "│" "─" "┐" "└" "┘" "┌"))
+                                   'treasures (list (list (list "alexandrite-pear-shape" "alexandrite")
+                                                          (list "amethyst" "almandine-garnet")
+                                                          (list "amethyst" "ametrine")
+                                                          (list "apatite" "ammolite")
+                                                          (list "apricot-square-radiant" "aplite")
+                                                          (list "aquamarine" "australian-marquise")
+                                                          (list "aventurine" "azurite"))
+                                                    (list (list "black-obsidian" "beryl")
+                                                          (list "black-obsidian" "black-onyx")
+                                                          (list "blue-ceylon-sapphire" "black-spinel-cushion")
+                                                          (list "blue-pear-shape" "blue-cushion")
+                                                          (list "bulls-eye" "blue-spinel-heart")
+                                                          (list "carnelian" "chrome-diopside")
+                                                          (list "chrysolite" "chrysoberyl-cushion"))
+                                                    (list (list "citrine" "citrine-checkerboard")
+                                                          (list "color-change-oval" "clinohumite")
+                                                          (list "cordierite" "diamond")
+                                                          (list "emerald" "dumortierite")
+                                                          (list "fancy-spinel-marquise" "garnet")
+                                                          (list "golden-diamond-cut" "goldstone")
+                                                          (list "grandidierite" "gray-agate"))
+                                                    (list (list "green-beryl-antique" "green-aventurine")
+                                                          (list "green-beryl" "green-princess-cut")
+                                                          (list "grossular-garnet" "hackmanite")
+                                                          (list "hematite" "heliotrope")
+                                                          (list "jasper" "iolite-emerald-cut")
+                                                          (list "kunzite-oval" "jaspilite")
+                                                          (list "kunzite" "labradorite"))
+                                                    (list (list "lapis-lazuli" "lemon-quartz-briolette")
+                                                          (list "mexican-opal" "magnesite")
+                                                          (list "morganite-oval" "moonstone")
+                                                          (list "moss-agate" "orange-radiant")
+                                                          (list "padparadscha-oval" "padparadscha-sapphire")
+                                                          (list "peridot" "pink-emerald-cut")
+                                                          (list "pink-opal" "pink-round"))
+                                                    (list (list "prasiolite" "pink-spinel-cushion")
+                                                          (list "prehnite" "purple-cabochon")
+                                                          (list "purple-oval" "purple-spinel-trillion")
+                                                          (list "purple-square-cushion" "raw-beryl")
+                                                          (list "raw-citrine" "red-diamond")
+                                                          (list "red-spinel-square-emerald-cut" "rhodonite")
+                                                          (list "rock-quartz" "rose-quartz"))
+                                                    (list (list "ruby" "ruby-diamond-profile")
+                                                          (list "sphalerite" "spinel")
+                                                          (list "star-cabochon" "stilbite")
+                                                          (list "super-seven" "sunstone")
+                                                          (list "tanzanite-trillion" "tigers-eye")
+                                                          (list "tourmaline" "tourmaline-laser-cut")
+                                                          (list "unakite" "white-square")))))))
+  

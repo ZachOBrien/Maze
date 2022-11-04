@@ -1,0 +1,32 @@
+#! /usr/bin/env racket
+#lang racket
+
+(require json)
+
+(require "../Maze/Common/serialize.rkt")
+(require "../Maze/Common/state.rkt")
+(require "../Maze/Common/board.rkt")
+(require "../Maze/Players/strategy.rkt")
+(require "../Maze/Referee/referee.rkt")
+
+
+;; InputPort -> (values HashTable HashTable)
+;; Reads a board object and coordinate object from STDIN
+(define (read-state-input input-port)
+  (define player-list (read-json input-port))
+  (define ref-state-ht (read-json input-port))
+  (values player-list ref-state-ht))
+
+;; Reads a board and position from STDIN, computes all positions reachable from
+;; the given position, and writes these positions to STDOUT as JSON
+(module+ main
+  (define-values (player-list ref-state-ht) (read-state-input (current-input-port)))
+
+  (define players (map list->player player-list))
+  (define ref-state (hash->referee-state ref-state-ht))
+
+  (define ref (referee-new players ref-state))
+
+  (define-values (winners cheaters) (send ref run-game #f))
+
+  (write-json (map (λ (col) (send ref get-player-name-by-color col)) winners)))

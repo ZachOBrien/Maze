@@ -112,7 +112,7 @@
 ;; interpretation: A direction in which a row or column can be shifted.
 ;;                 Columns may only be shifted up and down. Rows may
 ;;                 only be shifted left and right.
-(define shift-directions (list 'up 'down 'left 'right))
+(define shift-directions (list 'left 'right 'up 'down))
 (define shift-direction? (apply or/c shift-directions))
 
 ;; A Shift is a structure:
@@ -328,6 +328,56 @@
 (define (get-valid-shift-indices board)
   (filter (valid-shift-index? board) (range 0 (num-cols board) 2)))
 
+
+(module+ draw
+  (require 2htdp/image)
+  (require racket/function)
+  (require (submod "tile.rkt" draw))
+
+  (provide
+   (contract-out
+    [board->image (-> board? natural-number/c image?)]))
+
+  ;; Board [MultipleOf 10] -> Image
+  ;; Draw a board
+  (define (board->image board tile-size)
+    (apply above (for/list ([row board])
+                   (apply beside (map (curryr tile->image tile-size) row))))))
+
+(module+ serialize
+  (require json)
+  (require (submod "tile.rkt" serialize))
+
+  (provide
+   (contract-out
+    ; Converts a GridPosn into a HashTable according to spec
+    [gridposn->hash (-> grid-posn? hash?)]
+    ; Converts a Board into a HashTable according to spec
+    [board->hash (-> board? hash?)]
+    ; Convert a shift to a spec-specified Action
+    [shift->json-action (-> (or/c shift? #f) (or/c 'null (cons/c natural-number/c (cons/c string? empty))))]))
+
+  ;; GridPosn -> HashTable
+  ;; Converts a GridPosn into a HashTable according to spec
+  (define (gridposn->hash pos)
+    (hash 'row# (car pos)
+          'column# (cdr pos)))
+
+  ;; Board -> HashTable
+  ;; Converts a Board into a HashTable according to spec
+  (define (board->hash b)
+    (define connectors (map (λ (row) (map get-json-connector row)) b))
+    (define treasures (map (λ (row) (map get-json-gems row)) b))
+    (hash 'connectors connectors
+          'treasures treasures))
+
+  ;; Shift -> [Listof String]
+  ;; Convert a shift to a spec-specified Action
+  (define (shift->json-action shft)
+    (if (false? shft)
+        'null
+        (list (shift-index shft) (symbol->string (shift-direction shft))))))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 
@@ -342,7 +392,7 @@
   (define row5 (list tile50 tile51 tile52 tile53 tile54 tile55 tile56))
   (define row6 (list tile60 tile61 tile62 tile63 tile64 tile65 tile66))
   (define board1 (list row0 row1 row2 row3 row4 row5 row6))
-
+  
   (define row0_2 (list tile00 tile01 tile02))
   (define row1_2 (list tile10 tile11 tile12))
   (define row2_2 (list tile20 tile21 tile22))
@@ -367,11 +417,12 @@
   (define row-horiz (list tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz))
   (define row-one-vert (list tile-horiz tile-horiz tile-horiz tile-vert tile-horiz tile-horiz tile-horiz))
   (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz)))
-  
+
 (module+ test
   (require rackunit)
   (require (submod "tile.rkt" examples))
-  (require (submod ".." examples)))
+  (require (submod ".." examples))
+  (require (submod ".." serialize)))
 
 ;; Test create-random-board
 (module+ test
@@ -596,40 +647,26 @@
 ;; test board-all-reachable-from
 (module+ test
   (check-equal? (board-all-reachable-from board1 (cons 0 2))
-                (list (cons 0 2)))
+                (list (cons 0 2) (cons 0 3)))
   (check-equal? (board-all-reachable-from board1 (cons 0 6))
-                (list (cons 0 6) (cons 1 6)))
+                (list (cons 0 6) (cons 0 5) (cons 1 6) (cons 0 4)))
   (check-equal? (board-all-reachable-from board1 (cons 1 6))
-                (list (cons 1 6) (cons 0 6)))
-  (check-equal? (board-all-reachable-from board1 (cons 1 6))
-                (list (cons 1 6) (cons 0 6)))
+                (list (cons 1 6) (cons 0 6) (cons 0 5) (cons 0 4)))
   (check-equal? (board-all-reachable-from board1 (cons 0 0))
                 (list
                  (cons 0 0)
                  (cons 0 1)
                  (cons 1 1)
-                 (cons 1 0)
-                 (cons 2 1)
-                 (cons 2 0)
-                 (cons 3 0)
-                 (cons 4 0)
-                 (cons 5 0)
-                 (cons 4 1)
-                 (cons 4 2)
-                 (cons 3 2)
-                 (cons 5 2)
-                 (cons 3 1)
-                 (cons 5 1)
-                 (cons 6 1)))
+                 (cons 1 2)))
   (check-equal? (board-all-reachable-from board3 (cons 0 0))
-                (list (cons 0 0) (cons 1 0) (cons 0 1) (cons 1 1))))
+                (list (cons 0 0))))
          
 
 ;; test board-adjacent-connected?
 (module+ test
   (check-true (board-adjacent-connected? board1 (cons 0 0) (cons 0 1)))
   (check-false (board-adjacent-connected? board1 (cons 0 0) (cons 1 0)))
-  (check-true (board-adjacent-connected? board1 (cons 6 6) (cons 5 6)))
+  (check-false (board-adjacent-connected? board1 (cons 6 6) (cons 5 6)))
   (check-false (board-adjacent-connected? board1 (cons 6 0) (cons 6 0))))
 
 ;; test board-get-at
@@ -667,3 +704,65 @@
   (check-false (shift-undoes-shift? (shift-new 'right 2) #f))
   (check-false (shift-undoes-shift? #f (shift-new 'up 3)))
   (check-false (shift-undoes-shift? #f #f)))
+
+;; test board->hash
+(module+ test
+  (check-equal? (board->hash board1)
+                (hash 'connectors
+                      (list (list "─" "┐" "└" "┘" "┌" "┬" "┤")
+                            (list "┴" "├" "┼" "│" "─" "┐" "└")
+                            (list "┘" "┌" "┬" "┤" "┴" "├" "┼")
+                            (list "│" "─" "┐" "└" "┘" "┌" "┬")
+                            (list "┤" "┴" "├" "┼" "│" "─" "┐")
+                            (list "└" "┘" "┌" "┬" "┤" "┴" "├")
+                            (list "┼" "│" "─" "┐" "└" "┘" "┌"))
+                      'treasures
+                      (list (list (list "alexandrite-pear-shape" "alexandrite")
+                                  (list "amethyst" "almandine-garnet")
+                                  (list "amethyst" "ametrine")
+                                  (list "apatite" "ammolite")
+                                  (list "apricot-square-radiant" "aplite")
+                                  (list "aquamarine" "australian-marquise")
+                                  (list "aventurine" "azurite"))
+                            (list (list "black-obsidian" "beryl")
+                                  (list "black-obsidian" "black-onyx")
+                                  (list "blue-ceylon-sapphire" "black-spinel-cushion")
+                                  (list "blue-pear-shape" "blue-cushion")
+                                  (list "bulls-eye" "blue-spinel-heart")
+                                  (list "carnelian" "chrome-diopside")
+                                  (list "chrysolite" "chrysoberyl-cushion"))
+                            (list (list "citrine" "citrine-checkerboard")
+                                  (list "color-change-oval" "clinohumite")
+                                  (list "cordierite" "diamond")
+                                  (list "emerald" "dumortierite")
+                                  (list "fancy-spinel-marquise" "garnet")
+                                  (list "golden-diamond-cut" "goldstone")
+                                  (list "grandidierite" "gray-agate"))
+                            (list (list "green-beryl-antique" "green-aventurine")
+                                  (list "green-beryl" "green-princess-cut")
+                                  (list "grossular-garnet" "hackmanite")
+                                  (list "hematite" "heliotrope")
+                                  (list "jasper" "iolite-emerald-cut")
+                                  (list "kunzite-oval" "jaspilite")
+                                  (list "kunzite" "labradorite"))
+                            (list (list "lapis-lazuli" "lemon-quartz-briolette")
+                                  (list "mexican-opal" "magnesite")
+                                  (list "morganite-oval" "moonstone")
+                                  (list "moss-agate" "orange-radiant")
+                                  (list "padparadscha-oval" "padparadscha-sapphire")
+                                  (list "peridot" "pink-emerald-cut")
+                                  (list "pink-opal" "pink-round"))
+                            (list (list "prasiolite" "pink-spinel-cushion")
+                                  (list "prehnite" "purple-cabochon")
+                                  (list "purple-oval" "purple-spinel-trillion")
+                                  (list "purple-square-cushion" "raw-beryl")
+                                  (list "raw-citrine" "red-diamond")
+                                  (list "red-spinel-square-emerald-cut" "rhodonite")
+                                  (list "rock-quartz" "rose-quartz"))
+                            (list (list "ruby" "ruby-diamond-profile")
+                                  (list "sphalerite" "spinel")
+                                  (list "star-cabochon" "stilbite")
+                                  (list "super-seven" "sunstone")
+                                  (list "tanzanite-trillion" "tigers-eye")
+                                  (list "tourmaline" "tourmaline-laser-cut")
+                                  (list "unakite" "white-square"))))))
