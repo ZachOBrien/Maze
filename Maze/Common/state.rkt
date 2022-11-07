@@ -60,7 +60,7 @@
   ; Get a PlayerInfo by color
   [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
   ; Has the game ended?
-  [game-over? (-> gamestate? boolean?)]))
+  [game-over? (-> referee-state? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES

@@ -84,7 +84,7 @@
                                                   (referee-state->player-state state0 color)
                                                   (player-info-treasure-pos (gamestate-get-by-color state0 color))))))))))
 
-;; RefereeState HashTable Natural -> [Listof RefereeState]
+;; RefereeState HashTable Natural [Listof RefereeState] -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
 ;; gamestate when the game has ended. Accumulates the states after each player move
 ;; in reverse order
