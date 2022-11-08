@@ -59,14 +59,13 @@
     ;; AvatarColor -> String
     ;; Get a players name by their avatar color
     (define/public (get-player-name-by-color color)
-     (hash-ref player-names color))
+      (execute-safe (thunk (send (hash-ref players color) name))))
 
     ;; Boolean -> [Listof AvatarColor] [Listof AvatarColor]
     ;; Runs a game from start to finish, 
     (define/public (run-game observer?)
       (begin
-;        (define-values (player-names state-after-names) (get-player-names players state0))
-        (define state-after-setup (setup-all-players players state-after-names))
+        (define state-after-setup (setup-all-players players state0))
         (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
         (define final-state (first intermediate-states))
         (define winners (determine-winners final-state))
@@ -75,23 +74,7 @@
         (if observer? (run-observer (reverse intermediate-states)) #f)
         (values winners criminals)))))
 
-;; HashTable Gamestate -> HashTable Gamestate
-;; Make the hash table of player names
-(define (get-player-names players state0)
-  (define-values (color-name-mapping state) (for/fold ([colors-to-names '()]
-                                                       [state state0])
-                                                      ([color (hash-keys players)])
-                                              (get-player-name color players state)))
-  (values (hash color-name-mapping) state))
-
-;; AvatarColor HashTable Gamestate -> String Gamestate
-;; Make a call to a player to get their name, kick player if they misbehave
-(define (get-player-name color players state)
-  (define resp (execute-safe (thunk (send (hash-ref players color) name))))
-  (if (equal? resp 'misbehaved)
-      (values "" (remove-player-by-color state color))
-      (values resp state)))
-
+   
 ;; [HashTable Color : Player] Gamestate -> Gamestate
 ;; Update each player with the initial board and their treasure position. The gamestate returned
 ;; is the same as the original gamestate, but with any misbehaving players kicked
