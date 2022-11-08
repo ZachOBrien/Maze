@@ -41,16 +41,36 @@
     (define players (make-hash (for/list ([p init-players]
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
-    (define state-after-setup (setup-all-players players state0))
+    (define-values (state-after-names color-names-pairs) (get-color-names players state0))
+    (define color-names (make-hash color-names-pairs))
+    (define state-after-setup (setup-all-players players state-after-names))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
     (define final-state (first intermediate-states))
     (define winners (determine-winners final-state))
     (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                               (get-player-color-list state0)))
     (if observer? (run-observer (reverse intermediate-states)) #f)
-    (values winners criminals)))
+    (values winners criminals color-names)))
 
-;; [HashTable Color : Player] Gamestate -> Gamestate
+;; [HashTable AvatarColor : Player] RefereeState -> [HashTable AvatarColor : String]
+;; Makes the hash table of all colors and players
+(define (get-color-names players start-state)
+  (for/fold ([state start-state]
+             [color-names '()])
+            ([color (hash-keys players)])
+    (let-values ([(new-state name) (send-get-name-to-player state (hash-ref players color) color)])
+      (values new-state (cons (cons color name) color-names)))))
+
+;; RefereeState Player AvatarColor -> Gamestate String
+;; Get a player name
+(define (send-get-name-to-player state plyr color)
+  (define result (execute-safe (thunk (send plyr name))))
+  (match result
+    ['misbehaved (values (remove-player-by-color state color) "")]
+    [_ (values state result)]))
+  
+
+;; [HashTable AvatarColor : Player] Gamestate -> Gamestate
 ;; Update each player with the initial board and their treasure position. The gamestate returned
 ;; is the same as the original gamestate, but with any misbehaving players kicked
 (define (setup-all-players players state0)
@@ -63,12 +83,11 @@
 ;; Sends a gamestate to the player, and returns the same gamestate either with that player
 ;; or, if they don't behave properly, without the player
 (define (send-setup-to-player state plyr color)
-  (define result (execute-safe (thunk (send plyr setup
-                                            (referee-state->player-state state color)
-                                            (player-info-treasure-pos (gamestate-get-by-color state color))))))
-  (if (equal? result 'misbehaved)
-      (remove-player-by-color state color)
-      state))
+  (match (execute-safe (thunk (send plyr setup
+                                    (referee-state->player-state state color)
+                                    (player-info-treasure-pos (gamestate-get-by-color state color)))))
+    ['misbehaved (remove-player-by-color state color)]
+    [_ state]))
 
 ;; RefereeState HashTable Natural -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
@@ -186,21 +205,21 @@
   (test-case
    "Run a game of Maze"
    (let-values
-       ([(winners criminals)
+       ([(winners criminals color-names)
          (run-game (list player0 player1 player2) gamestate5 #f)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
   (test-case
    "Run a game of Maze gs4"
    (let-values
-       ([(winners criminals)
+       ([(winners criminals color-names)
          (run-game (list player0 player1 player2 player3) gamestate4 #f)])
      (check-equal? empty criminals)
      (check-equal? (list "green") winners)))
   (test-case
    "Run a game of Maze gs5"
    (let-values
-       ([(winners criminals)
+       ([(winners criminals color-names)
          (run-game (list player0 player1) gamestate1 #f)])
      (check-equal? empty criminals)
      (check-equal? (list "yellow") winners))))
