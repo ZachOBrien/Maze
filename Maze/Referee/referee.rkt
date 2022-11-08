@@ -8,9 +8,7 @@
 
 (provide
  (contract-out
-  [referee? contract?]
-  ; Create a new Referee
-  [referee-new (-> (listof player?) referee-state? referee?)]))
+  [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?)))]))
      
 
 ;; --------------------------------------------------------------------
@@ -36,45 +34,22 @@
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
 
-;; [Listof Player] RefereeState -> Referee
-;; Create a new Referee
-(define (referee-new player-list state)
-  (new referee% [init-player-list player-list] [init-state state]))
+;; [Listof Player] RefereState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
+;; Runs a game of Labrynth, finding winners and cheaters
+(define (run-game init-players state0 observer?)
+  (begin
+    (define players (make-hash (for/list ([p init-players]
+                                          [c (get-player-color-list state0)])
+                                 (cons c p))))
+    (define state-after-setup (setup-all-players players state0))
+    (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
+    (define final-state (first intermediate-states))
+    (define winners (determine-winners final-state))
+    (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
+                              (get-player-color-list state0)))
+    (if observer? (run-observer (reverse intermediate-states)) #f)
+    (values winners criminals)))
 
-
-(define/contract referee%
-  (class/c
-   [run-game (->m boolean? (values (listof avatar-color?) (listof avatar-color?)))])
-  (class object%
-    (init init-player-list init-state)
-    
-    (define state0 init-state)
-    (define players (make-hash
-                     (for/list ([p init-player-list]
-                                [c (get-player-color-list state0)])
-                       (cons c p))))
-
-    (super-new)
-
-    ;; AvatarColor -> String
-    ;; Get a players name by their avatar color
-    (define/public (get-player-name-by-color color)
-      (execute-safe (thunk (send (hash-ref players color) name))))
-
-    ;; Boolean -> [Listof AvatarColor] [Listof AvatarColor]
-    ;; Runs a game from start to finish, 
-    (define/public (run-game observer?)
-      (begin
-        (define state-after-setup (setup-all-players players state0))
-        (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
-        (define final-state (first intermediate-states))
-        (define winners (determine-winners final-state))
-        (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
-                                  (get-player-color-list state0)))
-        (if observer? (run-observer (reverse intermediate-states)) #f)
-        (values winners criminals)))))
-
-   
 ;; [HashTable Color : Player] Gamestate -> Gamestate
 ;; Update each player with the initial board and their treasure position. The gamestate returned
 ;; is the same as the original gamestate, but with any misbehaving players kicked
@@ -164,12 +139,6 @@
                              (all-min-distance players-that-visited-treasure))))
 
 
-;; -> (Any -> Boolean)
-;; Creates a contract for instances of referee
-(define referee?
-  (is-a?/c referee%))
-
-
 ;; [Listof Player] -> [Listof Player]
 ;; Get all players which are minimum distance from their objective
 (define (all-min-distance players)
@@ -211,37 +180,28 @@
 (module+ examples
   (require (submod "../Common/state.rkt" examples))
   (require (submod "../Players/player.rkt" examples))
-  (require (submod "../Common/player-info.rkt" examples))
-  (define example-referee0 (new referee%
-                                [init-player-list (list player0 player1 player2)]
-                                [init-state gamestate5]))
-  (define example-referee1 (new referee%
-                                [init-player-list (list player0 player1 player2 player3)]
-                                [init-state gamestate4]))
-  (define example-referee2 (new referee%
-                                [init-player-list (list player0 player1)]
-                                [init-state gamestate1])))
+  (require (submod "../Common/player-info.rkt" examples)))
 
 (module+ test
   (test-case
    "Run a game of Maze"
-   #;(let-values
+   (let-values
        ([(winners criminals)
-         (send example-referee0 run-game #f)])
+         (run-game (list player0 player1 player2) gamestate5 #f)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
   (test-case
    "Run a game of Maze gs4"
    (let-values
        ([(winners criminals)
-         (send example-referee1 run-game #f)])
+         (run-game (list player0 player1 player2 player3) gamestate4 #f)])
      (check-equal? empty criminals)
      (check-equal? (list "green") winners)))
   (test-case
    "Run a game of Maze gs5"
    (let-values
        ([(winners criminals)
-         (send example-referee2 run-game #f)])
+         (run-game (list player0 player1) gamestate1 #f)])
      (check-equal? empty criminals)
      (check-equal? (list "yellow") winners))))
 
