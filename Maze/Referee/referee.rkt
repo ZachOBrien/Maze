@@ -32,8 +32,8 @@
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
 
-(define DEFAULT-BOARD-SIZE 7)
-(define MAX-ROUNDS 1000)
+(define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
+(define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
 
 ;; [Listof Player] RefereeState -> Referee
@@ -65,51 +65,64 @@
     ;; Runs a game from start to finish, 
     (define/public (run-game observer?)
       (begin
-        (send-setup)
-        (define intermediate-states (play-until-completion state0 players MAX-ROUNDS (list state0)))
+        (define state-after-setup (setup-all-players players state0))
+        (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
         (define final-state (first intermediate-states))
         (define winners (determine-winners final-state))
         (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                                   (get-player-color-list state0)))
         (if observer? (run-observer (reverse intermediate-states)) #f)
-        (values winners criminals)))
+        (values winners criminals)))))
 
    
-    ;; Void -> Void
-    ;; Update each player with the initial board and their treasure position
-    (define (send-setup)
-      (hash-for-each players
-                     (lambda (color plyr)
-                       (execute-safe (thunk (send plyr setup
-                                                  (referee-state->player-state state0 color)
-                                                  (player-info-treasure-pos (gamestate-get-by-color state0 color))))))))))
+;; [HashTable Color : Player] Gamestate -> Gamestate
+;; Update each player with the initial board and their treasure position. The gamestate returned
+;; is the same as the original gamestate, but with any misbehaving players kicked
+(define (setup-all-players players state0)
+  (for/fold ([state state0])
+            ([color (hash-keys players)])
+    (send-setup-to-player state (hash-ref players color) color)))
 
-;; RefereeState HashTable Natural [Listof RefereeState] -> [Listof RefereeState]
+
+;; Gamestate Player AvatarColor -> Gamestate
+;; Sends a gamestate to the player, and returns the same gamestate either with that player
+;; or, if they don't behave properly, without the player
+(define (send-setup-to-player state plyr color)
+  (define result (execute-safe (thunk (send plyr setup
+                                            (referee-state->player-state state color)
+                                            (player-info-treasure-pos (gamestate-get-by-color state color))))))
+  (if (equal? result 'misbehaved)
+      (remove-player-by-color state color)
+      state))
+
+;; RefereeState HashTable Natural -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
 ;; gamestate when the game has ended. Accumulates the states after each player move
 ;; in reverse order
-(define (play-until-completion state players rounds-remaining prev-states)
+(define (play-until-completion state players rounds-remaining)
+  (play-until-completion-help (list state) players rounds-remaining))
+         
+;; [NonEmptyListof RefereeState] HashTable Natural -> [Listof RefereeState]
+;; Plays at most `rounds-remaining` rounds of Maze, and returns a list of
+;; all intermediate gamestates once the game is over
+(define (play-until-completion-help prev-states players rounds-remaining)
   (cond
     [(<= rounds-remaining 0) prev-states]
-    [else (play-until-completion-help state players rounds-remaining prev-states)]))
-         
-;; RefereeState HashTable Natural -> [Listof RefereeState]
-;; Plays at most `rounds-remaining` rounds of Maze, and returns the
-;; gamestate when the game has ended
-(define (play-until-completion-help state players rounds-remaining prev-states)
-  (define player-colors (get-player-color-list state))
-  (define-values (states-after-round plyrs-passed-turn) (run-round state players player-colors '() '()))
-  (define all-players-passed (equal? player-colors plyrs-passed-turn))
-  (cond
-    [(or (game-over? (first states-after-round)) all-players-passed) (append states-after-round prev-states)]
-    [else (play-until-completion (first states-after-round) players (sub1 rounds-remaining) (append states-after-round prev-states))]))
+    [else (let*-values ([(curr-state) (first prev-states)]
+                        [(player-colors) (get-player-color-list curr-state)]
+                        [(states-after-round plyrs-passed-turn) (run-round curr-state players player-colors)]
+                        [(new-states) (append states-after-round prev-states)]
+                        [(new-player-colors) (get-player-color-list (first new-states))]
+                        [(all-players-passed) (equal? new-player-colors plyrs-passed-turn)])
+            (cond
+              [(or (game-over? (first states-after-round)) all-players-passed) new-states]
+              [else (play-until-completion-help new-states players (sub1 rounds-remaining))]))]))
 
 
-;; [Listof AvatarColor] HashTable [Listof AvatarColor] [Listof AvatarColor] ->
-;;                                           (values [Listof RefereeState] [Listof AvatarColor])
+;; RefereeState HashTable [Listof AvatarColor] [Listof AvatarColor] [Listof RefereeState] -> (values [Listof RefereeState] [Listof AvatarColor])
 ;; Run a round of the game, end the round early if the game is over. Accumulates states after
 ;; each move in reverse order.
-(define (run-round state players player-colors passed-plyrs intermediate-states)
+(define (run-round state players player-colors [passed-plyrs '()] [intermediate-states '()])
   (cond [(empty? player-colors) (values intermediate-states passed-plyrs)]
         [else (let*-values ([(passed-turn next-state)
                             (execute-turn state

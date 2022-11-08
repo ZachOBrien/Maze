@@ -45,6 +45,8 @@
   [player-on-home? (-> gamestate? boolean?)]
   ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
+  ; Remove a player from the game
+  [remove-player-by-color (-> gamestate? avatar-color? gamestate?)]
   ; Get the current player's color
   [current-player-color (-> gamestate? avatar-color?)]
   ; End the current player's turn and switch to the next player's turn
@@ -221,6 +223,14 @@
 (define (remove-player state)
   (struct-copy gamestate state
                [players (rest (gamestate-players state))]))
+
+
+;; Gamestate AvatarColor -> Gamestate
+;; Remove the player with the given color from the game
+(define (remove-player-by-color state color)
+  (struct-copy gamestate state
+               [players (filter (λ (plyr) (not (equal? (player-info-color plyr) color)))
+                                (gamestate-players state))]))
 
 
 ;; Gamestate -> Gamestate
@@ -535,6 +545,13 @@
                 (list player-info4))
   (check-equal? (gamestate-players (remove-player gamestate2))
                 (list player-info2 player-info3 player-info4)))
+
+;; test remove-player-by-color`
+(module+ test
+  (check-equal? (gamestate-players (remove-player-by-color gamestate0 "blue"))
+                (list player-info1 player-info2 player-info3 player-info4))
+  (check-equal? (gamestate-players (remove-player-by-color gamestate0 "purple"))
+                (list player-info0 player-info2 player-info3 player-info4)))
 
 ;; test end-current-turn
 (module+ test
