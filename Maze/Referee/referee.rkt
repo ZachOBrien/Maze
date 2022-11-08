@@ -41,7 +41,7 @@
     (define players (make-hash (for/list ([p init-players]
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
-    (define-values (state-after-setup ac) (setup-all-players players state0))
+    (define state-after-setup (setup-all-players players state0))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
     (define final-state (first intermediate-states))
     (define winners (determine-winners final-state))
@@ -50,36 +50,25 @@
     (if observer? (run-observer (reverse intermediate-states)) #f)
     (values winners criminals)))
 
-;; [Listof (AvatarColor . Player) RefereeState (-> Player Color RefereeState (values RefereeState Any))
-;;    -> RefereeState [Listof Any]
-(define (safe-apply-to-all player-colors start-state to-be-applied)
-  (for/fold ([state start-state]
-             [acc   '()])
-            ([player-color player-colors])
-    (let-values ([(next-state result) (to-be-applied (cdr player-color)
-                                                (car player-color)
-                                                state)])
-      (writeln result)
-      (values next-state (cons result acc)))))
-
-
-;; [HashTable Color : Player] Gamestate -> Gamestate Any
+;; [HashTable Color : Player] Gamestate -> Gamestate
 ;; Update each player with the initial board and their treasure position. The gamestate returned
 ;; is the same as the original gamestate, but with any misbehaving players kicked
 (define (setup-all-players players state0)
-  (define colors (get-player-color-list state0))
-  (define colors-and-players (for/list ([col colors]) (cons col (hash-ref players col))))
-  (safe-apply-to-all colors-and-players state0 safe-setup-call))
-  
+  (for/fold ([state state0])
+            ([color (hash-keys players)])
+    (send-setup-to-player state (hash-ref players color) color)))
 
-;; Player Color RefereeState -> (values RefereeState Any)
-;; Send setup message to the given player, kicking the player from the state if they misbehave
-(define (safe-setup-call plyr color state)
-  (match (execute-safe (thunk (send plyr setup
+
+;; Gamestate Player AvatarColor -> Gamestate
+;; Sends a gamestate to the player, and returns the same gamestate either with that player
+;; or, if they don't behave properly, without the player
+(define (send-setup-to-player state plyr color)
+  (define result (execute-safe (thunk (send plyr setup
                                             (referee-state->player-state state color)
-                                            (player-info-treasure-pos (gamestate-get-by-color state color)))))
-    ['misbehaved (values (remove-player-by-color state color) #f)]
-    [else (values state #f)]))
+                                            (player-info-treasure-pos (gamestate-get-by-color state color))))))
+  (if (equal? result 'misbehaved)
+      (remove-player-by-color state color)
+      state))
 
 ;; RefereeState HashTable Natural -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
