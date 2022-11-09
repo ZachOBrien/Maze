@@ -31,6 +31,8 @@
   [player-state-new (-> board? tile? player-state-player-infos? (or/c #f shift?) player-state?)]
   ; Create a new referee state
   [referee-state-new (-> board? tile? (listof ref-player-info?) (or/c #f shift?) referee-state?)]
+  ; Execute a move
+  [gamestate-execute-move (-> gamestate? move? gamestate?)]
   ; Shifts a row or column and inserts a tile in the empty space
   [gamestate-shift-and-insert (-> gamestate? shift? orientation? gamestate?)]
   ; Move players that were on a row or column that was shifted
@@ -126,6 +128,16 @@
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
+
+
+;; Gamestate Move -> Gamestate
+;; Execute a move
+(define (gamestate-execute-move state mv)
+  (gamestate-move-player
+   (gamestate-shift-and-insert state
+                               (move-shift mv)
+                               (move-orientation mv))
+   (move-pos mv)))
 
 
 ;; Gamestate Shift Orientation -> Gamestate

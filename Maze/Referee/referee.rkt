@@ -103,12 +103,7 @@
   (cond
     [(false? mv) (values #t (end-current-turn state))]
     [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
-    [else 
-     (values #f (end-current-turn (gamestate-move-player
-                                   (gamestate-shift-and-insert state
-                                                               (move-shift mv)
-                                                               (move-orientation mv))
-                                   (move-pos mv))))]))
+    [else (values #f (end-current-turn (gamestate-execute-move state mv)))]))
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
@@ -326,6 +321,21 @@
    (let ([state-after-setup (send-setup-to-player gamestate0 player-bad-setup "blue")])
      (check-equal? state-after-setup (remove-player gamestate0)))))
 
+;; Test having players take their turn
+(module+ test
+  (test-case
+   "A well-behaved player chooses an action"
+   (let-values
+       ([(passed-turn? state-after-turn)
+         (execute-turn gamestate0 player0 "blue")])
+     (check-equal? passed-turn? #f)))
+  (test-case
+   "A misbehaved player chooses an action"
+   (let-values
+       ([(passed-turn? state-after-turn)
+         (execute-turn gamestate0 player-bad-taketurn "blue")])
+     (check-equal? passed-turn? #f)
+     (check-equal? state-after-turn (remove-player gamestate0)))))
 
 ;; Test informing players they won
 (module+ test
