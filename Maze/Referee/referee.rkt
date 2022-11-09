@@ -34,60 +34,24 @@
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
 
-;; [Listof Player] RefereState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
+;; [Listof Player] RefereeState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
 ;; Runs a game of Labrynth, finding winners and cheaters
 (define (run-game init-players state0 observer?)
   (begin
     (define players (make-hash (for/list ([p init-players]
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
-    (define-values (state-after-names color-names-pairs) (get-color-names players state0))
-    (define color-names (make-hash color-names-pairs))
-    (define state-after-setup (setup-all-players players state-after-names))
+    (define-values (state-after-getting-names color-names) (get-color-names players state0))
+    (define state-after-setup (setup-all-players players state-after-getting-names))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
-    (define final-state (first intermediate-states))
+    (define game-over-state (first intermediate-states))
+    (define final-state (notify-winners-and-losers game-over-state players))
     (define winners (determine-winners final-state))
     (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                               (get-player-color-list state0)))
     (if observer? (run-observer (reverse intermediate-states)) #f)
     (values winners criminals color-names)))
 
-;; [HashTable AvatarColor : Player] RefereeState -> [HashTable AvatarColor : String]
-;; Makes the hash table of all colors and players
-(define (get-color-names players start-state)
-  (for/fold ([state start-state]
-             [color-names '()])
-            ([color (hash-keys players)])
-    (let-values ([(new-state name) (send-get-name-to-player state (hash-ref players color) color)])
-      (values new-state (cons (cons color name) color-names)))))
-
-;; RefereeState Player AvatarColor -> Gamestate String
-;; Get a player name
-(define (send-get-name-to-player state plyr color)
-  (define result (execute-safe (thunk (send plyr name))))
-  (match result
-    ['misbehaved (values (remove-player-by-color state color) "")]
-    [_ (values state result)]))
-  
-
-;; [HashTable AvatarColor : Player] Gamestate -> Gamestate
-;; Update each player with the initial board and their treasure position. The gamestate returned
-;; is the same as the original gamestate, but with any misbehaving players kicked
-(define (setup-all-players players state0)
-  (for/fold ([state state0])
-            ([color (hash-keys players)])
-    (send-setup-to-player state (hash-ref players color) color)))
-
-
-;; Gamestate Player AvatarColor -> Gamestate
-;; Sends a gamestate to the player, and returns the same gamestate either with that player
-;; or, if they don't behave properly, without the player
-(define (send-setup-to-player state plyr color)
-  (match (execute-safe (thunk (send plyr setup
-                                    (referee-state->player-state state color)
-                                    (player-info-treasure-pos (gamestate-get-by-color state color)))))
-    ['misbehaved (remove-player-by-color state color)]
-    [_ state]))
 
 ;; RefereeState HashTable Natural -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
@@ -132,7 +96,7 @@
                                    (cons next-state intermediate-states))]))]))
 
 
-;; RefereeState HashTable AvatarColor -> Boolean RefereeState
+;; RefereeState [Hash Color:Player] AvatarColor -> Boolean RefereeState
 ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
 (define (execute-turn state player color)
   (define mv (safe-get-action player (referee-state->player-state state color)))
@@ -145,7 +109,6 @@
                                                                (move-shift mv)
                                                                (move-orientation mv))
                                    (move-pos mv))))]))
-
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
@@ -166,6 +129,87 @@
   (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))
 
 
+;; ===== SAFELY GETTING NAMES =====
+
+;; [HashTable AvatarColor : Player] RefereeState -> (values RefereeState [HashTable AvatarColor : String])
+;; Asks each player for their name to construct a hash table mapping colors to player names
+(define (get-color-names players start-state)
+  (define-values (final-state final-color-names)
+    (for/fold ([state start-state]
+               [color-names '()])
+              ([color (hash-keys players)])
+      (let-values ([(new-state name) (send-get-name-to-player state (hash-ref players color) color)])
+        (values new-state (cons (cons color name) color-names)))))
+  (values final-state (make-hash final-color-names)))
+
+;; RefereeState Player AvatarColor -> Gamestate String
+;; Get a player name
+(define (send-get-name-to-player state plyr color)
+  (define result (execute-safe (thunk (send plyr name))))
+  (match result
+    ['misbehaved (values (remove-player-by-color state color) "")]
+    [_ (values state result)]))
+  
+;; ==================================
+
+
+;; ===== SAFELEY SENDING SETUP =====
+
+;; [HashTable AvatarColor : Player] Gamestate -> Gamestate
+;; Update each player with the initial board and their treasure position. The gamestate returned
+;; is the same as the original gamestate, but with any misbehaving players kicked
+(define (setup-all-players players state0)
+  (for/fold ([state state0])
+            ([color (hash-keys players)])
+    (send-setup-to-player state (hash-ref players color) color)))
+
+
+;; Gamestate Player AvatarColor -> Gamestate
+;; Sends a gamestate to the player, and returns the same gamestate either with that player
+;; or, if they don't behave properly, without the player
+(define (send-setup-to-player state plyr color)
+  (match (execute-safe (thunk (send plyr setup
+                                    (referee-state->player-state state color)
+                                    (player-info-treasure-pos (gamestate-get-by-color state color)))))
+    ['misbehaved (remove-player-by-color state color)]
+    [_ state]))
+
+;; ==================================
+
+;; ===== SAFELY NOTIFYING WINNERS AND LOSERS =====
+
+;; RefereeState [Hash Color:Player] -> RefereeState
+;; Attempt to notify players that they have won. If all winners for a given state are kicked as a result
+;; of bad calls to `win`, then new winners are chosen out of the remaining players and the process repeats.
+(define (notify-winners-and-losers final-state players)
+  (define winners (determine-winners final-state))
+  (define state-after-notifying-winners (notify-outcome #t winners players final-state))
+  (cond
+    [(disjoint? winners (get-player-color-list state-after-notifying-winners))
+     (notify-winners-and-losers state-after-notifying-winners players)]
+    [else (let ([losers (filter (λ (color) (not (member color winners))) (get-player-color-list final-state))])
+            (notify-outcome #f losers players state-after-notifying-winners))]))
+
+
+;; Boolean [Listof AvatarColor] [Hash Color:Player] RefereeState -> RefereeState
+;; Notify a set of players whether they have won or lost the game
+(define (notify-outcome won? colors players final-state)
+  (for/fold ([state final-state])
+            ([color colors])
+    (safe-send-outcome state (hash-ref players color) color won?)))
+
+
+;; Gamestate Player AvatarColor Boolean -> Gamestate
+;; Notifies a player whether they won or lost, and returns the same gamestate either with that player
+;; or, if they don't behave properly, without the player
+(define (safe-send-outcome state plyr color won?)
+  (match (execute-safe (thunk (send plyr won won?)))
+    ['misbehaved (remove-player-by-color state color)]
+    [_ state]))
+
+;; ==================================
+
+
 ;; Player -> (U Action 'misbehaved)
 ;; Get a player's action. The Player may misbehave, and the following behaviors are handled:
 ;;    1. The call to the Player's take-turn method raises an exception
@@ -179,6 +223,13 @@
 (define (execute-safe thnk [time-limit-sec 4])
   (with-handlers ([exn:fail? (λ (exn) 'misbehaved)])
     (call-with-limits time-limit-sec #f thnk)))
+
+
+;; [Listof Any] [Listof Any] -> Boolean
+;; Returns true if no elements from the first list are present in the second list,
+;; and vice versa
+(define (disjoint? l1 l2)
+  (set-empty? (set-intersect (list->set l1) (list->set l2))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -200,6 +251,9 @@
   (require (submod "../Common/state.rkt" examples))
   (require (submod "../Players/player.rkt" examples))
   (require (submod "../Common/player-info.rkt" examples)))
+
+;; ==========================================
+;; TOP LEVEL TESTS - FOR RUNNING ENTIRE GAMES
 
 (module+ test
   (test-case
@@ -225,6 +279,9 @@
      (check-equal? (list "yellow") winners))))
 
 
+;; ==========================================
+;; Tests for helpers
+
 (module+ test
   (check-equal? (determine-winners gamestate5) '("red"))
   (check-equal? (determine-winners gamestate4) '("purple"))
@@ -235,3 +292,48 @@
   (check-equal? (execute-safe (thunk (error 'hi))) 'misbehaved)
   (check-equal? (execute-safe (thunk (sleep 2)) 1) 'misbehaved)
   (check-equal? (execute-safe (thunk 2)) 2))
+
+
+;; ==========================================
+;; Tests for properly handling bad players
+
+;; Test getting players' names
+(module+ test
+  (test-case
+   "A well-behaved player gives their name"
+   (let-values
+       ([(state-after-getting-name name)
+         (send-get-name-to-player gamestate0 player0 "blue")])
+     (check-equal? state-after-getting-name gamestate0)
+     (check-equal? name "bob")))
+  (test-case
+   "A misbehaving player fails to give their name"
+      (let-values
+       ([(state-after-getting-name name)
+         (send-get-name-to-player gamestate0 player-bad-name "blue")])
+     (check-equal? state-after-getting-name (remove-player gamestate0))
+     (check-equal? name ""))))
+
+
+;; Test sending players the initial state (calling `setup`)
+(module+ test
+  (test-case
+   "A well-behaved player handles setup"
+   (let ([state-after-setup (send-setup-to-player gamestate0 player0 "blue")])
+     (check-equal? state-after-setup gamestate0)))
+  (test-case
+   "A misbehaved player fails to handle setup"
+   (let ([state-after-setup (send-setup-to-player gamestate0 player-bad-setup "blue")])
+     (check-equal? state-after-setup (remove-player gamestate0)))))
+
+
+;; Test informing players they won
+(module+ test
+  (test-case
+   "A well-behaved player handles learning they won"
+   (let ([state-after-inform-outcome (safe-send-outcome gamestate0 player0 "blue" #t)])
+     (check-equal? state-after-inform-outcome gamestate0)))
+  (test-case
+   "A misbehaved player fails to handle setup"
+   (let ([state-after-inform-outcome (safe-send-outcome gamestate0 player-bad-won "blue" #t)])
+     (check-equal? state-after-inform-outcome (remove-player gamestate0)))))
