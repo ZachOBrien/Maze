@@ -30,7 +30,7 @@
   [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]
   ; Convert a list to a Player
   [list->player (-> (listof string?) player?)]
-  
+  ; Convert a list to a possibly bad player
   [list->bad-player (-> (listof string?) player?)]))
 
 

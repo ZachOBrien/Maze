@@ -45,12 +45,14 @@
     (define state-after-setup (setup-all-players players state-after-getting-names))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
     (define game-over-state (first intermediate-states))
-    (define final-state (notify-winners-and-losers game-over-state players))
-    (define winners (determine-winners final-state))
+    (define winners (determine-winners game-over-state))
+    (define final-state (notify-winners-and-losers winners game-over-state players))
+    (define winners-that-didnt-get-kicked
+      (filter (λ (plyr) (member plyr (get-player-color-list final-state))) winners))
     (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                               (get-player-color-list state0)))
     (if observer? (run-observer (reverse intermediate-states)) #f)
-    (values winners criminals color-names)))
+    (values winners-that-didnt-get-kicked criminals color-names)))
 
 
 ;; RefereeState HashTable Natural -> [Listof RefereeState]
@@ -175,11 +177,9 @@
 
 ;; ===== SAFELY NOTIFYING WINNERS AND LOSERS =====
 
-;; RefereeState [Hash Color:Player] -> RefereeState
-;; Attempt to notify players that they have won. If all winners for a given state are kicked as a result
-;; of bad calls to `win`, then new winners are chosen out of the remaining players and the process repeats.
-(define (notify-winners-and-losers final-state players)
-  (define winners (determine-winners final-state))
+;; [Listof AvatarColor] RefereeState [Hash AvatarColor : Player] -> RefereeState
+;; Notify players that they either won or lost
+(define (notify-winners-and-losers winners final-state players)
   (define losers (filter (λ (color) (not (member color winners))) (get-player-color-list final-state)))
   (define state-after-notifying-winners (notify-outcome #t winners players final-state))
   (define state-after-notifying-losers (notify-outcome #f losers players state-after-notifying-winners))
