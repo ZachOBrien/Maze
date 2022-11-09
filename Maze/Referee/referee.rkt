@@ -8,7 +8,7 @@
 
 (provide
  (contract-out
-  [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?)))]))
+  [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?) hash?))]))
      
 
 ;; --------------------------------------------------------------------
