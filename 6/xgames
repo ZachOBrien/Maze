@@ -25,8 +25,6 @@
   (define players (map list->player player-list))
   (define ref-state (hash->referee-state ref-state-ht))
 
-  (define ref (referee-new players ref-state))
+  (define-values (winners cheaters color-to-name) (run-game players ref-state #f))
 
-  (define-values (winners cheaters) (send ref run-game #f))
-
-  (write-json (map (λ (col) (send ref get-player-name-by-color col)) winners)))
+  (write-json (map (λ (col) (hash-ref color-to-name col)) winners)))
