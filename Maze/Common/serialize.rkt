@@ -29,7 +29,9 @@
   ; Convert an Action to json
   [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]
   ; Convert a list to a Player
-  [list->player (-> (listof string?) player?)]))
+  [list->player (-> (listof string?) player?)]
+  
+  [list->bad-player (-> (listof string?) player?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -193,6 +195,20 @@
                                          'home (hash 'row# 3 'column# 4)
                                          'color "red"))
                 (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
+
+;; [Listof Strings] -> Player
+;; Make a player from the json array
+(define (list->bad-player inp)
+  (define strat (if (equal? (first (rest inp)) "Riemann")
+                    riemann-strategy
+                    euclidean-strategy))
+  (cond
+    [(= (length inp) 2) (player-new (first inp) strat)]
+    [(= (length inp) 3) (cond
+                          [(equal? (list-ref inp 2) "win") (player-bad-won-new (first inp) strat)]
+                          [(equal? (list-ref inp 2) "takeTurn") (player-bad-taketurn-new (first inp) strat)]
+                          [(equal? (list-ref inp 2) "setUp") (player-bad-setup-new (first inp) strat)])]))
+      
 
 ;; [Listof Strings] -> Player
 ;; Make a player from the json array
