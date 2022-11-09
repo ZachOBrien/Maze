@@ -119,9 +119,11 @@
 ;; [Listof Player] -> [Listof Player]
 ;; Get all players which are minimum distance from their objective
 (define (all-min-distance players)
-  (define distances (map (curryr distance-from-objective euclidean-dist) players))
-  (define min-dist (apply min distances))
-  (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))
+  (cond
+    [(empty? players) empty]
+    [(let* ([distances (map (curryr distance-from-objective euclidean-dist) players)]
+            [min-dist (apply min distances)])
+       (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))]))
 
 
 ;; ===== SAFELY GETTING NAMES =====
@@ -178,13 +180,10 @@
 ;; of bad calls to `win`, then new winners are chosen out of the remaining players and the process repeats.
 (define (notify-winners-and-losers final-state players)
   (define winners (determine-winners final-state))
+  (define losers (filter (λ (color) (not (member color winners))) (get-player-color-list final-state)))
   (define state-after-notifying-winners (notify-outcome #t winners players final-state))
-  (cond
-    [(disjoint? winners (get-player-color-list state-after-notifying-winners))
-     (notify-winners-and-losers state-after-notifying-winners players)]
-    [else (let ([losers (filter (λ (color) (not (member color winners))) (get-player-color-list final-state))])
-            (notify-outcome #f losers players state-after-notifying-winners))]))
-
+  (define state-after-notifying-losers (notify-outcome #f losers players state-after-notifying-winners))
+  state-after-notifying-losers)
 
 ;; Boolean [Listof AvatarColor] [Hash Color:Player] RefereeState -> RefereeState
 ;; Notify a set of players whether they have won or lost the game
