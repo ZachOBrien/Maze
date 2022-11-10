@@ -20,6 +20,8 @@ Ranked in order of priority.
 
 ## Completed
 
+### IMPORTANT: We only list commits here that are relevant for the actual TODO items. Other commits, like for this week's design task and integration testing task, are not included here.
+
 1. Always check for legal player behavior on calls across Referee/Player boundary, and kick players who misbehave.
 
     Commit(s) that fix the issue:
