@@ -1,4 +1,4 @@
-[["Sara", "Riemann"], ["Colin", "Euclid", "win"], ["Zach", "Riemann"], ["htdp", "Euclid"]]
+[["Sara", "Riemann"], ["Colin", "Euclid", "takeTurn"], ["Zach", "Riemann"], ["htdp", "Euclid"]]
 {
     "board" : {
         "connectors" :
