@@ -10,7 +10,15 @@
  (contract-out
   [player? contract?]
   ; Create a new player
-  [player-new (-> string? strategy? player?)]))
+  [player-new (-> string? strategy? player?)]
+  ; Create a new player which breaks on a call to name
+  [player-bad-name-new (-> string? strategy? (is-a?/c player-bad-name%))]
+  ; Create a new player which breaks on a call to setup
+  [player-bad-setup-new (-> string? strategy? (is-a?/c player-bad-setup%))]
+  ; Create a new player which breaks on a call to take-turn
+  [player-bad-taketurn-new (-> string? strategy? (is-a?/c player-bad-taketurn%))]
+  ; Create a new player which breaks on a call to won
+  [player-bad-won-new (-> string? strategy? (is-a?/c player-bad-won%))]))
      
 
 ;; --------------------------------------------------------------------
@@ -33,6 +41,25 @@
 (define (player-new name strat)
   (new player% [init-plyr-name name] [init-strategy strat]))
 
+;; String Strategy -> PlayerBadName
+;; Create a new player which breaks on a call to name
+(define (player-bad-name-new name strat)
+  (new player-bad-name% [init-plyr-name name] [init-strategy strat]))
+
+;; String Strategy -> PlayerBadSetup
+;; Create a new player which breaks on a call to setup
+(define (player-bad-setup-new name strat)
+  (new player-bad-setup% [init-plyr-name name] [init-strategy strat]))
+
+;; String Strategy -> PlayerBadTaketurn
+;; Create a new player which breaks on a call to take-turn
+(define (player-bad-taketurn-new name strat)
+  (new player-bad-taketurn% [init-plyr-name name] [init-strategy strat]))
+
+;; String Strategy -> PlayerBadWon
+;; Create a new player which braeks on a call to won
+(define (player-bad-won-new name strat)
+  (new player-bad-won% [init-plyr-name name] [init-strategy strat]))
 
 
 (define/contract player%
@@ -85,6 +112,39 @@
     (define/public (get-plyr-state0) plyr-state0)
     (define/public (get-won-game) won-game)))
 
+
+(define player-bad-name%
+  (class player%
+    (super-new)
+    (define (name)
+      (/ 1 0))
+    (override name)))
+
+
+(define player-bad-setup%
+  (class player%
+    (super-new)
+    (define (setup)
+      (/ 1 0))
+    (override setup)))
+
+
+(define player-bad-taketurn%
+  (class player%
+    (super-new)
+    (define (take-turn)
+      (/ 1 0))
+    (override take-turn)))
+
+
+(define player-bad-won%
+  (class player%
+    (super-new)
+    (define (won)
+      (/ 1 0))
+    (override won)))
+
+
 ;; -> (Any -> Boolean)
 ;; Is an instance of player?
 (define player?
@@ -98,7 +158,11 @@
   (define player0 (new player% [init-plyr-name "bob"] [init-strategy riemann-strategy]))
   (define player1 (new player% [init-plyr-name "colin"] [init-strategy euclidean-strategy]))
   (define player2 (new player% [init-plyr-name "zach"] [init-strategy euclidean-strategy]))
-  (define player3 (new player% [init-plyr-name "aoun"] [init-strategy riemann-strategy])))
+  (define player3 (new player% [init-plyr-name "aoun"] [init-strategy riemann-strategy]))
+  (define player-bad-name (new player-bad-name% [init-plyr-name "bob"] [init-strategy riemann-strategy]))
+  (define player-bad-setup (new player-bad-setup% [init-plyr-name "bob"] [init-strategy riemann-strategy]))
+  (define player-bad-taketurn (new player-bad-taketurn% [init-plyr-name "bob"] [init-strategy riemann-strategy]))
+  (define player-bad-won (new player-bad-won% [init-plyr-name "bob"] [init-strategy riemann-strategy])))
 
 (module+ test
   (require rackunit)

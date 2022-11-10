@@ -3,3 +3,6 @@
 *env/
 *~
 compiled/
+*.rkt#
+Maze/Common/.\#state.rkt
+Maze/Referee/.\#referee.rkt

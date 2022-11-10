@@ -31,6 +31,8 @@
   [player-state-new (-> board? tile? player-state-player-infos? (or/c #f shift?) player-state?)]
   ; Create a new referee state
   [referee-state-new (-> board? tile? (listof ref-player-info?) (or/c #f shift?) referee-state?)]
+  ; Execute a move
+  [gamestate-execute-move (-> gamestate? move? gamestate?)]
   ; Shifts a row or column and inserts a tile in the empty space
   [gamestate-shift-and-insert (-> gamestate? shift? orientation? gamestate?)]
   ; Move players that were on a row or column that was shifted
@@ -45,6 +47,8 @@
   [player-on-home? (-> gamestate? boolean?)]
   ; Remove the currently active player from the game and ends their turn
   [remove-player (-> gamestate? gamestate?)]
+  ; Remove a player from the game
+  [remove-player-by-color (-> gamestate? avatar-color? gamestate?)]
   ; Get the current player's color
   [current-player-color (-> gamestate? avatar-color?)]
   ; End the current player's turn and switch to the next player's turn
@@ -60,7 +64,7 @@
   ; Get a PlayerInfo by color
   [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
   ; Has the game ended?
-  [game-over? (-> gamestate? boolean?)]))
+  [game-over? (-> referee-state? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -124,6 +128,16 @@
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
+
+
+;; Gamestate Move -> Gamestate
+;; Execute a move
+(define (gamestate-execute-move state mv)
+  (gamestate-move-player
+   (gamestate-shift-and-insert state
+                               (move-shift mv)
+                               (move-orientation mv))
+   (move-pos mv)))
 
 
 ;; Gamestate Shift Orientation -> Gamestate
@@ -221,6 +235,14 @@
 (define (remove-player state)
   (struct-copy gamestate state
                [players (rest (gamestate-players state))]))
+
+
+;; Gamestate AvatarColor -> Gamestate
+;; Remove the player with the given color from the game
+(define (remove-player-by-color state color)
+  (struct-copy gamestate state
+               [players (filter (λ (plyr) (not (equal? (player-info-color plyr) color)))
+                                (gamestate-players state))]))
 
 
 ;; Gamestate -> Gamestate
@@ -535,6 +557,13 @@
                 (list player-info4))
   (check-equal? (gamestate-players (remove-player gamestate2))
                 (list player-info2 player-info3 player-info4)))
+
+;; test remove-player-by-color`
+(module+ test
+  (check-equal? (gamestate-players (remove-player-by-color gamestate0 "blue"))
+                (list player-info1 player-info2 player-info3 player-info4))
+  (check-equal? (gamestate-players (remove-player-by-color gamestate0 "purple"))
+                (list player-info0 player-info2 player-info3 player-info4)))
 
 ;; test end-current-turn
 (module+ test
