@@ -12,16 +12,25 @@
 ;; Board -> (Shift -> Boolean)
 ;; Creates a function to check for valid shift in the given board
 (define (valid-shift? board)
-  (and/c
-   shift?
-   (lambda (shft) ((valid-shift-index? board) (shift-index shft)))))
+  (λ (shft) (and shift?
+                 (if (shifts-row? shft)
+                     (valid-row-shift-index? board (shift-index shft))
+                     (valid-col-shift-index? board (shift-index shft))))))
 
-;; Board -> (Natural -> Boolean)
-(define (valid-shift-index? board)
-  (and/c natural-number/c
-            (</c (length board))
-            even?))
+;; Board Natural -> Boolean)
+;; Check if a shift index is valid for a row
+(define (valid-row-shift-index? board index)
+  (and (natural-number/c index)
+       (even? index)
+       (< index (num-rows board))))
 
+;; Board Natural -> Boolean)
+;; Check if a shift index is valid for a row
+(define (valid-col-shift-index? board index)
+  (and (natural-number/c index)
+       (even? index)
+       (< index (num-cols board))))
+                         
 ;; [SquareListof Any] -> Boolean
 ;; Checks if the square list has odd dimensions
 (define (odd-dims? square-lst)
@@ -43,6 +52,8 @@
   [shift?           contract?]
   [shift-direction (-> shift? shift-direction?)]
   [shift-index (-> shift? natural-number/c)]
+  ; Returns a function to determine if a shift is valid
+  [valid-shift? (-> board? (-> shift? boolean?))]
   
   ; Create a new Shift
   [shift-new (-> shift-direction? natural-number/c shift?)]
@@ -72,8 +83,11 @@
   [compare-row-col (-> grid-posn? grid-posn? boolean?)]
   ;; Do these shifts undo each other?
   [shift-undoes-shift? (-> (or/c shift? #f) (or/c shift? #f) boolean?)]
-  ;; Get indices which can be shifted
-  [get-valid-shift-indices (-> board? (listof natural-number/c))]))
+  ;; Get row shifts which are valid in the board
+  [get-valid-row-shifts (-> board? (listof shift?))]
+  ;; Get col shifts which are valid in the board
+  [get-valid-col-shifts (-> board? (listof shift?))]))
+  
      
 
 ;; --------------------------------------------------------------------
@@ -94,8 +108,8 @@
 ;; A Board is a [Listof [Listof Tile]]
 ;; interpretation: A square matrix of Maze game tiles with dimensions of odd length
 (define board? (and/c (non-empty-listof (non-empty-listof tile?))
-                      square?
-                      odd-dims?))
+                      ))
+                      
 
 ;; A GridPosn is a pair:
 ;;   (cons Natural Natural)
@@ -323,10 +337,18 @@
   (or (equal? (set dir1 dir2) (set 'left 'right))
       (equal? (set dir1 dir2) (set 'up 'down))))
 
-;; Board -> [Listof GridPosn]
-;; Get indices which can be shifted
-(define (get-valid-shift-indices board)
-  (filter (valid-shift-index? board) (range 0 (num-cols board) 2)))
+;; Board -> [Listof Shift]
+;; Get row shifts which are valid in the board
+(define (get-valid-row-shifts board)
+  (define row-shift-indices (filter (curry valid-row-shift-index? board) (range 0 (num-rows board))))
+  (map (curry apply shift-new) (map reverse (cartesian-product row-shift-indices (list 'left 'right)))))
+
+;; Board -> [Listof Shift]
+;; Get col shifts which are valid in the board
+(define (get-valid-col-shifts board)
+  (define col-shift-indices (filter (curry valid-col-shift-index? board) (range 0 (num-cols board))))
+  (map (curry apply shift-new) (map reverse (cartesian-product col-shift-indices (list 'up 'down)))))
+
 
 
 (module+ draw
@@ -416,7 +438,9 @@
 
   (define row-horiz (list tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz tile-horiz))
   (define row-one-vert (list tile-horiz tile-horiz tile-horiz tile-vert tile-horiz tile-horiz tile-horiz))
-  (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz)))
+  (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz))
+
+  (define board6x7 (list row4 row3 row2 row1 row0 row5)))
 
 (module+ test
   (require rackunit)
@@ -437,13 +461,21 @@
   (check-false ((valid-shift? board1) (shift 'up 1)))
   (check-false ((valid-shift? board1) (shift 'down 3))))
 
-;; Test valid-shift-index?
+;; Test valid-shift-indices
 (module+ test
-  (check-true ((valid-shift-index? board1) 0))
-  (check-true ((valid-shift-index? board1) 2))
-  (check-true ((valid-shift-index? board1) 6))
-  (check-false ((valid-shift-index? board1) 1))
-  (check-false ((valid-shift-index? board1) 3)))
+  (check-true (valid-row-shift-index? board1 0))
+  (check-true (valid-row-shift-index? board1 2))
+  (check-true (valid-col-shift-index? board1 6))
+  (check-false (valid-col-shift-index? board1 1))
+  (check-false (valid-col-shift-index? board1 3))
+  
+  (check-true (valid-row-shift-index? board6x7 4))
+  (check-false (valid-row-shift-index? board6x7 8))
+  (check-false (valid-row-shift-index? board6x7 6))
+  
+  (check-true (valid-col-shift-index? board6x7 6))
+  (check-false (valid-col-shift-index? board6x7 1))
+  (check-false (valid-col-shift-index? board6x7 8)))
 
 ;; Test square?
 (module+ test
@@ -683,7 +715,31 @@
   (check-false (compare-row-col (cons 1 0) (cons 0 1))))
 
 (module+ test
-  (check-equal? (get-valid-shift-indices board1) (list 0 2 4 6)))
+  (check-equal? (get-valid-row-shifts board1)
+                (list (shift 'left 0)
+                      (shift 'right 0)
+                      (shift 'left 2)
+                      (shift 'right 2)
+                      (shift 'left 4)
+                      (shift 'right 4)
+                      (shift 'left 6)
+                      (shift 'right 6)))
+  (check-equal? (get-valid-row-shifts board6x7)
+                (list (shift 'left 0)
+                      (shift 'right 0)
+                      (shift 'left 2)
+                      (shift 'right 2)
+                      (shift 'left 4)
+                      (shift 'right 4)))
+  (check-equal? (get-valid-col-shifts board6x7)
+                (list (shift 'up 0)
+                      (shift 'down 0)
+                      (shift 'up 2)
+                      (shift 'down 2)
+                      (shift 'up 4)
+                      (shift 'down 4)
+                      (shift 'up 6)
+                      (shift 'down 6))))
 
 ;; test opposite-direction?
 (module+ test

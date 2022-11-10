@@ -113,12 +113,8 @@
 ;; Board -> [Listof Move]
 ;; Get all possible moves that can be made on a board
 (define (get-all-candidate-moves board candidates)
-
-  (define lr-shifts
-    (map (curry apply shift-new) (map reverse (cartesian-product (get-valid-shift-indices board) (list 'left 'right)))))
-  (define ud-shifts
-    (map (curry apply shift-new) (map reverse (cartesian-product (get-valid-shift-indices board) (list 'up 'down)))))
-  
+  (define lr-shifts (get-valid-row-shifts board))
+  (define ud-shifts (get-valid-col-shifts board))
   (define shifts (append lr-shifts ud-shifts))
   (map (curry apply move-new)
        (cartesian-product candidates shifts orientations)))
