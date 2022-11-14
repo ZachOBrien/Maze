@@ -18,11 +18,23 @@
   ; Create a new player which breaks on a call to take-turn
   [player-bad-taketurn-new (-> string? strategy? (is-a?/c player-bad-taketurn%))]
   ; Create a new player which breaks on a call to won
-  [player-bad-won-new (-> string? strategy? (is-a?/c player-bad-won%))]))
+  [player-bad-won-new (-> string? strategy? (is-a?/c player-bad-won%))]
+  ; Create a new player which enters an infinite loop on the kth call to name
+  [player-infloop-name-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-name%))]))
+
+#;(
+  ; Create a new player which enters an infinite loop on the kth call to setup
+  [player-infloop-setup-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-setup%))]
+  ; Create a new player which enters an infinite loop on the kth call to take-turn
+  [player-infloop-taketurn-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-taketurn%))]
+  ; Create a new player which enters an infinite loop on the kth call to win
+  [player-infloop-win-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-win%))])
      
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
+
+(require racket/sandbox)
 
 (require "../Common/board.rkt")
 (require "../Common/tile.rkt")
@@ -57,9 +69,15 @@
   (new player-bad-taketurn% [init-plyr-name name] [init-strategy strat]))
 
 ;; String Strategy -> PlayerBadWon
-;; Create a new player which braeks on a call to won
+;; Create a new player which breaks on a call to won
 (define (player-bad-won-new name strat)
   (new player-bad-won% [init-plyr-name name] [init-strategy strat]))
+
+
+;; String Strategy PositiveInteger -> PlayerBadWon
+;; Create a new player which breaks on the `k`th call to `name`
+(define (player-infloop-name-new name strat k)
+  (new player-infloop-name% [init-plyr-name name] [init-strategy strat] [init-call-limit k]))
 
 
 (define/contract player%
@@ -113,6 +131,8 @@
     (define/public (get-won-game) won-game)))
 
 
+;; A player which behaves almost normally, except raises an error
+;; when `name` is called
 (define player-bad-name%
   (class player%
     (super-new)
@@ -121,6 +141,8 @@
     (override name)))
 
 
+;; A player which behaves almost normally, except raises an error
+;; when `setup` is called
 (define player-bad-setup%
   (class player%
     (super-new)
@@ -129,6 +151,8 @@
     (override setup)))
 
 
+;; A player which behaves almost normally, except raises an error
+;; when `take-turn` is called
 (define player-bad-taketurn%
   (class player%
     (super-new)
@@ -137,6 +161,8 @@
     (override take-turn)))
 
 
+;; A player which behaves almost normally, except raises an error
+;; when `won` is called
 (define player-bad-won%
   (class player%
     (super-new)
@@ -145,6 +171,29 @@
     (override won)))
 
 
+;; A player which behaves almost normally, except enters an infinite loop on the
+;; kth call to `name`
+(define player-infloop-name%
+  (class player%
+    (init init-call-limit)
+
+    (define call-limit init-call-limit)
+    (define call-count 0)
+    
+    (super-new)
+    
+    (define (name)
+      (set! call-count (add1 call-count))
+      (if (call-count . >= . call-limit)
+          (loop)
+          (super name)))
+    (override name)))
+
+
+; An infinite loop
+(define (loop) (loop))
+
+  
 ;; -> (Any -> Boolean)
 ;; Is an instance of player?
 (define player?
@@ -218,3 +267,14 @@
   (check-equal? (length (first (send player0 propose-board 7 7))) 7)
   (check-equal? (length (first (send player0 propose-board 6 7))) 7)
   (check-equal? (length (first (send player0 propose-board 6 6))) 7))
+
+
+;; test player-infloop-name
+(module+ test
+  (test-case
+   "3rd call to `name` sends bad player into an infinite loop"
+   (define bad-player (player-infloop-name-new "borat" riemann-strategy 3))
+   (check-equal? "borat" (call-with-limits 1 #f (thunk (send bad-player name))))
+   (check-equal? "borat" (call-with-limits 1 #f (thunk (send bad-player name))))
+   (check-exn exn:fail? (thunk (call-with-limits 1 #f (thunk (send bad-player name)))))))
+    
