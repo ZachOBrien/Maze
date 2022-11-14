@@ -22,14 +22,11 @@
   ; Create a new player which enters an infinite loop on the kth call to name
   [player-infloop-name-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-name%))]
   ; Create a new player which enters an infinite loop on the kth call to setup
-  [player-infloop-setup-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-setup%))]))
-
-#;(
-  
+  [player-infloop-setup-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-setup%))]
   ; Create a new player which enters an infinite loop on the kth call to take-turn
   [player-infloop-taketurn-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-taketurn%))]
-  ; Create a new player which enters an infinite loop on the kth call to win
-  [player-infloop-win-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-win%))])
+  ; Create a new player which enters an infinite loop on the kth call to won
+  [player-infloop-won-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-won%))]))
      
 
 ;; --------------------------------------------------------------------
