@@ -20,11 +20,12 @@
   ; Create a new player which breaks on a call to won
   [player-bad-won-new (-> string? strategy? (is-a?/c player-bad-won%))]
   ; Create a new player which enters an infinite loop on the kth call to name
-  [player-infloop-name-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-name%))]))
+  [player-infloop-name-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-name%))]
+  ; Create a new player which enters an infinite loop on the kth call to setup
+  [player-infloop-setup-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-setup%))]))
 
 #;(
-  ; Create a new player which enters an infinite loop on the kth call to setup
-  [player-infloop-setup-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-setup%))]
+  
   ; Create a new player which enters an infinite loop on the kth call to take-turn
   [player-infloop-taketurn-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-taketurn%))]
   ; Create a new player which enters an infinite loop on the kth call to win
@@ -73,11 +74,25 @@
 (define (player-bad-won-new name strat)
   (new player-bad-won% [init-plyr-name name] [init-strategy strat]))
 
-
 ;; String Strategy PositiveInteger -> PlayerBadWon
 ;; Create a new player which breaks on the `k`th call to `name`
 (define (player-infloop-name-new name strat k)
   (new player-infloop-name% [init-plyr-name name] [init-strategy strat] [init-call-limit k]))
+
+;; String Strategy PositiveInteger -> PlayerBadWon
+;; Create a new player which breaks on the `k`th call to `setup`
+(define (player-infloop-setup-new name strat k)
+  (new player-infloop-setup% [init-plyr-name name] [init-strategy strat] [init-call-limit k]))
+
+;; String Strategy PositiveInteger -> PlayerBadWon
+;; Create a new player which breaks on the `k`th call to `take-turn`
+(define (player-infloop-taketurn-new name strat k)
+  (new player-infloop-taketurn% [init-plyr-name name] [init-strategy strat] [init-call-limit k]))
+
+;; String Strategy PositiveInteger -> PlayerBadWon
+;; Create a new player which breaks on the `k`th call to `won`
+(define (player-infloop-won-new name strat k)
+  (new player-infloop-won% [init-plyr-name name] [init-strategy strat] [init-call-limit k]))
 
 
 (define/contract player%
@@ -146,7 +161,7 @@
 (define player-bad-setup%
   (class player%
     (super-new)
-    (define (setup)
+    (define (setup plyr-state new-goal)
       (/ 1 0))
     (override setup)))
 
@@ -156,7 +171,7 @@
 (define player-bad-taketurn%
   (class player%
     (super-new)
-    (define (take-turn)
+    (define (take-turn plyr-state)
       (/ 1 0))
     (override take-turn)))
 
@@ -166,11 +181,11 @@
 (define player-bad-won%
   (class player%
     (super-new)
-    (define (won)
+    (define (won status)
       (/ 1 0))
     (override won)))
 
-
+    
 ;; A player which behaves almost normally, except enters an infinite loop on the
 ;; kth call to `name`
 (define player-infloop-name%
@@ -184,10 +199,67 @@
     
     (define (name)
       (set! call-count (add1 call-count))
-      (if (call-count . >= . call-limit)
+      (if (= call-count call-limit)
           (loop)
           (super name)))
     (override name)))
+
+
+;; A player which behaves almost normally, except enters an infinite loop on the
+;; kth call to `setup`
+(define player-infloop-setup%
+  (class player%
+    (init init-call-limit)
+
+    (define call-limit init-call-limit)
+    (define call-count 0)
+    
+    (super-new)
+    
+    (define (setup plyr-state new-goal)
+      (set! call-count (add1 call-count))
+      (if (= call-count call-limit)
+          (loop)
+          (super setup plyr-state new-goal)))
+    (override setup)))
+
+
+;; A player which behaves almost normally, except enters an infinite loop on the
+;; kth call to `take-turn`
+(define player-infloop-taketurn%
+  (class player%
+    (init init-call-limit)
+
+    (define call-limit init-call-limit)
+    (define call-count 0)
+    
+    (super-new)
+    
+    (define (take-turn plyr-state)
+      (set! call-count (add1 call-count))
+      (if (= call-count call-limit)
+          (loop)
+          (super take-turn plyr-state)))
+    (override take-turn)))
+
+
+;; A player which behaves almost normally, except enters an infinite loop on the
+;; kth call to `take-turn`
+(define player-infloop-won%
+  (class player%
+    (init init-call-limit)
+
+    (define call-limit init-call-limit)
+    (define call-count 0)
+    
+    (super-new)
+    
+    (define (won status)
+      (set! call-count (add1 call-count))
+      (if (= call-count call-limit)
+          (loop)
+          (super won status)))
+    (override won)))
 
 
 ; An infinite loop
@@ -219,6 +291,10 @@
   (require (submod "../Common/board.rkt" examples))
   (require (submod "../Common/state.rkt" examples))
   (require (submod "../Common/player-info.rkt" examples)))
+
+;; test player-new
+(module+ test
+  (check-equal? "bob" (send (player-new "bob" riemann-strategy) name)))
 
 ;; test take-turn
 (module+ test
@@ -269,6 +345,35 @@
   (check-equal? (length (first (send player0 propose-board 6 6))) 7))
 
 
+;; test player-bad-name
+(module+ test
+  (test-case
+   "name call to bad player raises error"
+   (define bad-player (player-bad-name-new "azamat" riemann-strategy))
+   (check-exn exn:fail? (thunk (send bad-player name)))))
+
+;; test player-bad-setup
+(module+ test
+  (test-case
+   "setup call to bad player raises error"
+   (define bad-player (player-bad-setup-new "azamat" riemann-strategy))
+   (check-exn exn:fail? (thunk (send bad-player setup player-state0 (cons 0 0))))))
+
+;; test player-bad-take-turn
+(module+ test
+  (test-case
+   "take-turn call to bad player raises error"
+   (define bad-player (player-bad-taketurn-new "azamat" riemann-strategy))
+   (check-exn exn:fail? (thunk (send bad-player take-turn player-state0)))))
+
+;; test player-bad-won
+(module+ test
+  (test-case
+   "won call to bad player raises error"
+   (define bad-player (player-bad-won-new "azamat" riemann-strategy))
+   (check-exn exn:fail? (thunk (send bad-player won #f)))))
+
+
 ;; test player-infloop-name
 (module+ test
   (test-case
@@ -276,5 +381,34 @@
    (define bad-player (player-infloop-name-new "borat" riemann-strategy 3))
    (check-equal? "borat" (call-with-limits 1 #f (thunk (send bad-player name))))
    (check-equal? "borat" (call-with-limits 1 #f (thunk (send bad-player name))))
-   (check-exn exn:fail? (thunk (call-with-limits 1 #f (thunk (send bad-player name)))))))
+   (check-exn exn:fail? (thunk (call-with-limits 1 #f (thunk (send bad-player name)))))
+   (check-equal? "borat" (call-with-limits 1 #f (thunk (send bad-player name))))))
+
+; test player-infloop-setup
+(module+ test
+  (test-case
+   "2nd call to `setup` sends bad player into an infinite loop"
+   (define bad-player (player-infloop-setup-new "borat" riemann-strategy 2))
+   (call-with-limits 1 #f (thunk (send bad-player setup player-state0 (cons 0 0))))
+   (check-exn exn:fail? (thunk (call-with-limits 1 #f (thunk (send bad-player setup player-state0 (cons 0 0))))))
+   (call-with-limits 1 #f (thunk (send bad-player setup player-state0 (cons 0 0))))))
+
+
+; test player-infloop-taketurn
+(module+ test
+  (test-case
+   "2nd call to `take-turn` sends bad player into an infinite loop"
+   (define bad-player (player-infloop-taketurn-new "borat" riemann-strategy 2))
+   (define _1 (call-with-limits 1 #f (thunk (send bad-player take-turn player-state0))))
+   (check-exn exn:fail? (thunk (call-with-limits 1 #f (thunk (send bad-player take-turn player-state0)))))))
+
+
+; test player-infloop-won
+(module+ test
+  (test-case
+   "3rd call to `won` sends bad player into an infinite loop"
+   (define bad-player (player-infloop-won-new "borat" riemann-strategy 3))
+   (define _1 (call-with-limits 1 #f (thunk (send bad-player won #f))))
+   (define _2 (call-with-limits 1 #f (thunk (send bad-player won #f))))
+   (check-exn exn:fail? (thunk (call-with-limits 1 #f (thunk (send bad-player won #f)))))))
     
