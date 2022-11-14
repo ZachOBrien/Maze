@@ -28,10 +28,11 @@
   [hash->referee-state (-> hash? referee-state?)]
   ; Convert an Action to json
   [action->json (-> action? (or/c string? (list/c natural-number/c string? orientation? hash?)))]
-  ; Convert a list to a Player
-  [list->player (-> (listof string?) player?)]
-  ; Convert a list to a possibly bad player
-  [list->bad-player (-> (listof string?) player?)]))
+  ; Convert a list of values to a Player
+  [list->player (-> (or/c (list/c string? string?)
+                          (list/c string? string? string?)
+                          (list/c string? string? string? (and/c integer? positive?)))
+                    player?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -196,9 +197,9 @@
                                          'color "red"))
                 (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
 
-;; [Listof Strings] -> Player
+;; List -> Player
 ;; Make a player from the json array
-(define (list->bad-player inp)
+(define (list->player inp)
   (define strat (if (equal? (first (rest inp)) "Riemann")
                     riemann-strategy
                     euclidean-strategy))
@@ -207,16 +208,11 @@
     [(= (length inp) 3) (cond
                           [(equal? (list-ref inp 2) "win") (player-bad-won-new (first inp) strat)]
                           [(equal? (list-ref inp 2) "takeTurn") (player-bad-taketurn-new (first inp) strat)]
-                          [(equal? (list-ref inp 2) "setUp") (player-bad-setup-new (first inp) strat)])]))
-      
-
-;; [Listof Strings] -> Player
-;; Make a player from the json array
-(define (list->player inp)
-  (define strat (if (equal? (first (rest inp)) "Riemann")
-                    riemann-strategy
-                    euclidean-strategy))
-  (player-new (first inp) strat))
+                          [(equal? (list-ref inp 2) "setUp") (player-bad-setup-new (first inp) strat)])]
+    [(= (length inp) 4) (cond
+                          [(equal? (list-ref inp 2) "win") (player-infloop-won-new (first inp) strat (list-ref inp 3))]
+                          [(equal? (list-ref inp 2) "takeTurn") (player-infloop-taketurn-new (first inp) strat (list-ref inp 3))]
+                          [(equal? (list-ref inp 2) "setUp") (player-infloop-setup-new (first inp) strat (list-ref inp 3))])]))
 
 ;; (U [Listof Any] 'null) -> Move
 ;; Makes a move from the list

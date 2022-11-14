@@ -20,13 +20,13 @@
   ; Create a new player which breaks on a call to won
   [player-bad-won-new (-> string? strategy? (is-a?/c player-bad-won%))]
   ; Create a new player which enters an infinite loop on the kth call to name
-  [player-infloop-name-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-name%))]
+  [player-infloop-name-new (-> string? strategy? (and/c integer? positive?) (is-a?/c player-infloop-name%))]
   ; Create a new player which enters an infinite loop on the kth call to setup
-  [player-infloop-setup-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-setup%))]
+  [player-infloop-setup-new (-> string? strategy? (and/c integer? positive?) (is-a?/c player-infloop-setup%))]
   ; Create a new player which enters an infinite loop on the kth call to take-turn
-  [player-infloop-taketurn-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-taketurn%))]
+  [player-infloop-taketurn-new (-> string? strategy? (and/c integer? positive?) (is-a?/c player-infloop-taketurn%))]
   ; Create a new player which enters an infinite loop on the kth call to won
-  [player-infloop-won-new (-> string? strategy? natural-number/c (is-a?/c player-infloop-won%))]))
+  [player-infloop-won-new (-> string? strategy? (and/c integer? positive?) (is-a?/c player-infloop-won%))]))
      
 
 ;; --------------------------------------------------------------------
