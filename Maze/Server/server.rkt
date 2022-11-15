@@ -1,5 +1,11 @@
 #lang racket/base
 
+(require racket/tcp)
+(require racket/function)
+(require json)
+
+(require "../Remote/safety.rkt")
+
 ;;; This script implements a server for a game of Maze
 
 
@@ -9,12 +15,9 @@
   (define first-phase-conns (collect-connections listener (current-seconds) time-limit max-players))
   (define final-connections
     (cond
-      [((length players1) . >= . 2) first-phase-conns]
+      [((length first-phase-conns) . >= . 2) first-phase-conns]
       [else (collect-connections listener (current-seconds) time-limit max-players first-phase-conns)]))
-  ; Get player names
-  ; Turn connections into proxy players
-  ; return proxy players
-  )
+  1)
   
   
 ;; Listener Integer PositiveInteger PositiveInteger -> [Listof (cons InputPort OutputPort)]
@@ -32,6 +35,15 @@
                                    connections))]))
 
 
+;; InputPort OutputPort -> (U ProxyPlayer #f)
+;; Attempts to create a proxy player from a connection. Returns false
+;; if the player does not provide a name within `time-limit-s` seconds
+(define (connect-player input-port output-port time-limit-s)
+  (define name (execute-safe (thunk (read-json input-port))))
+  (cond
+    [(or (eq? name 'misbehaved) (not (string? name))) #f]
+    [else (proxy-player-new name input-port output-port)]))
+     
 
 #;
 (define (main)
@@ -40,5 +52,36 @@
   (cond
     [((length proxy-players) . < . 2) (write-json (list empty empty))]
     [...]))
+
+
+(module+ main
+  1)
+
+
+;; --------------------------------------------------------------------
+;; TESTS
+
+(module+ test
+  (require rackunit))
+
+; Test connect-player
+(module+ test
+  (test-case
+   "Test creating a well-behaved player"
+   (define input (open-input-string "\"aoun\""))
+   (define output (open-output-string))
+   (define new-player (connect-player input output 2))
+   (check-equal? "aoun" (send name new-player)))
+  (test-case
+   "Test creating a player that sends invalid JSON for a name"
+   (define input (open-input-string "aoun"))
+   (define output (open-output-string))
+   (check-equal? #f (connect-player input output 2)))
+  (test-case
+   "Test creating a player that sends non-string JSON for their name"
+   (define input (open-input-string "27"))
+   (define output (open-output-string))
+   (check-equal? #f (connect-player input output 2))))
+  
       
       
