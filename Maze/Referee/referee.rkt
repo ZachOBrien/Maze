@@ -8,6 +8,7 @@
 
 (provide
  (contract-out
+  ; Run a game of Maze
   [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?) hash?))]))
      
 
@@ -21,6 +22,7 @@
 (require "../Common/rulebook.rkt")
 (require "../Common/math.rkt")
 (require "../Players/player.rkt")
+(require "../Remote/safety.rkt")
 (require "observer.rkt")
 
 ;; --------------------------------------------------------------------
@@ -212,12 +214,6 @@
 (define (safe-get-action plyr plyr-state [time-limit-sec 4])
   (execute-safe (thunk (send plyr take-turn plyr-state)) time-limit-sec))
 
-;; Thunk Natural -> (U Any 'misbehaved)
-;; Evaluate a Thunk safely
-(define (execute-safe thnk [time-limit-sec 4])
-  (with-handlers ([exn:fail? (λ (exn) 'misbehaved)])
-    (call-with-limits time-limit-sec #f thnk)))
-
 
 ;; [Listof Any] [Listof Any] -> Boolean
 ;; Returns true if no elements from the first list are present in the second list,
@@ -280,12 +276,6 @@
   (check-equal? (determine-winners gamestate5) '("red"))
   (check-equal? (determine-winners gamestate4) '("purple"))
   (check-equal? (determine-winners gamestate1) '("black")))
-
-;; test execute-safe
-(module+ test
-  (check-equal? (execute-safe (thunk (error 'hi))) 'misbehaved)
-  (check-equal? (execute-safe (thunk (sleep 2)) 1) 'misbehaved)
-  (check-equal? (execute-safe (thunk 2)) 2))
 
 
 ;; ==========================================
