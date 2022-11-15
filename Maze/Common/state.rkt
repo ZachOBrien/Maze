@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 ;;; This module provides a data definition and logic for a Maze game state
 

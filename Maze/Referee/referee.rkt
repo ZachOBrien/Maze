@@ -189,17 +189,17 @@
 
 ;; Boolean [Listof AvatarColor] [Hash Color:Player] RefereeState -> RefereeState
 ;; Notify a set of players whether they have won or lost the game
-(define (notify-outcome won? colors players final-state)
+(define (notify-outcome win? colors players final-state)
   (for/fold ([state final-state])
             ([color colors])
-    (safe-send-outcome state (hash-ref players color) color won?)))
+    (safe-send-outcome state (hash-ref players color) color win?)))
 
 
 ;; Gamestate Player AvatarColor Boolean -> Gamestate
 ;; Notifies a player whether they won or lost, and returns the same gamestate either with that player
 ;; or, if they don't behave properly, without the player
-(define (safe-send-outcome state plyr color won?)
-  (match (execute-safe (thunk (send plyr won won?)))
+(define (safe-send-outcome state plyr color win?)
+  (match (execute-safe (thunk (send plyr win win?)))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 
@@ -334,5 +334,5 @@
      (check-equal? state-after-inform-outcome gamestate0)))
   (test-case
    "A misbehaved player fails to handle setup"
-   (let ([state-after-inform-outcome (safe-send-outcome gamestate0 player-bad-won "blue" #t)])
+   (let ([state-after-inform-outcome (safe-send-outcome gamestate0 player-bad-win "blue" #t)])
      (check-equal? state-after-inform-outcome (remove-player gamestate0)))))

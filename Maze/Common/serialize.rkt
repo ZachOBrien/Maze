@@ -206,11 +206,11 @@
   (cond
     [(= (length inp) 2) (player-new (first inp) strat)]
     [(= (length inp) 3) (cond
-                          [(equal? (list-ref inp 2) "win") (player-bad-won-new (first inp) strat)]
+                          [(equal? (list-ref inp 2) "win") (player-bad-win-new (first inp) strat)]
                           [(equal? (list-ref inp 2) "takeTurn") (player-bad-taketurn-new (first inp) strat)]
                           [(equal? (list-ref inp 2) "setUp") (player-bad-setup-new (first inp) strat)])]
     [(= (length inp) 4) (cond
-                          [(equal? (list-ref inp 2) "win") (player-infloop-won-new (first inp) strat (list-ref inp 3))]
+                          [(equal? (list-ref inp 2) "win") (player-infloop-win-new (first inp) strat (list-ref inp 3))]
                           [(equal? (list-ref inp 2) "takeTurn") (player-infloop-taketurn-new (first inp) strat (list-ref inp 3))]
                           [(equal? (list-ref inp 2) "setUp") (player-infloop-setup-new (first inp) strat (list-ref inp 3))])]))
 
