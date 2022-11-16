@@ -3,8 +3,10 @@
 
 (require json)
 
-(require "../Maze/Common/board.rkt")
+(require (submod "../Maze/Common/board.rkt" serialize))
+(require (submod "../Maze/Common/state.rkt" serialize))
 (require "../Maze/Common/state.rkt")
+(require "../Maze/Common/board.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -21,10 +23,10 @@
 ;; the given position, and writes these positions to STDOUT as JSON
 (module+ main
   (define-values (state-ht index-ip dir-ip degree-ip) (read-json-input (current-input-port)))
-  (define state (hash->gamestate state-ht))
+  (define state (json-player-state->player-state state-ht))
   (define index index-ip)
-  (define dir (string-direction->symbol dir-ip))
+  (define dir (json-direction->shift-direction dir-ip))
   (define degree degree-ip) 
   (define state-after-shift (gamestate-shift-and-insert state (shift-new dir index) degree))
 
-  (write-json (map gridposn->hash (sort (all-reachable-from-active state-after-shift) compare-row-col))))
+  (write-json (map gridposn->json-coordinate (sort (all-reachable-from-active state-after-shift) compare-row-col))))

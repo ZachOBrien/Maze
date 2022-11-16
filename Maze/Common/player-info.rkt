@@ -19,6 +19,8 @@
   [ref-player-info-new (-> grid-posn? grid-posn? grid-posn? boolean? avatar-color? player-info?)]
   ; Convert a referee player info into a public player info
   [ref-player-info->pub-player-info (-> ref-player-info? pub-player-info?)]
+  ; Convert a public player info into a referee player info
+  [pub-player-info->ref-player-info (-> pub-player-info? grid-posn? boolean? ref-player-info?)]
   ; Get a player's treasure position
   [player-info-treasure-pos (-> ref-player-info? grid-posn?)]
   ; Get a player's home position
@@ -42,7 +44,7 @@
   ; Determines the current goal for the player. If a player has already visited their treasure,
   ; their goal is to return home.
   [get-goal-pos (-> ref-player-info? grid-posn?)]
-   ; Determine the distance of a player from their objective. If they have not found their treasure,
+  ; Determine the distance of a player from their objective. If they have not found their treasure,
   ; that is their objective. If they have found their treasure, getting home is their objective.
   [distance-from-objective (-> ref-player-info? (-> grid-posn? grid-posn? (not/c negative?)) (not/c negative?))]))
 
@@ -108,7 +110,6 @@
 (define (pub-player-info-new curr-pos home-pos color)
   (player-info curr-pos home-pos 'hidden 'hidden color))
 
-
 ;; GridPosn GridPosn GridPosn Boolean AvatarColor -> RefPlayerInfo
 ;; Create a new ref-player-info
 (define (ref-player-info-new curr-pos home-pos treasure-pos visited-treasure? color)
@@ -116,13 +117,18 @@
 
 ;; RefPlayerInfo -> PubPlayerInfo
 ;; Convert a referee payer info into a public player info
-(define (ref-player-info->pub-player-info plyr)
-  (player-info (player-info-curr-pos plyr)
-               (player-info-home-pos plyr)
-               'hidden
-               'hidden
-               (player-info-color plyr)))
+;; TODO: Change this to struct-copy
+(define (ref-player-info->pub-player-info plyr-info)
+  (struct-copy player-info plyr-info
+               [treasure-pos 'hidden]
+               [visited-treasure? 'hidden]))
 
+;; PubPlayerInfo GridPosn Boolean -> RefPlayerInfo
+;; Convert a public player info into a referee player info
+(define (pub-player-info->ref-player-info plyr-info treasure-pos visited-treasure?)
+  (struct-copy player-info plyr-info
+               [treasure-pos treasure-pos]
+               [visited-treasure? visited-treasure?]))
 
 ;; RefPlayerInfo -> Boolean
 ;; Has this player visited their treasure and is currently on their home position?
@@ -186,7 +192,7 @@
                                                 'color "purple")))
     (check-false (json-public-player-info? (hash 'current (hash 'row# 1 'column# 1)
                                                  'home (hash 'row# 3 'column# 3)
-                                                'color "purpl"))))
+                                                 'color "purpl"))))
 
   ;; Any -> Boolean
   ;; Is this object a hashtable JSON representation of a RefPlayerInfo
@@ -197,12 +203,12 @@
 
   (module+ test
     (check-true (json-referee-player-info? (hash 'current (hash 'row# 1 'column# 1)
-                                                'home (hash 'row# 3 'column# 3)
-                                                'goto (hash 'row# 5 'column# 7)
-                                                'color "purple")))
-    (check-false (json-referee-player-info? (hash 'current (hash 'row# 1 'column# 1)
                                                  'home (hash 'row# 3 'column# 3)
-                                                 'color "purple"))))
+                                                 'goto (hash 'row# 5 'column# 7)
+                                                 'color "purple")))
+    (check-false (json-referee-player-info? (hash 'current (hash 'row# 1 'column# 1)
+                                                  'home (hash 'row# 3 'column# 3)
+                                                  'color "purple"))))
 
   ;; RefPlayerInfo -> JsonRefPlayerInfo
   ;; Make a referee player into a RefPlayerInfo
@@ -399,27 +405,27 @@
      (cons 5 1)
      #t
      "A5B4C1"))) ; ice blue gray ish
-  (define public-player-info0
-    (player-info
-     (cons 0 0)
-     (cons 6 6)
-     'hidden
-     'hidden
-     "blue"))
-  (define public-player-info1
-    (player-info
-     (cons 1 1)
-     (cons 5 5)
-     'hidden
-     'hidden
-     "purple"))
-  (define public-player-info2
-    (player-info
-     (cons 2 2)
-     (cons 4 4)
-     'hidden
-     'hidden
-     "green"))
+(define public-player-info0
+  (player-info
+   (cons 0 0)
+   (cons 6 6)
+   'hidden
+   'hidden
+   "blue"))
+(define public-player-info1
+  (player-info
+   (cons 1 1)
+   (cons 5 5)
+   'hidden
+   'hidden
+   "purple"))
+(define public-player-info2
+  (player-info
+   (cons 2 2)
+   (cons 4 4)
+   'hidden
+   'hidden
+   "green"))
 
 (module+ test
   (require (submod ".." examples))
@@ -444,6 +450,17 @@
                              'hidden
                              'hidden
                              "A5B4C1")))
+
+;; test pub-player-info->ref-player-info
+(module+ test
+  (check-equal? (pub-player-info->ref-player-info (player-info (cons 5 5)
+                                                               (cons 3 3)
+                                                               'hidden
+                                                               'hidden
+                                                               "A5B4C1")
+                                                  (cons 5 1)
+                                                  #t)
+                player-info9))
 
 ;; test referee-player-info->hash
 (module+ test

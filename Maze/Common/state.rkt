@@ -393,8 +393,10 @@
     [public-player-state->json-public-state (-> player-state? json-player-state?)]
     ; Convert a JsonRefState into a RefState
     [json-referee-state->ref-state (-> json-referee-state? referee-state?)]
+    ; Convert a JsonPlayerState into a PlayerState. Uses a dummy treasure value for the active player.
+    [json-player-state->player-state (-> json-player-state? player-state?)]
     ; Convert a JsonPlayerState into a PlayerState
-    [json-player-state->player-state (-> json-player-state? player-state?)]))
+    [json-player-state-and-goal->player-state (-> json-player-state? json-coordinate? player-state?)]))
 
   ;; Any -> Boolean
   ;; Is this object a hashtable JSON representation of a PlayerState
@@ -448,10 +450,22 @@
 
   ;; JsonPlayerState -> PlayerState
   ;; Convert a JsonPlayerState into a PlayerState
+  ;; IMPORTANT: The active player is given a dummy treasure tile at (1, 1)
   (define (json-player-state->player-state json-plyr-state)
+    (json-player-state-and-goal->player-state json-plyr-state (gridposn->json-coordinate (cons 1 1))))
+
+  ;; JsonPlayerState JsonCoordinate -> PlayerState
+  ;; Convert a JsonPlayerState and goal coordinate into a PlayerState
+  ;; TODO: Right now, this hard-codes that the player has NOT visited their treasure. That is probably a problem.
+  (define (json-player-state-and-goal->player-state json-plyr-state goal)
+    
+    (define public-plyr-list (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt)))
+    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) (json-coordinate->gridposn goal) #f))
+    (define plyr-list-with-goal-for-active-player (cons active-player-as-ref-player (rest public-plyr-list)))
+    
     (player-state-new (json-board->board (hash-ref json-plyr-state 'board))
                       (json-tile->tile (hash-ref json-plyr-state 'spare))
-                      (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt))
+                      plyr-list-with-goal-for-active-player
                       (json-action->prev-shift (hash-ref json-plyr-state 'last)))))
 
 ;; --------------------------------------------------------------------

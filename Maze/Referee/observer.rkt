@@ -62,6 +62,6 @@
        [callback (lambda (button event)
                    (let
                        ([file-name (put-file)])
-                     (with-output-to-file file-name (λ () (write-json (ref-state->hash (list-ref states current-state)))))))])
+                     (with-output-to-file file-name (λ () (write-json (ref-state->json-referee-state (list-ref states current-state)))))))])
   
   (send frame show #t))
