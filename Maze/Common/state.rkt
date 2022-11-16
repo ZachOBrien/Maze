@@ -384,13 +384,22 @@
 
   (provide
    (contract-out
-    [ref-state->hash (-> referee-state? hash?)]))
+    ; Convert a ref state to a hash
+    [ref-state->hash (-> referee-state? hash?)]
+    ; Convert a player state to a hash
+    [public-player-state->hash (-> player-state? hash?)]))
 
   (define (ref-state->hash ref-state)
     (hash 'board (board->hash (gamestate-board ref-state))
           'spare (tile->hash (gamestate-extra-tile ref-state))
           'plmt (map referee-player-info->hash (gamestate-players ref-state))
-          'last (shift->json-action (gamestate-prev-shift ref-state)))))
+          'last (shift->json-action (gamestate-prev-shift ref-state))))
+
+  (define (public-player-state->hash plyr-state)
+    (hash 'board (board->hash (gamestate-board plyr-state))
+          'spare (tile->hash (gamestate-extra-tile plyr-state))
+          'plmt (map public-player-info->hash (gamestate-players plyr-state))
+          'last (shift->json-action (gamestate-prev-shift plyr-state)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS

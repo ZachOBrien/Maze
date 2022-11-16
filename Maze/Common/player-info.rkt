@@ -161,7 +161,7 @@
     ; Make a referee player into a hash
     [referee-player-info->hash (-> ref-player-info? hash?)]
     ; Make a public player into a hash
-    [public-player-info->hash (-> pub-player-info? hash?)]))
+    [public-player-info->hash (-> player-info? hash?)]))
 
   ;; RefereePlayer -> HashTable
   ;; Make a referee player into a hash

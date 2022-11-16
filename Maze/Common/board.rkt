@@ -365,24 +365,76 @@
 
   (provide
    (contract-out
+    [json-direction? contract?]
+    ; Convert a JSON representation of direction to a ShiftDirection
+    [json-direction->shift-direction (-> json-direction? shift-direction?)]
     ; Converts a GridPosn into a HashTable according to spec
-    [gridposn->hash (-> grid-posn? hash?)]
+    [gridposn->json-coordinate (-> grid-posn? json-coordinate?)]
     ; Converts a Board into a HashTable according to spec
     [board->hash (-> board? hash?)]
     ; Convert a shift to a spec-specified Action
     [shift->json-action (-> (or/c shift? #f) (or/c 'null (cons/c natural-number/c (cons/c string? empty))))]))
 
-  ;; GridPosn -> HashTable
-  ;; Converts a GridPosn into a HashTable according to spec
-  (define (gridposn->hash pos)
+  (module+ test
+    (require rackunit))
+
+  ;; Any -> Boolean
+  ;; Is this object a json representation of a coordinate?
+  (define (json-coordinate? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'row#)
+         (hash-has-key? ht 'column#)
+         (natural-number/c (hash-ref ht 'row#))
+         (natural-number/c (hash-ref ht 'column#))))
+
+  (module+ test
+    (check-true (contract? json-coordinate?))
+    (check-true (json-coordinate? (hash 'row# 1 'column# 3)))
+    (check-false (json-coordinate? (hash 'row# -1 'column# 3)))
+    (check-false (json-coordinate? (hash 'row 1 'column 3))))
+
+
+  ;; Any -> Boolean
+  ;; Is this object a json representation of a direction?
+  (define json-direction? (or/c "LEFT" "RIGHT" "UP" "DOWN"))
+
+  (module+ test
+    (check-true (contract? json-direction?))
+    (check-true (json-direction? "LEFT"))
+    (check-false (json-direction? "left")))
+
+  ;; JsonDirection -> ShiftDirection
+  ;; Convert a JSON representation of direction to a ShiftDirection
+  (define (json-direction->shift-direction json-direction)
+    (string->symbol (string-downcase json-direction)))
+
+  (module+ test
+    (check-equal? (json-direction->shift-direction "RIGHT") 'right)
+    (check-equal? (json-direction->shift-direction "UP") 'up))
+  
+  ;; GridPosn -> JsonCoordinate
+  ;; Convert a GridPosn into a JSON representation
+  (define (gridposn->json-coordinate pos)
     (hash 'row# (car pos)
           'column# (cdr pos)))
 
-  ;; Board -> HashTable
-  ;; Converts a Board into a HashTable according to spec
+  (module+ test
+    (check-equal? (gridposn->json-coordinate (cons 1 3)) (hash 'row# 1 'column# 3)))
+
+  ;; Any -> Boolean
+  ;; Is this object a json representation of a board?
+  (define (json-board? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'connectors)
+         (hash-has-key? ht 'treasures))) ; TODO: Check for connectors and treasures once tile serialize done
+  
+  (module+ test
+    1)
+  ;; Board -> JsonBoard
+  ;; Converts a Board into a JSON representation of a board
   (define (board->hash b)
     (define connectors (map (λ (row) (map get-json-connector row)) b))
-    (define treasures (map (λ (row) (map get-json-gems row)) b))
+    (define treasures (map (λ (row) (map get-json-treasure row)) b))
     (hash 'connectors connectors
           'treasures treasures))
 
@@ -391,7 +443,42 @@
   (define (shift->json-action shft)
     (if (false? shft)
         'null
-        (list (shift-index shft) (symbol->string (shift-direction shft))))))
+        (list (shift-index shft) (symbol->string (shift-direction shft)))))
+
+  ;; HashTable -> Board
+  ;; Creates a matrix of tiles given a hashtable with matrices of connectors and treasures
+  (define (hash->board ht)
+    (define connectors (hash-ref ht 'connectors))
+    (define treasures (hash-ref ht 'treasures))
+    (combine-matrices-elementwise conn-and-gem->tile connectors treasures))
+  
+  ;; (Any -> Any) [Listof [Listof Any]] [Listof [Listof Any]] -> [Listof [Listof Any]]
+  ;; Combine two matrices by applying proc to each matrix element-wise
+  (define (combine-matrices-elementwise proc matrix1 matrix2)
+    (for/list ([row_m1 matrix1]
+               [row_m2 matrix2])
+      (for/list ([val_m1 row_m1]
+                 [val_m2 row_m2])
+        (proc val_m1 val_m2))))
+
+
+  (module+ test
+    (define A (list '(1 2 3)
+                    '(4 5 6)
+                    '(7 8 9)))
+    (define I (list '(1 0 0)
+                    '(0 1 0)
+                    '(0 0 1)))
+    (check-equal?
+     (combine-matrices-elementwise + A A)
+     (list '(2 4 6)
+           '(8 10 12)
+           '(14 16 18)))
+    (check-equal?
+     (combine-matrices-elementwise * A I)
+     (list '(1 0 0)
+           '(0 5 0)
+           '(0 0 9)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -437,6 +524,7 @@
 
 (module+ test
   (require rackunit)
+  (require (submod ".." serialize test))
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples))
   (require (submod ".." serialize)))

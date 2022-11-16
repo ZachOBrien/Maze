@@ -262,17 +262,27 @@
 (module+ serialize
   (require json)
 
+  (require (submod "gem.rkt" serialize))
+
   (provide
    (contract-out
     ; Converts a tile into a string connector according to spec
-    [get-json-connector (-> tile? string?)]
+    [get-json-connector (-> tile? json-connector?)]
     ; Converts a tile into a list of gems according to spec
-    [get-json-gems (-> tile? (listof string?))]
+    [get-json-treasure (-> tile? json-treasure?)]
     ; Convert a tile to a hash
-    [tile->hash (-> tile? hash?)]))
+    [tile->hash (-> tile? hash?)]
+    ; Convert a json connector and json treasure into a tile
+    [json-connector-and-json-treasure->tile (-> json-connector? json-treasure? tile?)]))
 
-  ;; Tile -> String
-  ;; Converts a tile into a string connector according to spec
+  (module+ test
+    (require rackunit))
+
+  
+  (define json-connector? (or/c "│" "─" "┐" "└" "┌" "┘" "┬" "├" "┴" "┤" "┼"))
+  
+  ;; Tile -> JsonConnector
+  ;; Converts a tile into a json representation of a connector
   (define (get-json-connector t)
     (match (cons (tile-connector t) (tile-orientation t))
       [(cons 'straight 0)   "│"]
@@ -289,18 +299,94 @@
       [(cons 'tri 270)      "┤"]
       [(cons 'cross _)      "┼"]))
 
+  ;; JsonConnector -> (values Connector Orientation)
+  ;; Converts a json representation of a connector into a canonical string and its orientation
+  (define string-connector-conversion
+    (hash "│" (cons 'straight 0)
+          "─" (cons 'straight 90)
+          "┐" (cons 'elbow 180)
+          "└" (cons 'elbow 0)
+          "┌" (cons 'elbow 270)
+          "┘" (cons 'elbow 90)
+          "┬" (cons 'tri 0)
+          "├" (cons 'tri 90)
+          "┴" (cons 'tri 180)
+          "┤" (cons 'tri 270)
+          "┼" (cons 'cross 0)))  ; TODO: Make these both a function
+
   ;; Tile -> [Listof Gems]
   ;; Converts a tile into a list of gems according to spec
-  (define (get-json-gems t)
+  (define (get-json-treasure t)
     (map symbol->string (tile-gems t)))
 
-  ;; Tile -> Hash
-  ;; Convert a tile to a hash
+  ;; JsonConnector JsonTreasure -> Tile
+  ;; Converts json representations of connector and teasure into a tile
+  (define (json-connector-and-json-treasure->tile conn gems)
+    (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
+    (tile-new connector orientation (map string->symbol gems)))
+
+  (module+ test
+    (check-equal?
+     (json-connector-and-json-treasure->tile "│" (list "aplite" "beryl"))
+     (tile-new 'straight 0 (list 'aplite 'beryl)))
+    (check-equal?
+     (json-connector-and-json-treasure->tile "┐" (list "amethyst" "beryl"))
+     (tile-new 'elbow 180 (list 'amethyst 'beryl)))
+    (check-equal?
+     (json-connector-and-json-treasure->tile "┴" (list "aplite" "beryl"))
+     (tile-new 'tri 180 (list 'aplite 'beryl))))
+
+
+  (define (json-tile? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'tilekey)
+         (hash-has-key? ht '1-image)
+         (hash-has-key? ht '2-image)
+         (json-connector? (hash-ref ht 'tilekey))
+         (gem? (string->symbol (hash-ref ht '1-image)))
+         (gem? (string->symbol (hash-ref ht '2-image)))))
+
+  (module+ test
+    (check-true (json-tile? (hash 'tilekey "│" '1-image "alexandrite" '2-image "beryl")))
+    (check-false (json-tile? (hash 'tilkey "│" '1-image "alexandrite" '2-image "beryl"))))
+  
+  ;; Tile -> JsonTile
+  ;; Convert a tile into a json representation of a tile
   (define (tile->hash t)
     (define gem-list (tile-gems t))
     (hash 'tilekey (get-json-connector t)
           '1-image (symbol->string (first gem-list))
-          '2-image (symbol->string (first (rest gem-list))))))
+          '2-image (symbol->string (first (rest gem-list)))))
+
+
+  ;; HashTable -> Tile
+  ;; Create the spare tile from a HashTable
+  (define (hash->spare-tile ht)
+    (define conn (hash-ref ht 'tilekey))
+    (define treasures (list (string->symbol (hash-ref ht '1-image))
+                            (string->symbol (hash-ref ht '2-image))))
+    (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
+    (tile-new connector orientation treasures))
+
+  (module+ test
+    (check-equal? (hash->spare-tile (hash 'tilekey "┌"
+                                          '1-image "goldstone"
+                                          '2-image "heliotrope"))
+                  (tile-new 'elbow 270 (list 'goldstone 'heliotrope)))
+    (check-equal? (hash->spare-tile (hash 'tilekey "┼"
+                                          '1-image "diamond"
+                                          '2-image "unakite"))
+                  (tile-new 'cross 0 (list 'diamond 'unakite)))
+  
+    (check-equal? (hash->spare-tile (hash 'tilekey "─"
+                                          '1-image "raw-beryl"
+                                          '2-image "pink-opal"))
+                  (tile-new 'straight 90 (list 'raw-beryl 'pink-opal)))
+  
+    (check-equal? (hash->spare-tile (hash 'tilekey "┴"
+                                          '1-image "hematite"
+                                          '2-image "jasper"))
+                  (tile-new 'tri 180 (list 'hematite 'jasper)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -371,6 +457,7 @@
 
 (module+ test
   (require rackunit)
+  (require (submod ".." serialize test))
   (require (submod ".." examples))
   (require (submod ".." serialize)))
 
@@ -525,16 +612,6 @@
   (check-equal? (get-json-connector (tile-new 'cross 270 empty)) "┼")
   (check-equal? (get-json-connector (tile-new 'cross 0 empty)) "┼")
   (check-equal? (get-json-connector (tile-new 'cross 180 empty)) "┼"))
-
-
-; test get-json-gems
-(module+ test
-  (check-true (same-elements? (get-json-gems (tile-new 'straight 90 (list 'aplite 'beryl)))
-                              (list "beryl" "aplite")))
-  (check-true (same-elements? (get-json-gems (tile-new 'straight 90 (list 'spinel 'kunzite)))
-                (list "spinel" "kunzite")))
-  (check-true (same-elements? (get-json-gems (tile-new 'straight 90 (list 'unakite 'beryl)))
-                (list "beryl" "unakite"))))
 
 ; test tile->hash
 (module+ test

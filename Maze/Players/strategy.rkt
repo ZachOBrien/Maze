@@ -120,6 +120,64 @@
        (cartesian-product candidates shifts orientations)))
 
 
+(module+ serialize
+  (provide
+   (contract-out
+    [json-choice->action (-> json-choice? action?)]))
+
+  (require (submod "../Common/board.rkt" serialize))
+
+  (module+ test
+    (require rackunit))
+   
+  (define json-choice? (or/c "PASS" (list/c natural-number/c
+                                            json-direction?
+                                            orientation?
+                                            hash?)))
+
+  (define json-action? (or/c 'null (list/c ...)))
+
+  ;; JsonChoice -> Action
+  ;; Convert the JSON representation of a "choice" (action) to Action
+  (define (json-choice->action jsexpr)
+    (if (equal? jsexpr "PASS")
+        #f
+        (move-new (hash->gridposn (list-ref jsexpr 3))
+                  (shift-new (json-direction->shift-direction (list-ref jsexpr 1))
+                             (list-ref jsexpr 0))
+                  (list-ref jsexpr 2))))
+
+  (module+ test
+    (check-equal? (json-choice->action "PASS") #f))
+
+  
+  ;; (U [Listof Any] 'null) -> Move
+  ;; Makes a move from the list
+  (define (json-action->last-action action)
+    (if (equal? action 'null)
+        #f
+        (shift-new (string-direction->symbol (first (rest action)))
+                   (first action))))
+
+  (module+ test
+    (check-equal? (json-action->last-action (list 0 "UP"))
+                  (shift-new 'up 0))
+    (check-equal? (json-action->last-action (list 4 "RIGHT"))
+                  (shift-new 'right 4))
+    (check-equal? (json-action->last-action 'null)
+                  #f))
+
+  ;; Action -> (U String List)
+  ;; Convert an action to json
+  (define (action->json act)
+    (cond
+      [(move? act) (list (shift-index (move-shift act))
+                         (string-upcase (symbol->string (shift-direction (move-shift act))))
+                         (move-orientation act)
+                         (gridposn->hash (move-pos act)))]
+      [(false? act) "PASS"])))
+                             
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 
@@ -301,3 +359,4 @@
   (check-equal? (get-first-valid-candidate-move player-state0 cand-list-1) (move-new (cons 1 1) (shift-new 'left 2) 0))
   (check-equal? (get-first-valid-candidate-move player-state0 cand-list-2) (move-new (cons 1 3) (shift-new 'left 0) 0))
   (check-equal? (get-first-valid-candidate-move player-state1 cand-list-3) (move-new (cons 0 4) (shift-new 'down 6) 90)))
+

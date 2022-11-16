@@ -155,3 +155,30 @@
   (bitmap/file (string-append (path->string IMAGES-PATH) (symbol->string gem) IMAGES-EXTENSION)))
 
 
+(module+ serialize
+  (require json)
+
+  (provide
+   (contract-out
+    ; Does this JSON expression represent a treasure?
+    [json-treasure? contract?]))
+
+  (module+ test
+    (require rackunit))
+
+  ;; Any -> Boolean
+  ;; Does this JSON expression represent a treasure?
+  (define (json-treasure? lst)
+    (and (list? lst)
+         ((list/c gem? gem?) (map string->symbol lst))))
+
+  (module+ test
+    (check-true (json-treasure? (list "alexandrite" "aplite")))
+    (check-false (json-treasure? (list "Alexandrite" "Aplite")))
+    (check-false (json-treasure? (list "alexandrite")))))
+
+
+(module+ test
+  (require rackunit)
+  (require (submod ".." serialize test)))
+

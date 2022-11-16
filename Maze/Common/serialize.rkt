@@ -55,120 +55,6 @@
   (require rackunit))
 
 
-;; String -> (values Connector Orientation)
-;; Converts any orientation of connector string to the canonical string and its orientation
-(define string-connector-conversion
-  (hash "│" (cons 'straight 0)
-        "─" (cons 'straight 90)
-        "┐" (cons 'elbow 180)
-        "└" (cons 'elbow 0)
-        "┌" (cons 'elbow 270)
-        "┘" (cons 'elbow 90)
-        "┬" (cons 'tri 0)
-        "├" (cons 'tri 90)
-        "┴" (cons 'tri 180)
-        "┤" (cons 'tri 270)
-        "┼" (cons 'cross 0)))
-
-
-;; String [Listof String] -> Tile
-;; Converts a connector in string form and a list of gems in string form to a tile
-(define (conn-and-gem->tile conn gems)
-  (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
-  (tile-new connector orientation (map string->symbol gems)))
-
-(module+ test
-  (check-equal?
-   (conn-and-gem->tile "│" (list "aplite" "beryl"))
-   (tile-new 'straight 0 (list 'aplite 'beryl)))
-  (check-equal?
-   (conn-and-gem->tile "┐" (list "amethyst" "beryl"))
-   (tile-new 'elbow 180 (list 'amethyst 'beryl)))
-  (check-equal?
-   (conn-and-gem->tile "┴" (list "aplite" "beryl"))
-   (tile-new 'tri 180 (list 'aplite 'beryl))))
-
-
-;; (Any -> Any) [Listof [Listof Any]] [Listof [Listof Any]] -> [Listof [Listof Any]]
-;; Combine two matrices by applying proc to each matrix element-wise
-(define (combine-matrices-elementwise proc matrix1 matrix2)
-  (for/list ([row_m1 matrix1]
-             [row_m2 matrix2])
-    (for/list ([val_m1 row_m1]
-               [val_m2 row_m2])
-      (proc val_m1 val_m2))))
-
-
-(module+ test
-  (define A (list '(1 2 3)
-                  '(4 5 6)
-                  '(7 8 9)))
-  (define I (list '(1 0 0)
-                  '(0 1 0)
-                  '(0 0 1)))
-  (check-equal?
-   (combine-matrices-elementwise + A A)
-   (list '(2 4 6)
-         '(8 10 12)
-         '(14 16 18)))
-  (check-equal?
-   (combine-matrices-elementwise * A I)
-   (list '(1 0 0)
-         '(0 5 0)
-         '(0 0 9))))
-
-
-;; HashTable -> Board
-;; Creates a matrix of tiles given a hashtable with matrices of connectors and treasures
-(define (hash->board ht)
-  (define connectors (hash-ref ht 'connectors))
-  (define treasures (hash-ref ht 'treasures))
-  (combine-matrices-elementwise conn-and-gem->tile connectors treasures))
-
-
-;; GridPosn -> HashTable
-;; Converts a GridPosn into a HashTable according to spec
-(define (gridposn->hash pos)
-  (hash 'row# (car pos)
-        'column# (cdr pos)))
-
-
-;; HashTable -> Tile
-;; Create the spare tile from a HashTable
-(define (hash->spare-tile ht)
-  (define conn (hash-ref ht 'tilekey))
-  (define treasures (list (string->symbol (hash-ref ht '1-image))
-                          (string->symbol (hash-ref ht '2-image))))
-  (match-define (cons connector orientation) (hash-ref string-connector-conversion conn))
-  (tile-new connector orientation treasures))
-
-(module+ test
-  (check-equal? (hash->spare-tile (hash 'tilekey "┌"
-                                        '1-image "goldstone"
-                                        '2-image "heliotrope"))
-                (tile-new 'elbow 270 (list 'goldstone 'heliotrope)))
-  (check-equal? (hash->spare-tile (hash 'tilekey "┼"
-                                        '1-image "diamond"
-                                        '2-image "unakite"))
-                (tile-new 'cross 0 (list 'diamond 'unakite)))
-  
-  (check-equal? (hash->spare-tile (hash 'tilekey "─"
-                                        '1-image "raw-beryl"
-                                        '2-image "pink-opal"))
-                (tile-new 'straight 90 (list 'raw-beryl 'pink-opal)))
-  
-  (check-equal? (hash->spare-tile (hash 'tilekey "┴"
-                                        '1-image "hematite"
-                                        '2-image "jasper"))
-                (tile-new 'tri 180 (list 'hematite 'jasper))))
-
-
-;; Hashtable -> GridPosn
-;; Converts a hashtable to a gridposn
-(define (hash->gridposn ht)
-  (cons (hash-ref ht 'row#) (hash-ref ht 'column#)))
-
-
 ;; HashTable -> PlayerInfo
 ;; Create a player-info from a HashTable
 (define (hash->player-info ht)
@@ -214,26 +100,6 @@
                           [(equal? (list-ref inp 2) "takeTurn") (player-infloop-taketurn-new (first inp) strat (list-ref inp 3))]
                           [(equal? (list-ref inp 2) "setUp") (player-infloop-setup-new (first inp) strat (list-ref inp 3))])]))
 
-;; (U [Listof Any] 'null) -> Move
-;; Makes a move from the list
-(define (json-action->last-action action)
-  (if (equal? action 'null)
-      #f
-      (shift-new (string-direction->symbol (first (rest action)))
-                 (first action))))
-
-(module+ test
-  (check-equal? (json-action->last-action (list 0 "UP"))
-                (shift-new 'up 0))
-  (check-equal? (json-action->last-action (list 4 "RIGHT"))
-                (shift-new 'right 4))
-  (check-equal? (json-action->last-action 'null)
-                #f))
-
-;; String -> Symbol
-;; Convert a string direciton to a symbol direciton
-(define (string-direction->symbol str)
-  (string->symbol (string-downcase str)))
 
 ;; HashTable -> RefereeState
 ;; Makes a RefereeState from a hashtable
@@ -252,16 +118,6 @@
    (hash->spare-tile (hash-ref ht 'spare))
    (map hash->player-info (hash-ref ht 'plmt))
    (json-action->last-action (hash-ref ht 'last))))
-
-;; Action -> (U String List)
-;; Convert an action to json
-(define (action->json act)
-  (cond
-    [(move? act) (list (shift-index (move-shift act))
-                       (string-upcase (symbol->string (shift-direction (move-shift act))))
-                       (move-orientation act)
-                       (gridposn->hash (move-pos act)))]
-    [(false? act) "PASS"]))
    
 
 (module+ examples
