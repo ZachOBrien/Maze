@@ -362,22 +362,32 @@
 (module+ serialize
   (require json)
   (require (submod "tile.rkt" serialize))
+  (require (submod "gem.rkt" serialize))
 
   (provide
    (contract-out
-    [json-direction? contract?]
+    [json-coordinate? contract?]
+    [json-direction?  contract?]
+    [json-board?      contract?]
     ; Convert a JSON representation of direction to a ShiftDirection
     [json-direction->shift-direction (-> json-direction? shift-direction?)]
-    ; Converts a GridPosn into a HashTable according to spec
+    ; Converts a GridPosn into a JsonCoordinate
     [gridposn->json-coordinate (-> grid-posn? json-coordinate?)]
-    ; Converts a Board into a HashTable according to spec
-    [board->hash (-> board? hash?)]
+    ; Converts a Board into a JsonBoard
+    [board->json-board (-> board? json-board?)]
     ; Convert a shift to a spec-specified Action
-    [shift->json-action (-> (or/c shift? #f) (or/c 'null (cons/c natural-number/c (cons/c string? empty))))]))
+    [shift->json-action (-> (or/c shift? #f) json-action?)]
+    ; Convert a json representation of a board to a board
+    [json-board->board (-> json-board? board?)]))
 
   (module+ test
     (require rackunit))
 
+  ;; JSON representation of the previous move
+  (define json-action? (or/c 'null (cons/c natural-number/c (cons/c string? empty))))
+
+  ;; TODO: Move json-action? into state serialize
+  
   ;; Any -> Boolean
   ;; Is this object a json representation of a coordinate?
   (define (json-coordinate? ht)
@@ -426,17 +436,25 @@
   (define (json-board? ht)
     (and (hash? ht)
          (hash-has-key? ht 'connectors)
-         (hash-has-key? ht 'treasures))) ; TODO: Check for connectors and treasures once tile serialize done
+         (hash-has-key? ht 'treasures)
+         ((listof (listof json-connector?)) (hash-ref ht 'connectors))
+         ((listof (listof json-treasure?)) (hash-ref ht 'treasures))))
   
   (module+ test
-    1)
+    (check-true (json-board? (hash 'connectors (list (list "│" "│" "│") (list "│" "│" "│") (list "│" "│" "│"))
+                                   'treasures (list (list (list "citrine" "beryl") (list "citrine" "citrine") (list "beryl" "beryl"))
+                                                    (list (list "bulls-eye" "beryl") (list "bulls-eye" "citrine") (list "bulls-eye" "beryl"))
+                                                    (list (list "garnet" "beryl") (list "garnet" "citrine") (list "garnet" "beryl")))))))
+  
   ;; Board -> JsonBoard
   ;; Converts a Board into a JSON representation of a board
-  (define (board->hash b)
+  (define (board->json-board b)
     (define connectors (map (λ (row) (map get-json-connector row)) b))
     (define treasures (map (λ (row) (map get-json-treasure row)) b))
     (hash 'connectors connectors
           'treasures treasures))
+
+  ;; TODO: Unit tests
 
   ;; Shift -> [Listof String]
   ;; Convert a shift to a spec-specified Action
@@ -445,12 +463,16 @@
         'null
         (list (shift-index shft) (symbol->string (shift-direction shft)))))
 
+  ;; TODO: Unit tests
+
   ;; HashTable -> Board
   ;; Creates a matrix of tiles given a hashtable with matrices of connectors and treasures
-  (define (hash->board ht)
+  (define (json-board->board ht)
     (define connectors (hash-ref ht 'connectors))
     (define treasures (hash-ref ht 'treasures))
-    (combine-matrices-elementwise conn-and-gem->tile connectors treasures))
+    (combine-matrices-elementwise json-connector-and-json-treasure->tile connectors treasures))
+
+  ;; TODO: Unit tests
   
   ;; (Any -> Any) [Listof [Listof Any]] [Listof [Listof Any]] -> [Listof [Listof Any]]
   ;; Combine two matrices by applying proc to each matrix element-wise
@@ -842,9 +864,9 @@
   (check-false (shift-undoes-shift? #f (shift-new 'up 3)))
   (check-false (shift-undoes-shift? #f #f)))
 
-;; test board->hash
+;; test board->json-board
 (module+ test
-  (check-equal? (board->hash board1)
+  (check-equal? (board->json-board board1)
                 (hash 'connectors
                       (list (list "─" "┐" "└" "┘" "┌" "┬" "┤")
                             (list "┴" "├" "┼" "│" "─" "┐" "└")

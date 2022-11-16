@@ -8,12 +8,10 @@
 
 (provide
  (contract-out
-  ;; Convert a hashtable to a Boards
+  ;; Convert a hashtable to a Board
   [hash->board (-> hash? board?)]
   ;; Convert a GridPosn to a hashtable
   [gridposn->hash (-> grid-posn? hash?)]
-  ;; Convert a hashtable to a Tile
-  [hash->spare-tile (-> hash? tile?)]
   ;; Convert a hashtable to a Gamestate
   [hash->gamestate (-> hash? gamestate?)]
   ;; Convert a hashtable to a GridPosn
