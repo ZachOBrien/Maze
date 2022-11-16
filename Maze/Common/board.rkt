@@ -369,14 +369,21 @@
     [json-coordinate? contract?]
     [json-direction?  contract?]
     [json-board?      contract?]
+    [json-action?     contract?]
+    ; Convert a JsonAction to a Shift or #f
+    [json-action->prev-shift (-> json-action? (or/c #f shift?))]
     ; Convert a JSON representation of direction to a ShiftDirection
     [json-direction->shift-direction (-> json-direction? shift-direction?)]
     ; Converts a GridPosn into a JsonCoordinate
     [gridposn->json-coordinate (-> grid-posn? json-coordinate?)]
+    ; Converts a JsonCoordinate into a GridPosn
+    [json-coordinate->gridposn (-> json-coordinate? grid-posn?)]
     ; Converts a Board into a JsonBoard
     [board->json-board (-> board? json-board?)]
     ; Convert a shift to a spec-specified Action
     [shift->json-action (-> (or/c shift? #f) json-action?)]
+    ; Convert a spec-specified Action to a shift
+    [prev-shift->json-action (-> (or/c shift? #f) json-action?)]
     ; Convert a json representation of a board to a board
     [json-board->board (-> json-board? board?)]))
 
@@ -386,7 +393,34 @@
   ;; JSON representation of the previous move
   (define json-action? (or/c 'null (cons/c natural-number/c (cons/c string? empty))))
 
-  ;; TODO: Move json-action? into state serialize
+  ;; JsonAction -> Move
+  ;; Makes a move from the list
+  (define (json-action->prev-shift action)
+    (if (equal? action 'null)
+        #f
+        (shift-new (json-direction->shift-direction (first (rest action)))
+                   (first action))))
+
+  (module+ test
+    (check-equal? (json-action->prev-shift (list 0 "UP"))
+                  (shift-new 'up 0))
+    (check-equal? (json-action->prev-shift (list 4 "RIGHT"))
+                  (shift-new 'right 4))
+    (check-equal? (json-action->prev-shift 'null)
+                  #f))
+
+  ;; (U Shift #f) -> JsonAction
+  ;; Makes a move from the list
+  (define (prev-shift->json-action prev-shift)
+    (if (false? prev-shift)
+        'null
+        (list (shift-index prev-shift) (string-upcase (symbol->string (shift-direction prev-shift))))))
+  
+  (module+ test
+    (check-equal? (prev-shift->json-action (shift-new 'right 0))
+                  (list 0 "RIGHT"))
+    (check-equal? (prev-shift->json-action (shift-new 'down 6))
+                  (list 6 "DOWN")))
   
   ;; Any -> Boolean
   ;; Is this object a json representation of a coordinate?
@@ -403,6 +437,14 @@
     (check-false (json-coordinate? (hash 'row# -1 'column# 3)))
     (check-false (json-coordinate? (hash 'row 1 'column 3))))
 
+  ;; JsonCoordinate -> GridPosn
+  ;; Convert a JsonCoordinate into a GridPosn
+  (define (json-coordinate->gridposn ht)
+    (cons (hash-ref ht 'row#) (hash-ref ht 'column#)))
+
+  (module+ test
+    (check-equal? (json-coordinate->gridposn (hash 'row# 1 'column# 1)) (cons 1 1))
+    (check-equal? (json-coordinate->gridposn (hash 'row# 10000 'column# 2)) (cons 10000 2)))
 
   ;; Any -> Boolean
   ;; Is this object a json representation of a direction?

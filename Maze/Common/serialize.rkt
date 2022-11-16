@@ -55,96 +55,13 @@
   (require rackunit))
 
 
-;; HashTable -> PlayerInfo
-;; Create a player-info from a HashTable
-(define (hash->player-info ht)
-  (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
-                       (hash->gridposn (hash-ref ht 'home))
-                       (cons 1 1)
-                       #f
-                       (hash-ref ht 'color)))
-
-;; HashTable -> PlayerInfo
-;; Create a player-info from a HashTable
-(define (hash->referee-player-info ht)
-  (ref-player-info-new (hash->gridposn (hash-ref ht 'current))
-                   (hash->gridposn (hash-ref ht 'home))
-                   (hash->gridposn (hash-ref ht 'goto))
-                   #f
-                   (hash-ref ht 'color)))
-
-(module+ test
-  (check-equal? (hash->player-info (hash 'current (hash 'row# 0 'column# 0)
-                                         'home (hash 'row# 2 'column# 2)
-                                         'color "blue"))
-                (ref-player-info-new (cons 0 0) (cons 2 2) (cons 1 1) #f "blue"))
-  (check-equal? (hash->player-info (hash 'current (hash 'row# 6 'column# 1)
-                                         'home (hash 'row# 3 'column# 4)
-                                         'color "red"))
-                (ref-player-info-new (cons 6 1) (cons 3 4) (cons 1 1) #f "red")))
-
-;; List -> Player
-;; Make a player from the json array
-(define (list->player inp)
-  (define strat (if (equal? (first (rest inp)) "Riemann")
-                    riemann-strategy
-                    euclidean-strategy))
-  (cond
-    [(= (length inp) 2) (player-new (first inp) strat)]
-    [(= (length inp) 3) (cond
-                          [(equal? (list-ref inp 2) "win") (player-bad-win-new (first inp) strat)]
-                          [(equal? (list-ref inp 2) "takeTurn") (player-bad-taketurn-new (first inp) strat)]
-                          [(equal? (list-ref inp 2) "setUp") (player-bad-setup-new (first inp) strat)])]
-    [(= (length inp) 4) (cond
-                          [(equal? (list-ref inp 2) "win") (player-infloop-win-new (first inp) strat (list-ref inp 3))]
-                          [(equal? (list-ref inp 2) "takeTurn") (player-infloop-taketurn-new (first inp) strat (list-ref inp 3))]
-                          [(equal? (list-ref inp 2) "setUp") (player-infloop-setup-new (first inp) strat (list-ref inp 3))])]))
-
-
-;; HashTable -> RefereeState
-;; Makes a RefereeState from a hashtable
-(define (hash->referee-state ht)
-  (referee-state-new
-   (hash->board (hash-ref ht 'board))
-   (hash->spare-tile (hash-ref ht 'spare))
-   (map hash->referee-player-info (hash-ref ht 'plmt))
-   (json-action->last-action (hash-ref ht 'last))))
-
-;; HashTable -> Gamestate
-;; Makes a gamestate from a hashtable
-(define (hash->gamestate ht)
-  (referee-state-new
-   (hash->board (hash-ref ht 'board))
-   (hash->spare-tile (hash-ref ht 'spare))
-   (map hash->player-info (hash-ref ht 'plmt))
-   (json-action->last-action (hash-ref ht 'last))))
-   
 
 
 
 
 
-(module+ test
-  (require (submod ".." examples))
-  (check-equal? (hash->gamestate (hash 'board example-board-hash
-                                       'spare (hash 'tilekey "┘"
-                                                    '1-image "lapis-lazuli"
-                                                    '2-image "pink-opal")
-                                       'plmt example-player-infos1
-                                       'last (list 0 "LEFT")))
-                (referee-state-new example-board
-                                   spare-tile
-                                   expected-player-infos1
-                                   (shift-new 'left 0))))
 
-  (define example-player-infos1
-    (list (hash 'current (hash 'row# 0 'column# 0) 'home (hash 'row# 6 'column# 6) 'color "blue")
-          (hash 'current (hash 'row# 1 'column# 1) 'home (hash 'row# 5 'column# 5) 'color "red")
-          (hash 'current (hash 'row# 2 'column# 2) 'home (hash 'row# 4 'column# 4) 'color "green")
-          (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
 
-  (define expected-player-infos1
-    (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
-          (ref-player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
-          (ref-player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
-          (ref-player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
+
+
+

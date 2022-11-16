@@ -377,29 +377,82 @@
 
 (module+ serialize
   (require json)
-  
   (require (submod "board.rkt" serialize))
   (require (submod "tile.rkt" serialize))
   (require (submod "player-info.rkt" serialize))
 
+  ; TODO: write some tests
+  
   (provide
    (contract-out
-    ; Convert a ref state to a hash
-    [ref-state->hash (-> referee-state? hash?)]
-    ; Convert a player state to a hash
-    [public-player-state->hash (-> player-state? hash?)]))
+    [json-player-state? contract?]
+    [json-referee-state? contract?]
+    ; Convert a RefereeState to a JsonRefereeState
+    [ref-state->json-referee-state (-> referee-state? json-referee-state?)]
+    ; Convert a PlayerState to a JsonPlayerState
+    [public-player-state->json-public-state (-> player-state? json-player-state?)]
+    ; Convert a JsonRefState into a RefState
+    [json-referee-state->ref-state (-> json-referee-state? referee-state?)]
+    ; Convert a JsonPlayerState into a PlayerState
+    [json-player-state->player-state (-> json-player-state? player-state?)]))
 
-  (define (ref-state->hash ref-state)
-    (hash 'board (board->hash (gamestate-board ref-state))
-          'spare (tile->hash (gamestate-extra-tile ref-state))
-          'plmt (map referee-player-info->hash (gamestate-players ref-state))
-          'last (shift->json-action (gamestate-prev-shift ref-state))))
+  ;; Any -> Boolean
+  ;; Is this object a hashtable JSON representation of a PlayerState
+  (define (json-player-state? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'board)
+         (hash-has-key? ht 'spare)
+         (hash-has-key? ht 'plmt)
+         (hash-has-key? ht 'last)
+         (json-board? (hash-ref ht 'board))
+         (json-tile?  (hash-ref ht 'spare))
+         ((listof json-public-player-info?) (hash-ref ht 'plmt))
+         (json-action? (hash-ref ht 'last))))
 
-  (define (public-player-state->hash plyr-state)
-    (hash 'board (board->hash (gamestate-board plyr-state))
-          'spare (tile->hash (gamestate-extra-tile plyr-state))
-          'plmt (map public-player-info->hash (gamestate-players plyr-state))
-          'last (shift->json-action (gamestate-prev-shift plyr-state)))))
+  ;; Any -> Boolean
+  ;; Is this object a hashtable JSON representation of a RefereeState
+  (define (json-referee-state? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'board)
+         (hash-has-key? ht 'spare)
+         (hash-has-key? ht 'plmt)
+         (hash-has-key? ht 'last)
+         (json-board? (hash-ref ht 'board))
+         (json-tile?  (hash-ref ht 'spare))
+         ((listof json-referee-player-info?) (hash-ref ht 'plmt))
+         (json-action? (hash-ref ht 'last))))
+
+  ;; RefereeState -> JsonRefereeState
+  ;; Convert a RefState into a JsonRefState
+  (define (ref-state->json-referee-state ref-state)
+    (hash 'board (board->json-board (gamestate-board ref-state))
+          'spare (tile->json-tile (gamestate-extra-tile ref-state))
+          'plmt (map referee-player-info->json-referee-player-info (gamestate-players ref-state))
+          'last (prev-shift->json-action (gamestate-prev-shift ref-state))))
+
+  ;; PlayerState -> JsonPlayerState
+  ;; Convert a PlayerState into a JsonPlayerState
+  (define (public-player-state->json-public-state plyr-state)
+    (hash 'board (board->json-board (gamestate-board plyr-state))
+          'spare (tile->json-tile (gamestate-extra-tile plyr-state))
+          'plmt (map public-player-info->json-public-player-info (gamestate-players plyr-state))
+          'last (prev-shift->json-action (gamestate-prev-shift plyr-state))))
+
+  ;; JsonRefereeState -> RefereeState
+  ;; Convert a JsonRefState into a RefState
+  (define (json-referee-state->ref-state json-ref-state)
+    (referee-state-new (json-board->board (hash-ref json-ref-state 'board))
+                       (json-tile->tile (hash-ref json-ref-state 'spare))
+                       (map json-referee-player-info->referee-player-info (hash-ref json-ref-state 'plmt))
+                       (json-action->prev-shift (hash-ref json-ref-state 'last))))
+
+  ;; JsonPlayerState -> PlayerState
+  ;; Convert a JsonPlayerState into a PlayerState
+  (define (json-player-state->player-state json-plyr-state)
+    (player-state-new (json-board->board (hash-ref json-plyr-state 'board))
+                      (json-tile->tile (hash-ref json-plyr-state 'spare))
+                      (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt))
+                      (json-action->prev-shift (hash-ref json-plyr-state 'last)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -626,9 +679,25 @@
   (check-equal? (move-to-front 7 '(5 6 7)) '(7 5 6))
   (check-equal? (move-to-front 1 '(5 6 1 8 1 7)) '(1 5 6 8 1 7)))
 
+; test ref-state->json
+;TODO figure out how to reconstruct player state from public json representation
+#;
+(module+ test
+  (require (submod "./player-info.rkt" serialize examples))
+  (check-equal? (json-player-state->player-state (hash 'board example-board-hash
+                                                     'spare (hash 'tilekey "┘"
+                                                                  '1-image "lapis-lazuli"
+                                                                  '2-image "pink-opal")
+                                                     'plmt example-player-infos1
+                                                     'last (list 0 "LEFT")))
+                (player-state-new example-board
+                                   spare-tile
+                                   expected-player-infos1
+                                   (shift-new 'left 0))))
+
 ; test ref-state->hash
 (module+ test
-  (check-equal? (ref-state->hash gamestate0)
+  (check-equal? (ref-state->json-referee-state gamestate0)
                 (hash 'spare (hash 'tilekey "│"
                                    '1-image "yellow-baguette"
                                    '2-image "yellow-beryl-oval")

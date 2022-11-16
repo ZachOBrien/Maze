@@ -271,6 +271,42 @@
 (define player?
   (is-a?/c player%))
 
+(module+ serialize
+  (provide
+   (contract-out
+    [json-ps? contract?]
+    ; Make a player from the json PS
+    [json-ps->player (-> json-ps? player?)]))
+
+  ;; Any -> Boolean
+  ;; Is any a json representation of a spec-specified PS
+  (define json-ps? (or/c (list/c string? string?)
+                         (list/c string? string? string?)
+                         (list/c string? string? string? (and/c integer? positive?))))
+
+  ;; JsonPS -> Player
+  ;; Make a player from the json PS
+  (define (json-ps->player inp)
+    (define strat (if (equal? (first (rest inp)) "Riemann")
+                      riemann-strategy
+                      euclidean-strategy))
+    (cond
+      [(= (length inp) 2) (player-new (first inp) strat)]
+      [(= (length inp) 3) (cond
+                            [(equal? (list-ref inp 2) "win") (player-bad-win-new (first inp) strat)]
+                            [(equal? (list-ref inp 2) "takeTurn") (player-bad-taketurn-new (first inp) strat)]
+                            [(equal? (list-ref inp 2) "setUp") (player-bad-setup-new (first inp) strat)])]
+      [(= (length inp) 4) (cond
+                            [(equal? (list-ref inp 2) "win") (player-infloop-win-new (first inp) strat (list-ref inp 3))]
+                            [(equal? (list-ref inp 2) "takeTurn") (player-infloop-taketurn-new (first inp) strat (list-ref inp 3))]
+                            [(equal? (list-ref inp 2) "setUp") (player-infloop-setup-new (first inp) strat (list-ref inp 3))])]))
+
+  (module+ test
+    (require rackunit))
+  
+  (module+ test
+    (check-equal? (send (json-ps->player (list "johnothan" "euclid")) name) "johnothan")))
+
 ;; --------------------------------------------------------------------
 ;; TESTS
 

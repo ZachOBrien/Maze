@@ -267,6 +267,7 @@
   (provide
    (contract-out
     [json-connector? contract?]
+    [json-tile? contract?]
     ; Converts a tile into a string connector according to spec
     [get-json-connector (-> tile? json-connector?)]
     ; Converts a tile into a list of gems according to spec
@@ -281,6 +282,8 @@
   (module+ test
     (require rackunit))
 
+  ;; Any -> Boolean
+  ;; Is a Json object a Connector?
   (define json-connector? (or/c "│" "─" "┐" "└" "┌" "┘" "┬" "├" "┴" "┤" "┼"))
 
   ;; Tile -> JsonConnector

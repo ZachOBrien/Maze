@@ -3,7 +3,6 @@
 
 (require json)
 
-(require "../Maze/Common/serialize.rkt")
 (require "../Maze/Common/board.rkt")
 (require "../Maze/Common/state.rkt")
 
