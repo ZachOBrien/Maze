@@ -8,10 +8,12 @@
 
 (provide
  (contract-out
-  ;; Convert a hashtable to a Board
+  ;; Convert a hashtable to a Boards
   [hash->board (-> hash? board?)]
   ;; Convert a GridPosn to a hashtable
   [gridposn->hash (-> grid-posn? hash?)]
+  ;; Convert a hashtable to a Tile
+  [hash->spare-tile (-> hash? tile?)]
   ;; Convert a hashtable to a Gamestate
   [hash->gamestate (-> hash? gamestate?)]
   ;; Convert a hashtable to a GridPosn
@@ -118,149 +120,9 @@
    (json-action->last-action (hash-ref ht 'last))))
    
 
-(module+ examples
-  (define example-board
-    (list
-     (list
-      (tile-new 'straight 0 (list 'stilbite 'zircon))
-      (tile-new 'straight 90 (list 'stilbite 'zircon))
-      (tile-new 'elbow 180 (list 'stilbite 'zircon))
-      (tile-new 'elbow 0 (list 'stilbite 'zircon))
-      (tile-new 'elbow 270 (list 'stilbite 'zircon))
-      (tile-new 'elbow 90 (list 'stilbite 'zircon))
-      (tile-new 'tri 0 (list 'stilbite 'zircon)))
-     (list
-      (tile-new 'straight 0 (list 'prasiolite 'carnelian))
-      (tile-new 'straight 90 (list 'prasiolite 'carnelian))
-      (tile-new 'elbow 180 (list 'prasiolite 'carnelian))
-      (tile-new 'elbow 0 (list 'prasiolite 'carnelian))
-      (tile-new 'elbow 270 (list 'prasiolite 'carnelian))
-      (tile-new 'elbow 90 (list 'prasiolite 'carnelian))
-      (tile-new 'tri 0 (list 'prasiolite 'carnelian)))
-     (list
-      (tile-new 'straight 0 (list 'fancy-spinel-marquise 'jasper))
-      (tile-new 'straight 90 (list 'fancy-spinel-marquise 'jasper))
-      (tile-new 'elbow 180 (list 'fancy-spinel-marquise 'jasper))
-      (tile-new 'elbow 0 (list 'fancy-spinel-marquise 'jasper))
-      (tile-new 'elbow 270 (list 'fancy-spinel-marquise 'jasper))
-      (tile-new 'elbow 90 (list 'fancy-spinel-marquise 'jasper))
-      (tile-new 'tri 0 (list 'fancy-spinel-marquise 'jasper)))
-     (list
-      (tile-new 'straight 0 (list 'peridot 'purple-cabochon))
-      (tile-new 'straight 90 (list 'peridot 'purple-cabochon))
-      (tile-new 'elbow 180 (list 'peridot 'purple-cabochon))
-      (tile-new 'elbow 0 (list 'peridot 'purple-cabochon))
-      (tile-new 'elbow 270 (list 'peridot 'purple-cabochon))
-      (tile-new 'elbow 90 (list 'peridot 'purple-cabochon))
-      (tile-new 'tri 0 (list 'peridot 'purple-cabochon)))
-     (list
-      (tile-new 'straight 0 (list 'diamond 'lapis-lazuli))
-      (tile-new 'straight 90 (list 'diamond 'lapis-lazuli))
-      (tile-new 'elbow 180 (list 'diamond 'lapis-lazuli))
-      (tile-new 'elbow 0 (list 'diamond 'lapis-lazuli))
-      (tile-new 'elbow 270 (list 'diamond 'lapis-lazuli))
-      (tile-new 'elbow 90 (list 'diamond 'lapis-lazuli))
-      (tile-new 'tri 0 (list 'diamond 'lapis-lazuli)))
-     (list
-      (tile-new 'straight 0 (list 'cordierite 'mexican-opal))
-      (tile-new 'straight 90 (list 'cordierite 'mexican-opal))
-      (tile-new 'elbow 180 (list 'cordierite 'mexican-opal))
-      (tile-new 'elbow 0 (list 'cordierite 'mexican-opal))
-      (tile-new 'elbow 270 (list 'cordierite 'mexican-opal))
-      (tile-new 'elbow 90 (list 'cordierite 'mexican-opal))
-      (tile-new 'tri 0 (list 'cordierite 'mexican-opal)))
-     (list
-      (tile-new 'straight 0 (list 'pink-opal 'red-diamond))
-      (tile-new 'straight 90 (list 'pink-opal 'red-diamond))
-      (tile-new 'elbow 180 (list 'pink-opal 'red-diamond))
-      (tile-new 'elbow 0 (list 'pink-opal 'red-diamond))
-      (tile-new 'elbow 270 (list 'pink-opal 'red-diamond))
-      (tile-new 'elbow 90 (list 'pink-opal 'red-diamond))
-      (tile-new 'tri 0 (list 'pink-opal 'red-diamond)))))
-
-  (define spare-tile (tile-new 'elbow 90 (list 'lapis-lazuli 'pink-opal)))
-
-  (define example-treasures
-    (list
-     (list (list "stilbite" "zircon")
-           (list "stilbite" "zircon")
-           (list "stilbite" "zircon")
-           (list "stilbite" "zircon")
-           (list "stilbite" "zircon")
-           (list "stilbite" "zircon")
-           (list "stilbite" "zircon"))
-     (list (list "prasiolite" "carnelian")
-           (list "prasiolite" "carnelian")
-           (list "prasiolite" "carnelian")
-           (list "prasiolite" "carnelian")
-           (list "prasiolite" "carnelian")
-           (list "prasiolite" "carnelian")
-           (list "prasiolite" "carnelian"))
-     (list (list "fancy-spinel-marquise" "jasper")
-           (list "fancy-spinel-marquise" "jasper")
-           (list "fancy-spinel-marquise" "jasper")
-           (list "fancy-spinel-marquise" "jasper")
-           (list "fancy-spinel-marquise" "jasper")
-           (list "fancy-spinel-marquise" "jasper")
-           (list "fancy-spinel-marquise" "jasper"))
-     (list (list "peridot" "purple-cabochon")
-           (list "peridot" "purple-cabochon")
-           (list "peridot" "purple-cabochon")
-           (list "peridot" "purple-cabochon")
-           (list "peridot" "purple-cabochon")
-           (list "peridot" "purple-cabochon")
-           (list "peridot" "purple-cabochon"))
-     (list (list "diamond" "lapis-lazuli")
-           (list "diamond" "lapis-lazuli")
-           (list "diamond" "lapis-lazuli")
-           (list "diamond" "lapis-lazuli")
-           (list "diamond" "lapis-lazuli")
-           (list "diamond" "lapis-lazuli")
-           (list "diamond" "lapis-lazuli"))
-     (list (list "cordierite" "mexican-opal")
-           (list "cordierite" "mexican-opal")
-           (list "cordierite" "mexican-opal")
-           (list "cordierite" "mexican-opal")
-           (list "cordierite" "mexican-opal")
-           (list "cordierite" "mexican-opal")
-           (list "cordierite" "mexican-opal"))
-     (list (list "pink-opal" "red-diamond")
-           (list "pink-opal" "red-diamond")
-           (list "pink-opal" "red-diamond")
-           (list "pink-opal" "red-diamond")
-           (list "pink-opal" "red-diamond")
-           (list "pink-opal" "red-diamond")
-           (list "pink-opal" "red-diamond"))))
 
 
-  (define example-connectors
-    (list '("│" "─" "┐" "└" "┌" "┘" "┬")
-          '("│" "─" "┐" "└" "┌" "┘" "┬")
-          '("│" "─" "┐" "└" "┌" "┘" "┬")
-          '("│" "─" "┐" "└" "┌" "┘" "┬")
-          '("│" "─" "┐" "└" "┌" "┘" "┬")
-          '("│" "─" "┐" "└" "┌" "┘" "┬")
-          '("│" "─" "┐" "└" "┌" "┘" "┬")))
 
-  (define example-player-infos1
-    (list (hash 'current (hash 'row# 0 'column# 0) 'home (hash 'row# 6 'column# 6) 'color "blue")
-          (hash 'current (hash 'row# 1 'column# 1) 'home (hash 'row# 5 'column# 5) 'color "red")
-          (hash 'current (hash 'row# 2 'column# 2) 'home (hash 'row# 4 'column# 4) 'color "green")
-          (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
-
-  (define expected-player-infos1
-    (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
-          (ref-player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
-          (ref-player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
-          (ref-player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
-
-  (define example-board-hash
-    (hash 'connectors example-connectors
-          'treasures example-treasures)))
-
-(module+ test
-  (require (submod ".." examples))
-  (check-equal? (hash->board example-board-hash) example-board))
 
 (module+ test
   (require (submod ".." examples))
@@ -274,3 +136,15 @@
                                    spare-tile
                                    expected-player-infos1
                                    (shift-new 'left 0))))
+
+  (define example-player-infos1
+    (list (hash 'current (hash 'row# 0 'column# 0) 'home (hash 'row# 6 'column# 6) 'color "blue")
+          (hash 'current (hash 'row# 1 'column# 1) 'home (hash 'row# 5 'column# 5) 'color "red")
+          (hash 'current (hash 'row# 2 'column# 2) 'home (hash 'row# 4 'column# 4) 'color "green")
+          (hash 'current (hash 'row# 3 'column# 3) 'home (hash 'row# 3 'column# 3) 'color "yellow")))
+
+  (define expected-player-infos1
+    (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 1 1) #f "blue")
+          (ref-player-info-new (cons 1 1) (cons 5 5) (cons 1 1) #f "red")
+          (ref-player-info-new (cons 2 2) (cons 4 4) (cons 1 1) #f "green")
+          (ref-player-info-new (cons 3 3) (cons 3 3) (cons 1 1) #f "yellow")))
