@@ -17,7 +17,10 @@
 (writeln "Testing milestone 2: xboard")
 (define milestone-2-test-cases (list (cons "../3/Tests/0-in.json" "../3/Tests/0-out.json")
                                      (cons "../3/Tests/1-in.json" "../3/Tests/1-out.json")
-                                     (cons "../3/Tests/2-in.json" "../3/Tests/2-out.json")))
+                                     (cons "../3/Tests/2-in.json" "../3/Tests/2-out.json")
+                                     (cons "../3/ForStudents/0-in.json" "../3/ForStudents/0-out.json")
+                                     (cons "../3/ForStudents/1-in.json" "../3/ForStudents/1-out.json")
+                                     (cons "../3/ForStudents/2-in.json" "../3/ForStudents/2-out.json")))
 (for ([testcase milestone-2-test-cases])
   (run-test-case "../3/xboard" testcase))
 
@@ -27,7 +30,10 @@
                                      (cons "../4/Tests/1-in.json" "../4/Tests/1-out.json")
                                      (cons "../4/Tests/2-in.json" "../4/Tests/2-out.json")
                                      (cons "../4/Tests/3-in.json" "../4/Tests/3-out.json")
-                                     (cons "../4/Tests/4-in.json" "../4/Tests/4-out.json")))
+                                     (cons "../4/Tests/4-in.json" "../4/Tests/4-out.json")
+                                     (cons "../4/ForStudents/0-in.json" "../4/ForStudents/0-out.json")
+                                     (cons "../4/ForStudents/1-in.json" "../4/ForStudents/1-out.json")
+                                     (cons "../4/ForStudents/2-in.json" "../4/ForStudents/2-out.json")))
 (for ([testcase milestone-3-test-cases])
   (run-test-case "../4/xstate" testcase))
 
@@ -37,7 +43,10 @@
                                      (cons "../5/Tests/1-in.json" "../5/Tests/1-out.json")
                                      (cons "../5/Tests/2-in.json" "../5/Tests/2-out.json")
                                      (cons "../5/Tests/3-in.json" "../5/Tests/3-out.json")
-                                     (cons "../5/Tests/4-in.json" "../5/Tests/4-out.json")))
+                                     (cons "../5/Tests/4-in.json" "../5/Tests/4-out.json")
+                                     (cons "../5/ForStudents/0-in.json" "../5/ForStudents/0-out.json")
+                                     (cons "../5/ForStudents/1-in.json" "../5/ForStudents/1-out.json")
+                                     (cons "../5/ForStudents/2-in.json" "../5/ForStudents/2-out.json")))
 (for ([testcase milestone-4-test-cases])
   (run-test-case "../5/xchoice" testcase))
 
@@ -45,7 +54,10 @@
 ;; Test milestone 5
 (define milestone-5-test-cases (list (cons "../6/Tests/0-in.json" "../6/Tests/0-out.json")
                                      (cons "../6/Tests/1-in.json" "../6/Tests/1-out.json")
-                                     (cons "../6/Tests/2-in.json" "../6/Tests/2-out.json")))
+                                     (cons "../6/Tests/2-in.json" "../6/Tests/2-out.json")
+                                     (cons "../6/ForStudents/0-in.json" "../6/ForStudents/0-out.json")
+                                     (cons "../6/ForStudents/1-in.json" "../6/ForStudents/1-out.json")
+                                     (cons "../6/ForStudents/2-in.json" "../6/ForStudents/2-out.json")))
 (for ([testcase milestone-5-test-cases])
   (run-test-case "../6/xgames" testcase))
 
@@ -53,7 +65,10 @@
 ;; Test milestone 6
 (define milestone-6-test-cases (list (cons "../7/Tests/0-in.json" "../7/Tests/0-out.json")
                                      (cons "../7/Tests/1-in.json" "../7/Tests/1-out.json")
-                                     (cons "../7/Tests/2-in.json" "../7/Tests/2-out.json")))
+                                     (cons "../7/Tests/2-in.json" "../7/Tests/2-out.json")
+                                     (cons "../7/ForStudents/0-in.json" "../7/ForStudents/0-out.json")
+                                     (cons "../7/ForStudents/1-in.json" "../7/ForStudents/1-out.json")
+                                     (cons "../7/ForStudents/2-in.json" "../7/ForStudents/2-out.json")))
 (for ([testcase milestone-6-test-cases])
   (run-test-case "../7/xbad" testcase))
 
@@ -64,7 +79,10 @@
                                      (cons "../8/Tests/1-in.json" "../8/Tests/1-out.json")
                                      (cons "../8/Tests/2-in.json" "../8/Tests/2-out.json")
                                      (cons "../8/Tests/3-in.json" "../8/Tests/3-out.json")
-                                     (cons "../8/Tests/4-in.json" "../8/Tests/4-out.json")))
+                                     (cons "../8/Tests/4-in.json" "../8/Tests/4-out.json")
+                                     (cons "../8/ForStudents/0-in.json" "../8/ForStudents/0-out.json")
+                                     (cons "../8/ForStudents/1-in.json" "../8/ForStudents/1-out.json")
+                                     (cons "../8/ForStudents/2-in.json" "../8/ForStudents/2-out.json")))
 (for ([testcase milestone-7-test-cases])
   (run-test-case "../8/xbad2" testcase))
 
