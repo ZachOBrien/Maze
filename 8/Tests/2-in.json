@@ -1,4 +1,4 @@
-[["borat", "Euclid", "setUp", 1], ["asamat", "Riemann", "setUp"], ["pamela", "Riemann", "takeTurn", 4], ["who-ey-lewis", "Euclid"], ["sacha", "Euclid"]]
+[["borat", "Euclid", "setUp", 1], ["asamat", "Riemann", "setUp"], ["pamela", "Riemann", "takeTurn", 4], ["Hueylewis", "Euclid"], ["sacha", "Euclid"]]
 {
     "board" : {
         "connectors" :

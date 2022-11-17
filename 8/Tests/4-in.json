@@ -1,4 +1,4 @@
-[["borat", "Euclid"], ["asamat", "Riemann"], ["pamela", "Riemann", "takeTurn", 4], ["who-ey-lewis", "Euclid"], ["sacha", "Euclid"]]
+[["borat", "Euclid"], ["asamat", "Riemann", "setUp"], ["pamela", "Riemann", "setUp"], ["who-ey-lewis", "Riemann"], ["sacha", "Euclid"]]
 {
     "board" : {
         "connectors" :
@@ -71,7 +71,7 @@
 		["red-spinel-square-emerald-cut", "rhodonite"],
 		["rock-quartz", "rose-quartz"],
 		["ruby-diamond-profile", "ruby"],
-		["ruby", "ruby"]
+		["ruby", "ruby"],
 		["red-diamond", "red-diamond"]
             ],
             [
@@ -80,7 +80,7 @@
 		["tanzanite-trillion", "tigers-eye"],
 		["tourmaline-laser-cut", "tourmaline"],
 		["unakite", "white-square"],
-		["yellow-baguette", "yellow-beryl-oval"]
+		["yellow-baguette", "yellow-beryl-oval"],
 		["sunstone", "sunstone"],
 		["stilbite", "stilbite"]
             ],
