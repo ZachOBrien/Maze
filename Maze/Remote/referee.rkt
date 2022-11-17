@@ -5,6 +5,11 @@
 ;; --------------------------------------------------------------------
 ;; MODULE INTERFACE
 
+(provide
+ (contract-out
+  ; Create a new proxy referee
+  [proxy-referee-new (-> (or/c player? proxy-player?) tcp-conn? proxy-referee?)]))
+
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
 
@@ -13,7 +18,8 @@
 (require racket/class)
 
 (require "tcp-conn.rkt")
-(require (only-in "../Players/player.rkt" player-interface))
+(require (only-in "../Players/player.rkt" player-interface player?))
+(require (only-in "../Remote/player.rkt" proxy-player?))
 (require (submod "../Common/state.rkt" serialize))
 (require (submod "../Common/board.rkt" serialize))
 (require (submod "../Players/strategy.rkt" serialize))
@@ -31,7 +37,7 @@
 
 ;; (U Player ProxyPlayer) TcpConn -> ProxyReferee
 ;; Create a new proxy referee, which enables communication with a single player
-(define (proxy-referee/new player tcp-conn)
+(define (proxy-referee-new player tcp-conn)
   (new proxy-referee% [init-player player] [init-tcp-conn tcp-conn]))
 
 (define proxy-referee%

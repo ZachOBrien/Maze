@@ -1,61 +1,73 @@
 #lang racket/base
 
+(require racket/class)
 (require racket/tcp)
 (require racket/function)
+(require racket/bool)
+(require racket/list)
 (require json)
 
 (require "../Remote/safety.rkt")
+(require "../Remote/player.rkt")
+(require "../Remote/tcp-conn.rkt")
+(require "../Referee/referee.rkt")
 
 ;;; This script implements a server for a game of Maze
+
+
+(define PLAYER-NAME-TIME-LIMIT-SEC 2)
+(define SIGNUP-ROUND-TIME-LIMIT-SEC 20)
+(define MAX-PLAYERS 6)
+(define DEFAULT-PORT 27015)
+
+;; RefereeState Boolean -> [List [Listof String] [Listof String]]
+;; Runs a server which hosts a game of Maze
+(define (main state0 observer?)
+  (define server (tcp-listen DEFAULT-PORT))
+  (define proxy-players (signup server SIGNUP-ROUND-TIME-LIMIT-SEC MAX-PLAYERS))
+  (begin
+    (cond
+      [((length proxy-players) . < . 2) (write-json (list empty empty))]
+      [(run-game proxy-players state0 observer?)])
+    (tcp-close server)))
 
 
 ;; Listener -> [Listof ProxyPlayer]
 ;; Sign up proxy players to play a game of Maze
 (define (signup listener time-limit max-players)
-  (define first-phase-conns (collect-connections listener (current-seconds) time-limit max-players))
-  (define final-connections
+  (define first-phase-players (collect-players listener (current-seconds) time-limit max-players))
+  (define final-players
     (cond
-      [((length first-phase-conns) . >= . 2) first-phase-conns]
-      [else (collect-connections listener (current-seconds) time-limit max-players first-phase-conns)]))
-  1)
+      [((length first-phase-players) . >= . 2) first-phase-players]
+      [else (collect-players listener (current-seconds) time-limit max-players first-phase-players)]))
+  final-players)
+
   
-  
-;; Listener Integer PositiveInteger PositiveInteger -> [Listof (cons InputPort OutputPort)]
-;; Attempts to establish up to `max-conns` connections over a maximum time span `time-limit`
-;; INTEPRETATION: `start-time` is expressed in UNIX epoch seconds
-(define (collect-connections listener start-time time-limit max-conns [connections '()])
-  (define listening-complete? (or (= (length connections) max-conns)
-                                  ((- (current-seconds) start-time) . >= . time-limit)))
+;; Listener Integer PositiveInteger PositiveInteger -> [Listof ProxyPlayer]
+;; Attempts to collect up to `max-players` proxy players over a maximum time span `time-limit-s` in seconds
+;; INTEPRETATION: `start-time-s` is expressed in UNIX epoch seconds
+;; TODO: Look into futures rather than manually counting time
+(define (collect-players listener start-time-s time-limit-s max-players [players '()])
+  (define listening-complete? (or (= (length players) max-players)
+                                  ((- (current-seconds) start-time-s) . >= . time-limit-s)))
   (cond
-    [listening-complete? connections]
-    [else (collect-connections listener start-time time-limit max-conns
-                               (if (tcp-accept-ready? listener)
-                                   (let-values ([(input-port output-port) (tcp-accept listener)])
-                                     (cons (cons input-port output-port) connections))
-                                   connections))]))
+    [listening-complete? players]
+    [else (collect-players listener start-time-s time-limit-s max-players
+                           (if (tcp-accept-ready? listener)
+                               (let*-values ([(input-port output-port) (tcp-accept listener)]
+                                             [(new-proxy-player) (new-connection->proxy-player input-port output-port PLAYER-NAME-TIME-LIMIT-SEC)])
+                                            (if (not (false? new-proxy-player))
+                                                (cons new-proxy-player players)
+                                                players))
+                               players))]))
 
-
-;; InputPort OutputPort -> (U ProxyPlayer #f)
-;; Attempts to create a proxy player from a connection. Returns false
-;; if the player does not provide a name within `time-limit-s` seconds
-(define (connect-player input-port output-port time-limit-s)
-  (define name (execute-safe (thunk (read-json input-port))))
+;; InputPort OutputPort PositiveInteger -> (U ProxyPlayer #f)
+;; Given a connection, attempts to create a new ProxyPlayer by retrieving a name within some time limit
+(define (new-connection->proxy-player input-port output-port time-limit-s)
+  (define name (execute-safe (thunk (read-json input-port)) time-limit-s))
   (cond
-    [(or (eq? name 'misbehaved) (not (string? name))) #f]
-    [else (proxy-player-new name input-port output-port)]))
-     
-
-#;
-(define (main)
-  (define server (tcp-listener 27015))
-  (define proxy-players (setup))
-  (cond
-    [((length proxy-players) . < . 2) (write-json (list empty empty))]
-    [...]))
-
-
-(module+ main
-  1)
+    [(or (not (string? name)) (equal? name 'misbehaved)) #f]
+    [else (proxy-player-new name (tcp-conn-new input-port output-port))]))
 
 
 ;; --------------------------------------------------------------------
@@ -64,24 +76,23 @@
 (module+ test
   (require rackunit))
 
-; Test connect-player
+
+; Test new-connection->proxy-player
 (module+ test
   (test-case
-   "Test creating a well-behaved player"
-   (define input (open-input-string "\"aoun\""))
+   "Test invalid JSON sent for name"
+   (define input (open-input-string "chucky"))
    (define output (open-output-string))
-   (define new-player (connect-player input output 2))
-   (check-equal? "aoun" (send name new-player)))
+   (check-equal? #f (new-connection->proxy-player input output 2)))
   (test-case
-   "Test creating a player that sends invalid JSON for a name"
-   (define input (open-input-string "aoun"))
+   "Test non-string sent for name"
+   (define input (open-input-string "1337"))
    (define output (open-output-string))
-   (check-equal? #f (connect-player input output 2)))
+   (check-equal? #f (new-connection->proxy-player input output 2)))
   (test-case
-   "Test creating a player that sends non-string JSON for their name"
-   (define input (open-input-string "27"))
+   "Test valid name sent"
+   (define input (open-input-string "\"chucky\""))
    (define output (open-output-string))
-   (check-equal? #f (connect-player input output 2))))
+   (check-equal? "chucky" (send (new-connection->proxy-player input output 2) name))))
   
-      
       

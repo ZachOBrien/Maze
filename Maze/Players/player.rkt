@@ -275,6 +275,7 @@
   (is-a?/c player%))
 
 (module+ serialize
+  (require json)
   (provide
    (contract-out
     [json-ps? contract?]

@@ -13,7 +13,7 @@
 ;; Creates a function to check for valid shift in the given board
 (define (valid-shift? board)
   (λ (shft) (and shift?
-                 (if (shifts-row? shft)
+                 (if (shifts-row? (shift-direction shft))
                      (valid-row-shift-index? board (shift-index shft))
                      (valid-col-shift-index? board (shift-index shft))))))
 
@@ -584,7 +584,8 @@
   (define row-one-vert (list tile-horiz tile-horiz tile-horiz tile-vert tile-horiz tile-horiz tile-horiz))
   (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz))
 
-  (define board6x7 (list row4 row3 row2 row1 row0 row5)))
+  (define board6x7 (list row4 row3 row2 row1 row0 row5))
+  (define board7x6 (list (rest row4) (rest row3) (rest row2) (rest row1) (rest row0) (rest row5) (rest row6))))
 
 (module+ test
   (require rackunit)
@@ -604,7 +605,8 @@
   (check-true ((valid-shift? board1) (shift 'right 2)))
   (check-true ((valid-shift? board1) (shift 'left 6)))
   (check-false ((valid-shift? board1) (shift 'up 1)))
-  (check-false ((valid-shift? board1) (shift 'down 3))))
+  (check-false ((valid-shift? board1) (shift 'down 3)))
+  (check-true ((valid-shift? board7x6) (shift 'left 6))))
 
 ;; Test valid-shift-indices
 (module+ test
@@ -617,6 +619,10 @@
   (check-true (valid-row-shift-index? board6x7 4))
   (check-false (valid-row-shift-index? board6x7 8))
   (check-false (valid-row-shift-index? board6x7 6))
+
+  (check-true (valid-row-shift-index? board7x6 0))
+  (check-true (valid-row-shift-index? board7x6 6))
+  (check-false (valid-row-shift-index? board7x6 7))
   
   (check-true (valid-col-shift-index? board6x7 6))
   (check-false (valid-col-shift-index? board6x7 1))
@@ -814,11 +820,15 @@
 
 ;; test num-rows
 (module+ test
-  (check-equal? (num-rows board1) 7))
+  (check-equal? (num-rows board1) 7)
+  (check-equal? (num-rows board7x6) 7)
+  (check-equal? (num-rows board6x7) 6))
 
 ;; test num-cols
 (module+ test
-  (check-equal? (num-cols board1) 7))
+  (check-equal? (num-cols board1) 7)
+  (check-equal? (num-cols board7x6) 6)
+  (check-equal? (num-cols board6x7) 7))
 
 
 ;; test board-all-reachable-from
