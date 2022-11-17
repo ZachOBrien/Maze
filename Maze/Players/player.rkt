@@ -98,7 +98,8 @@
                           [propose-board (->m natural-number/c natural-number/c board?)]
                           [setup (->m player-state? grid-posn? any)]
                           [take-turn (->m player-state? action?)]
-                          [win (->m boolean? any)]))
+                          [win (->m boolean? any)]
+                          [get-goal (->m (or/c #f grid-posn?))]))
 
 
 (define/contract player% player-interface
@@ -140,7 +141,9 @@
     ;; Informs the player whether they won or lost
     (define/public (win status)
       (set! won-game status))
-    
+
+    ;; -> (U GridPosn #f)
+    ;; Gets the goal of the player, returns false if setup has not been called
     (define/public (get-goal) goal)
     (define/public (get-plyr-state0) plyr-state0)
     (define/public (get-won-game) won-game)))

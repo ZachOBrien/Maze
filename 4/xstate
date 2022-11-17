@@ -23,7 +23,7 @@
 ;; the given position, and writes these positions to STDOUT as JSON
 (module+ main
   (define-values (state-ht index-ip dir-ip degree-ip) (read-json-input (current-input-port)))
-  (define state (json-player-state->player-state state-ht))
+  (define state (json-public-state->player-state state-ht))
   (define index index-ip)
   (define dir (json-direction->shift-direction dir-ip))
   (define degree degree-ip) 

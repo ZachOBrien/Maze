@@ -21,6 +21,7 @@
 (require json)
 (require racket/list)
 (require racket/class)
+(require racket/bool)
 
 (require "tcp-conn.rkt")
 (require (only-in "../Players/player.rkt" player-interface))
@@ -51,6 +52,7 @@
     (define tcp-conn init-tcp-conn)
 
     (super-new)
+    ;; TODO: write functions that build rpc messages and have contracts on those messages
 
     ;; -> String
     ;; Get the player's name
@@ -65,7 +67,7 @@
     ;; PlayerState GridPosn -> Any
     ;; Sets initial state and treasure position
     (define/public (setup plyr-state new-goal)
-      (send tcp-conn send-json (list "setup" (list (public-player-state->json-public-state plyr-state)
+      (send tcp-conn send-json (list "setup" (list (player-state->json-public-state plyr-state)
                                                    (gridposn->json-coordinate new-goal))))
       (define response (send tcp-conn receive-json))
       (or (equal? response "void") (error "invalid response to setup")))
@@ -73,7 +75,7 @@
     ;; PlayerState -> Action
     ;; Chooses either to make a move or pass
     (define/public (take-turn plyr-state)
-      (send tcp-conn send-json (list "take-turn" (list (public-player-state->json-public-state plyr-state))))
+      (send tcp-conn send-json (list "take-turn" (list (player-state->json-public-state plyr-state))))
       (json-choice->action (send tcp-conn receive-json)))
       
 
@@ -82,7 +84,15 @@
     (define/public (win status)
       (send tcp-conn send-json (list "win" (list status)))
       (define response (send tcp-conn receive-json))
-      (or (equal? response "void") (error "invalid response to win")))))
+      (or (equal? response "void") (error "invalid response to win")))
+
+    ;; -> GridPosn
+    (define/public (get-goal)
+      (send tcp-conn send-json (list "get-goal" empty))
+      (define response (send tcp-conn receive-json))
+      (if (false? response)
+          response
+          (json-coordinate->gridposn response)))))
 
 (define proxy-player? (is-a?/c proxy-player%))
 

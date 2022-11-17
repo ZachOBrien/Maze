@@ -166,10 +166,10 @@
    (contract-out
     [json-public-player-info? contract?]
     [json-referee-player-info? contract?]
-    ; Make a referee player into a hash
+    ; Make a referee player into a JsonRefPlayerInfo
     [referee-player-info->json-referee-player-info (-> ref-player-info? json-referee-player-info?)]
-    ; Make a public player into a hash
-    [public-player-info->json-public-player-info (-> pub-player-info? json-public-player-info?)]
+    ; Make a public player into a JsonPubPlayerInfo
+    [player-info->json-public-player-info (-> player-info? json-public-player-info?)]
     ; Create a RefPlayerInfo from a JsonRefPlayerInfo
     [json-referee-player-info->referee-player-info (-> json-referee-player-info? ref-player-info?)]
     ; Create a PubPlayerInfo from a JsonPubPlayerInfo
@@ -235,18 +235,18 @@
 
   ;; PubPlayerInfo -> JsonPubPlayerInfo
   ;; Make a public player into a PubPlayerInfo
-  (define (public-player-info->json-public-player-info pub-plyr)
+  (define (player-info->json-public-player-info pub-plyr)
     (hash 'current (gridposn->json-coordinate (player-info-curr-pos pub-plyr))
           'home    (gridposn->json-coordinate (player-info-home-pos pub-plyr))
           'color (player-info-color pub-plyr)))
 
   (module+ test
-    (check-equal? (public-player-info->json-public-player-info (pub-player-info-new (cons 0 0) (cons 2 2) "blue"))
+    (check-equal? (player-info->json-public-player-info (pub-player-info-new (cons 0 0) (cons 2 2) "blue"))
                   (hash 'current (hash 'row# 0 'column# 0)
                         'home (hash 'row# 2 'column# 2)
                         'color "blue"))
                   
-    (check-equal? (public-player-info->json-public-player-info (pub-player-info-new (cons 6 1) (cons 3 4) "red"))
+    (check-equal? (player-info->json-public-player-info (pub-player-info-new (cons 6 1) (cons 3 4) "red"))
                   (hash 'current (hash 'row# 6 'column# 1)
                         'home (hash 'row# 3 'column# 4)
                         'color "red")))
@@ -482,15 +482,15 @@
 
 ;; test public-player-info->hash
 (module+ test
-  (check-equal? (public-player-info->json-public-player-info public-player-info0)
+  (check-equal? (player-info->json-public-player-info public-player-info0)
                 (hash 'current (hash 'row# 0 'column# 0)
                       'home (hash 'row# 6 'column# 6)
                       'color "blue"))
-  (check-equal? (public-player-info->json-public-player-info public-player-info1)
+  (check-equal? (player-info->json-public-player-info public-player-info1)
                 (hash 'current (hash 'row# 1 'column# 1)
                       'home (hash 'row# 5 'column# 5)
                       'color "purple"))
-  (check-equal? (public-player-info->json-public-player-info public-player-info2)
+  (check-equal? (player-info->json-public-player-info public-player-info2)
                 (hash 'current (hash 'row# 2 'column# 2)
                       'home (hash 'row# 4 'column# 4)
                       'color "green")))

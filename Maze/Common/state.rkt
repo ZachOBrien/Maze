@@ -385,26 +385,22 @@
   
   (provide
    (contract-out
-    [json-player-state? contract?]
+    [json-public-state? contract?]
     [json-referee-state? contract?]
     ; Convert a RefereeState to a JsonRefereeState
     [ref-state->json-referee-state (-> referee-state? json-referee-state?)]
     ; Convert a PlayerState to a JsonPlayerState
-    [public-player-state->json-public-state (-> player-state? json-player-state?)]
+    [player-state->json-public-state (-> player-state? json-public-state?)]
     ; Convert a JsonRefState into a RefState
     [json-referee-state->ref-state (-> json-referee-state? referee-state?)]
     ; Convert a JsonPlayerState into a PlayerState. Uses a dummy treasure value for the active player.
-    [json-player-state->player-state (-> json-player-state? player-state?)]
-    ; Convert a JsonPlayerState and a JsonCoordinate into a PlayerState
-    ; ZACH NOTE: I changed the purpose statement above to include JsonCoordinate
-    [json-player-state-and-goal->player-state (-> json-player-state? json-coordinate? player-state?)]
+    [json-public-state->player-state (-> json-public-state? player-state?)]
     ; Convert a JsonPlayerState and a GridPosn into a PlayerState
-    ; ZACH NOTE: I changed the purpose statement above to include JsonCoordinate
-    [json-player-state-and-goal-gridposn->player-state (-> json-player-state? grid-posn? player-state?)]))
+    [json-public-state-and-goal-gridposn->player-state (-> json-public-state? grid-posn? player-state?)]))
 
   ;; Any -> Boolean
   ;; Is this object a hashtable JSON representation of a PlayerState
-  (define (json-player-state? ht)
+  (define (json-public-state? ht)
     (and (hash? ht)
          (hash-has-key? ht 'board)
          (hash-has-key? ht 'spare)
@@ -438,12 +434,10 @@
 
   ;; PlayerState -> JsonPlayerState
   ;; Convert a PlayerState into a JsonPlayerState
-  ;; ZACH NOTE: Rename this to just player-state->json-player-state ? we have some inconsistincy in the way we are naming our json representation of the public state
-  ;; ZACH NOTE: This function is not working because it is applying public-player-info->json-public-player-info over the player list in the PlayerState, we should make the public-player-info->json function take in both a public and referee state so that we can map.
-  (define (public-player-state->json-public-state plyr-state)
+  (define (player-state->json-public-state plyr-state)
     (hash 'board (board->json-board (gamestate-board plyr-state))
           'spare (tile->json-tile (gamestate-extra-tile plyr-state))
-          'plmt (map public-player-info->json-public-player-info (gamestate-players plyr-state))
+          'plmt (map player-info->json-public-player-info (gamestate-players plyr-state))
           'last (prev-shift->json-action (gamestate-prev-shift plyr-state))))
 
   ;; JsonRefereeState -> RefereeState
@@ -457,30 +451,13 @@
   ;; JsonPlayerState -> PlayerState
   ;; Convert a JsonPlayerState into a PlayerState
   ;; IMPORTANT: The active player is given a dummy treasure tile at (1, 1)
-  (define (json-player-state->player-state json-plyr-state)
-    (json-player-state-and-goal->player-state json-plyr-state (gridposn->json-coordinate (cons 1 1))))
-
-  ;; JsonPlayerState JsonCoordinate -> PlayerState
-  ;; Convert a JsonPlayerState and goal coordinate into a PlayerState
-  ;; TODO: Right now, this hard-codes that the player has NOT visited their treasure. That is probably a problem.
-  ;; ZACH NOTE: I think it COULD be a problem, depeding on how we want to go about it, I think it is a problem if we assume that the player is responsible for the logic of deciding whether or not they go home, however we totally could put that logic in the referee, in which case the player would always go towars its "goal" tile, without knowing if that tile is its home or its goal.
-  ;; ZACH NOTE: I think this is un-needed, we will have access to a grid-posn anywhere we would have a JsonCoordinate, and would have to turn it into a gridposn anyways (setup), so why not do that first and just have a function that takes in a GridPosn
-  (define (json-player-state-and-goal->player-state json-plyr-state goal)
-    
-    (define public-plyr-list (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt)))
-    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) (json-coordinate->gridposn goal) #f))
-    (define plyr-list-with-goal-for-active-player (cons active-player-as-ref-player (rest public-plyr-list)))
-    
-    (player-state-new (json-board->board (hash-ref json-plyr-state 'board))
-                      (json-tile->tile (hash-ref json-plyr-state 'spare))
-                      plyr-list-with-goal-for-active-player
-                      (json-action->prev-shift (hash-ref json-plyr-state 'last))))
-
+  (define (json-public-state->player-state json-pub-state)
+    (json-public-state-and-goal-gridposn->player-state json-pub-state (cons 1 1)))
 
   ;; JsonPlayerState GridPosn -> PlayerState
   ;; Convert a JsonPlayerState and goal GridPosn into a PlayerState
-  ;; ZACH NOTE: I added this so that I can create the appropriate PlayerState in the take-turn method, where I have to get the existing goal from the player itself.
-  (define (json-player-state-and-goal-gridposn->player-state json-plyr-state goal)
+  ;; TODO: Right now, this hard-codes that the player has NOT visited their treasure. That is probably a problem.
+  (define (json-public-state-and-goal-gridposn->player-state json-plyr-state goal)
     
     (define public-plyr-list (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt)))
     (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) goal #f))
@@ -721,7 +698,7 @@
 #;
 (module+ test
   (require (submod "./player-info.rkt" serialize examples))
-  (check-equal? (json-player-state->player-state (hash 'board example-board-hash
+  (check-equal? (json-public-state->player-state (hash 'board example-board-hash
                                                      'spare (hash 'tilekey "┘"
                                                                   '1-image "lapis-lazuli"
                                                                   '2-image "pink-opal")
