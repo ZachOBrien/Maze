@@ -5,8 +5,7 @@
  (contract-out
   [run-observer (-> (listof referee-state?) any)]))
 
-
-(require racket/gui)
+(require racket/gui/dynamic)
 (require json)
 (require "../Common/state.rkt")
 (require (submod "../Common/state.rkt" examples))
@@ -23,16 +22,16 @@
   (define (draw dc)
     (render-image (referee-state->image (list-ref states current-state) 100) dc 0 0))
 
-  (define frame (new frame%
+  (define frame (new (gui-dynamic-require 'frame%)
                    [label "Example"]
                    [width 900]
                    [height 900]))
 
-  (define canvas (new canvas% [parent frame]
+  (define canvas (new (gui-dynamic-require 'canvas%) [parent frame]
                       [paint-callback (lambda (canvas dc) (draw dc))]))
   
   ; Make a button in the frame
-  (define next-btn (new button% [parent frame]
+  (define next-btn (new (gui-dynamic-require 'button%) [parent frame]
                         [label "Next"]
                         [enabled #t]
                         ; Callback procedure for a button click:
@@ -44,7 +43,7 @@
                                       (send canvas refresh-now)))]))
 
     ; Make a button in the frame
-  (define prev-btn (new button% [parent frame]
+  (define prev-btn (new (gui-dynamic-require 'button%) [parent frame]
                         [label "Prev"]
                         [enabled #f]
                         ; Callback procedure for a button click:
@@ -56,12 +55,12 @@
                                       (send canvas refresh-now)))]))
 
   ; Make a button in the frame
-  (new button% [parent frame]
+  (new (gui-dynamic-require 'button%) [parent frame]
        [label "Save State"]
        ; Callback procedure for a button click:
        [callback (lambda (button event)
                    (let
-                       ([file-name (put-file)])
+                       ([file-name ((gui-dynamic-require 'put-file))])
                      (with-output-to-file file-name (λ () (write-json (ref-state->json-referee-state (list-ref states current-state)))))))])
   
   (send frame show #t))
