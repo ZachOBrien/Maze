@@ -47,6 +47,7 @@
     (super-new)
 
     ;; Send a single JSON value
+    ;; ZACH NOTE: I have these contracts in the proxy referee for valid json inputs to methods, should we make the contract for send-json more specific so that it can only send valid messages?
     (define/public (send-json jsexpr)
       (write-json jsexpr output)
       (flush-output output))
