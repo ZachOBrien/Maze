@@ -107,7 +107,11 @@
   (cond
     [(false? mv) (values #t (end-current-turn state))]
     [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
-    [else (values #f (end-current-turn (gamestate-execute-move state mv)))]))
+    [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
+                 (if (player-on-treasure? gamestate-after-move)
+                     (send-setup-to-player gamestate-after-move player color)
+                     #f)
+                (values #f (end-current-turn gamestate-after-move)))]))
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
@@ -171,7 +175,7 @@
 (define (send-setup-to-player state plyr color)
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
-                                    (player-info-treasure-pos (gamestate-get-by-color state color)))))
+                                    (get-goto-pos (gamestate-get-by-color state color)))))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 

@@ -43,7 +43,7 @@
   [visited-treasure-and-on-home? (-> ref-player-info? boolean?)]
   ; Determines the current goal for the player. If a player has already visited their treasure,
   ; their goal is to return home.
-  [get-goal-pos (-> ref-player-info? grid-posn?)]
+  [get-goto-pos (-> ref-player-info? grid-posn?)]
   ; Determine the distance of a player from their objective. If they have not found their treasure,
   ; that is their objective. If they have found their treasure, getting home is their objective.
   [distance-from-objective (-> ref-player-info? (-> grid-posn? grid-posn? (not/c negative?)) (not/c negative?))]))
@@ -145,7 +145,7 @@
 ;; RefPlayerInfo -> GridPosn
 ;; Determines the current goal for the player. If a player has already visited their treasure,
 ;; their goal is to return home.
-(define (get-goal-pos plyr)
+(define (get-goto-pos plyr)
   (if (player-info-visited-treasure? plyr)
       (player-info-home-pos plyr)
       (player-info-treasure-pos plyr)))
@@ -215,7 +215,7 @@
   (define (referee-player-info->json-referee-player-info ref-plyr)
     (hash 'current (gridposn->json-coordinate (player-info-curr-pos ref-plyr))
           'home    (gridposn->json-coordinate (player-info-home-pos ref-plyr))
-          'goto    (gridposn->json-coordinate (get-goal-pos ref-plyr))
+          'goto    (gridposn->json-coordinate (get-goto-pos ref-plyr))
           'color (player-info-color ref-plyr)))
 
 
@@ -494,4 +494,11 @@
                 (hash 'current (hash 'row# 2 'column# 2)
                       'home (hash 'row# 4 'column# 4)
                       'color "green")))
-  
+
+; test get-goto-pos
+(module+ test
+  (check-equal? (get-goto-pos player-info1) (cons 1 1))
+  (check-equal? (get-goto-pos player-info2) (cons 3 3))
+  (check-equal? (get-goto-pos player-info3) (cons 1 3))
+  (check-equal? (get-goto-pos player-info4) (cons 5 5))
+  (check-equal? (get-goto-pos player-info9) (cons 3 3)))
