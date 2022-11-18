@@ -115,11 +115,11 @@
         {
             "current" : {
                 "row#"    : 0,
-                "column#" : 8
+                "column#" : 4
             },
             "home"    : {
                 "row#"    : 7,
-                "column#" : 7
+                "column#" : 1
             },
             "goto"    : {
                 "row#"    : 3,
@@ -137,8 +137,8 @@
                 "column#" : 1
             },
             "goto"    : {
-                "row#"    : 3,
-                "column#" : 1
+                "row#"    : 1,
+                "column#" : 3
             },
             "color"   : "A9F4B1"
         },
@@ -179,11 +179,11 @@
             },
             "home"    : {
                 "row#"    : 7,
-                "column#" : 5
+                "column#" : 1
             },
             "goto"    : {
                 "row#"    : 1,
-                "column#" : 7
+                "column#" : 5
             },
             "color"   : "F5D4C1"
         }
