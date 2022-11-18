@@ -34,8 +34,6 @@
 (define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
-(require json)
-
 ;; [Listof Player] RefereeState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
 ;; Runs a game of Labrynth, finding winners and cheaters
 (define (run-game init-players state0 observer?)
@@ -44,7 +42,6 @@
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
     (define-values (state-after-getting-names color-names) (get-color-names players state0))
-    (writeln (hash->list color-names))
     (define state-after-setup (setup-all-players players state-after-getting-names))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
     (define game-over-state (first intermediate-states))
@@ -104,7 +101,6 @@
 ;; RefereeState [Hash Color:Player] AvatarColor -> Boolean RefereeState
 ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
 (define (execute-turn state player color)
-  (writeln (string-append color " taking their turn"))
   (define mv (safe-get-action player (referee-state->player-state state color)))
   (cond
     [(false? mv) (values #t (end-current-turn state))]
@@ -177,11 +173,10 @@
 ;; Sends a gamestate to the player, and returns the same gamestate either with that player
 ;; or, if they don't behave properly, without the player
 (define (send-setup-to-player state plyr color)
-  (writeln (string-append color " with setup"))
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
                                     (get-goto-pos (gamestate-get-by-color state color)))))
-    ['misbehaved (writeln (string-append color " misbehaved on setup")) (remove-player-by-color state color)]
+    ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 
 ;; ==================================
