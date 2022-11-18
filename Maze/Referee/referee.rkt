@@ -5,7 +5,6 @@
 ;; --------------------------------------------------------------------
 ;; MODULE INTERFACE
 
-
 (provide
  (contract-out
   ; Run a game of Maze
@@ -35,6 +34,7 @@
 (define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
+(require json)
 
 ;; [Listof Player] RefereeState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
 ;; Runs a game of Labrynth, finding winners and cheaters
@@ -44,6 +44,7 @@
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
     (define-values (state-after-getting-names color-names) (get-color-names players state0))
+    (writeln (hash->list color-names))
     (define state-after-setup (setup-all-players players state-after-getting-names))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
     (define game-over-state (first intermediate-states))
@@ -77,7 +78,7 @@
                         [(new-player-colors) (get-player-color-list (first new-states))]
                         [(all-players-passed) (equal? new-player-colors plyrs-passed-turn)])
             (cond
-              [(or (game-over? (first states-after-round)) all-players-passed) new-states]
+              [(or (game-over? (second new-states) (first new-states)) all-players-passed) new-states]
               [else (play-until-completion-help new-states players (sub1 rounds-remaining))]))]))
 
 
@@ -92,7 +93,7 @@
                                           (first player-colors))]
                            [(new-passed-plyrs) (if passed-turn (cons (first player-colors) passed-plyrs) passed-plyrs)])
                 (cond
-                  [(game-over? next-state) (values (cons next-state intermediate-states) passed-plyrs)]
+                  [(game-over? state next-state) (values (cons next-state intermediate-states) passed-plyrs)]
                   [else (run-round next-state
                                    players
                                    (rest player-colors)
@@ -103,13 +104,14 @@
 ;; RefereeState [Hash Color:Player] AvatarColor -> Boolean RefereeState
 ;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
 (define (execute-turn state player color)
+  (writeln (string-append color " taking their turn"))
   (define mv (safe-get-action player (referee-state->player-state state color)))
   (cond
     [(false? mv) (values #t (end-current-turn state))]
     [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
     [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
                  (if (player-on-treasure? gamestate-after-move)
-                     (send-setup-to-player gamestate-after-move player color)
+                     (values #f (send-setup-to-player gamestate-after-move player color))
                      #f)
                 (values #f (end-current-turn gamestate-after-move)))]))
 
@@ -173,10 +175,11 @@
 ;; Sends a gamestate to the player, and returns the same gamestate either with that player
 ;; or, if they don't behave properly, without the player
 (define (send-setup-to-player state plyr color)
+  (writeln (string-append color " with setup"))
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
                                     (get-goto-pos (gamestate-get-by-color state color)))))
-    ['misbehaved (remove-player-by-color state color)]
+    ['misbehaved (writeln (string-append color " misbehaved on setup")) (remove-player-by-color state color)]
     [_ state]))
 
 ;; ==================================

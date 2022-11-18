@@ -29,6 +29,8 @@
   [player-info-curr-pos (-> player-info? grid-posn?)]
   ; Check if a player is on a position
   [player-info-on-pos? (-> player-info? grid-posn? boolean?)]
+  ; Check if a player is on their home position
+  [player-info-on-home? (-> player-info? boolean?)]
   ; True if a player has already visited their treasure
   [player-info-visited-treasure? (-> ref-player-info? boolean?)]
   ; Move a player to the given gridposn
@@ -332,6 +334,10 @@
 (define (player-info-on-pos? p pos)
   (equal? (player-info-curr-pos p) pos))
 
+;; PlayerInfo -> Boolean
+;; Returns True if the player is on the their home position
+(define (player-info-on-home? plyr-info)
+  (equal? (player-info-curr-pos plyr-info) (player-info-home-pos plyr-info)))
 
 (module+ examples
   (provide (all-defined-out))

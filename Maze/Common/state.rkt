@@ -8,6 +8,8 @@
 
 (require racket/contract)
 (require racket/list)
+(require racket/function)
+(require racket/bool)
 (require "player-info.rkt")
 
 
@@ -64,7 +66,7 @@
   ; Get a PlayerInfo by color
   [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
   ; Has the game ended?
-  [game-over? (-> referee-state? boolean?)]))
+  [game-over? (-> referee-state? referee-state? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -292,12 +294,21 @@
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
 
-;; Gamestate -> Boolean
+;; (U Gamestate #f) Gamestate -> Boolean
 ;; Has the game ended?
-(define (game-over? state)
-  (or
-   (empty? (gamestate-players state))
-   (not (empty? (filter (λ (plyr) (visited-treasure-and-on-home? plyr)) (gamestate-players state))))))
+(define (game-over? prev-state curr-state)
+  (cond
+    [(false? prev-state) (empty? (gamestate-players curr-state))]
+    [else (or (empty? (gamestate-players curr-state)) (player-win? prev-state curr-state))]))
+
+
+;; Did the active player in prev-state win by making curr-state?
+(define (player-win? prev-state curr-state)
+  (define prev-state-plyr (gamestate-current-player prev-state))
+  (define curr-state-plyr (gamestate-get-by-color curr-state (player-info-color prev-state-plyr)))
+  (and (player-info-visited-treasure? prev-state-plyr)
+       (not (player-info-on-home? prev-state-plyr))
+       (player-info-on-home? curr-state-plyr)))
 
 
 ;; [Listof Any] -> [Listof Any]
@@ -699,15 +710,15 @@
 (module+ test
   (require (submod "./player-info.rkt" serialize examples))
   (check-equal? (json-public-state->player-state (hash 'board example-board-hash
-                                                     'spare (hash 'tilekey "┘"
-                                                                  '1-image "lapis-lazuli"
-                                                                  '2-image "pink-opal")
-                                                     'plmt example-player-infos1
-                                                     'last (list 0 "LEFT")))
+                                                       'spare (hash 'tilekey "┘"
+                                                                    '1-image "lapis-lazuli"
+                                                                    '2-image "pink-opal")
+                                                       'plmt example-player-infos1
+                                                       'last (list 0 "LEFT")))
                 (player-state-new example-board
-                                   spare-tile
-                                   expected-player-infos1
-                                   (shift-new 'left 0))))
+                                  spare-tile
+                                  expected-player-infos1
+                                  (shift-new 'left 0))))
 
 ; test ref-state->hash
 (module+ test
