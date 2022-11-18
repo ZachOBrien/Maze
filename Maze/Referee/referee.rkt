@@ -111,9 +111,11 @@
     [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
     [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
                  (if (player-on-treasure? gamestate-after-move)
-                     (values #f (send-setup-to-player gamestate-after-move player color))
-                     #f)
-                (values #f (end-current-turn gamestate-after-move)))]))
+                     (let ([state-after-notify (send-setup-to-player gamestate-after-move player color)])
+                       (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player gamestate-after-move))
+                           (values #f (end-current-turn state-after-notify))
+                           (values #f state-after-notify)))
+                     (values #f (end-current-turn gamestate-after-move))))]))
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
