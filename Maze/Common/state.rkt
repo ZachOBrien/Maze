@@ -1,4 +1,4 @@
-#lang racket
+#lang racket/base
 
 ;;; This module provides a data definition and logic for a Maze game state
 
@@ -8,6 +8,8 @@
 
 (require racket/contract)
 (require racket/list)
+(require racket/function)
+(require racket/bool)
 (require "player-info.rkt")
 
 
@@ -64,7 +66,7 @@
   ; Get a PlayerInfo by color
   [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
   ; Has the game ended?
-  [game-over? (-> referee-state? boolean?)]))
+  [game-over? (-> referee-state? referee-state? boolean?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -292,12 +294,21 @@
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
 
-;; Gamestate -> Boolean
+;; (U Gamestate #f) Gamestate -> Boolean
 ;; Has the game ended?
-(define (game-over? state)
-  (or
-   (empty? (gamestate-players state))
-   (not (empty? (filter (λ (plyr) (visited-treasure-and-on-home? plyr)) (gamestate-players state))))))
+(define (game-over? prev-state curr-state)
+  (cond
+    [(false? prev-state) (empty? (gamestate-players curr-state))]
+    [else (or (empty? (gamestate-players curr-state)) (player-win? prev-state curr-state))]))
+
+
+;; Did the active player in prev-state win by making curr-state?
+(define (player-win? prev-state curr-state)
+  (define prev-state-plyr (gamestate-current-player prev-state))
+  (define curr-state-plyr (gamestate-get-by-color curr-state (player-info-color prev-state-plyr)))
+  (and (player-info-visited-treasure? prev-state-plyr)
+       (not (player-info-on-home? prev-state-plyr))
+       (player-info-on-home? curr-state-plyr)))
 
 
 ;; [Listof Any] -> [Listof Any]
@@ -377,20 +388,96 @@
 
 (module+ serialize
   (require json)
-  
   (require (submod "board.rkt" serialize))
   (require (submod "tile.rkt" serialize))
   (require (submod "player-info.rkt" serialize))
 
+  ; TODO: write some tests
+  
   (provide
    (contract-out
-    [ref-state->hash (-> referee-state? hash?)]))
+    [json-public-state? contract?]
+    [json-referee-state? contract?]
+    ; Convert a RefereeState to a JsonRefereeState
+    [ref-state->json-referee-state (-> referee-state? json-referee-state?)]
+    ; Convert a PlayerState to a JsonPlayerState
+    [player-state->json-public-state (-> player-state? json-public-state?)]
+    ; Convert a JsonRefState into a RefState
+    [json-referee-state->ref-state (-> json-referee-state? referee-state?)]
+    ; Convert a JsonPlayerState into a PlayerState. Uses a dummy treasure value for the active player.
+    [json-public-state->player-state (-> json-public-state? player-state?)]
+    ; Convert a JsonPlayerState and a GridPosn into a PlayerState
+    [json-public-state-and-goal-gridposn->player-state (-> json-public-state? grid-posn? player-state?)]))
 
-  (define (ref-state->hash ref-state)
-    (hash 'board (board->hash (gamestate-board ref-state))
-          'spare (tile->hash (gamestate-extra-tile ref-state))
-          'plmt (map referee-player-info->hash (gamestate-players ref-state))
-          'last (shift->json-action (gamestate-prev-shift ref-state)))))
+  ;; Any -> Boolean
+  ;; Is this object a hashtable JSON representation of a PlayerState
+  (define (json-public-state? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'board)
+         (hash-has-key? ht 'spare)
+         (hash-has-key? ht 'plmt)
+         (hash-has-key? ht 'last)
+         (json-board? (hash-ref ht 'board))
+         (json-tile?  (hash-ref ht 'spare))
+         ((listof json-public-player-info?) (hash-ref ht 'plmt))
+         (json-action? (hash-ref ht 'last))))
+
+  ;; Any -> Boolean
+  ;; Is this object a hashtable JSON representation of a RefereeState
+  (define (json-referee-state? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'board)
+         (hash-has-key? ht 'spare)
+         (hash-has-key? ht 'plmt)
+         (hash-has-key? ht 'last)
+         (json-board? (hash-ref ht 'board))
+         (json-tile?  (hash-ref ht 'spare))
+         ((listof json-referee-player-info?) (hash-ref ht 'plmt))
+         (json-action? (hash-ref ht 'last))))
+
+  ;; RefereeState -> JsonRefereeState
+  ;; Convert a RefState into a JsonRefState
+  (define (ref-state->json-referee-state ref-state)
+    (hash 'board (board->json-board (gamestate-board ref-state))
+          'spare (tile->json-tile (gamestate-extra-tile ref-state))
+          'plmt (map referee-player-info->json-referee-player-info (gamestate-players ref-state))
+          'last (prev-shift->json-action (gamestate-prev-shift ref-state))))
+
+  ;; PlayerState -> JsonPlayerState
+  ;; Convert a PlayerState into a JsonPlayerState
+  (define (player-state->json-public-state plyr-state)
+    (hash 'board (board->json-board (gamestate-board plyr-state))
+          'spare (tile->json-tile (gamestate-extra-tile plyr-state))
+          'plmt (map player-info->json-public-player-info (gamestate-players plyr-state))
+          'last (prev-shift->json-action (gamestate-prev-shift plyr-state))))
+
+  ;; JsonRefereeState -> RefereeState
+  ;; Convert a JsonRefState into a RefState
+  (define (json-referee-state->ref-state json-ref-state)
+    (referee-state-new (json-board->board (hash-ref json-ref-state 'board))
+                       (json-tile->tile (hash-ref json-ref-state 'spare))
+                       (map json-referee-player-info->referee-player-info (hash-ref json-ref-state 'plmt))
+                       (json-action->prev-shift (hash-ref json-ref-state 'last))))
+
+  ;; JsonPlayerState -> PlayerState
+  ;; Convert a JsonPlayerState into a PlayerState
+  ;; IMPORTANT: The active player is given a dummy treasure tile at (1, 1)
+  (define (json-public-state->player-state json-pub-state)
+    (json-public-state-and-goal-gridposn->player-state json-pub-state (cons 1 1)))
+
+  ;; JsonPlayerState GridPosn -> PlayerState
+  ;; Convert a JsonPlayerState and goal GridPosn into a PlayerState
+  ;; TODO: Right now, this hard-codes that the player has NOT visited their treasure. That is probably a problem.
+  (define (json-public-state-and-goal-gridposn->player-state json-plyr-state goal)
+    
+    (define public-plyr-list (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt)))
+    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) goal #f))
+    (define plyr-list-with-goal-for-active-player (cons active-player-as-ref-player (rest public-plyr-list)))
+    
+    (player-state-new (json-board->board (hash-ref json-plyr-state 'board))
+                      (json-tile->tile (hash-ref json-plyr-state 'spare))
+                      plyr-list-with-goal-for-active-player
+                      (json-action->prev-shift (hash-ref json-plyr-state 'last)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -617,9 +704,25 @@
   (check-equal? (move-to-front 7 '(5 6 7)) '(7 5 6))
   (check-equal? (move-to-front 1 '(5 6 1 8 1 7)) '(1 5 6 8 1 7)))
 
+; test ref-state->json
+;TODO figure out how to reconstruct player state from public json representation
+#;
+(module+ test
+  (require (submod "./player-info.rkt" serialize examples))
+  (check-equal? (json-public-state->player-state (hash 'board example-board-hash
+                                                       'spare (hash 'tilekey "┘"
+                                                                    '1-image "lapis-lazuli"
+                                                                    '2-image "pink-opal")
+                                                       'plmt example-player-infos1
+                                                       'last (list 0 "LEFT")))
+                (player-state-new example-board
+                                  spare-tile
+                                  expected-player-infos1
+                                  (shift-new 'left 0))))
+
 ; test ref-state->hash
 (module+ test
-  (check-equal? (ref-state->hash gamestate0)
+  (check-equal? (ref-state->json-referee-state gamestate0)
                 (hash 'spare (hash 'tilekey "│"
                                    '1-image "yellow-baguette"
                                    '2-image "yellow-beryl-oval")

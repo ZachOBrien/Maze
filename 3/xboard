@@ -3,8 +3,8 @@
 
 (require json)
 
-(require "../Maze/Common/serialize.rkt")
 (require "../Maze/Common/board.rkt")
+(require (submod "../Maze/Common/board.rkt" serialize))
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -19,7 +19,6 @@
 ;; the given position, and writes these positions to STDOUT as JSON
 (module+ main
   (define-values (board-ht coordinate) (read-board-and-coordinate (current-input-port)))
-  (define board (hash->board board-ht))
+  (define board (json-board->board board-ht))
   (define pos (cons (hash-ref coordinate 'row#) (hash-ref coordinate 'column#)))
-  (write-json
-   (map gridposn->hash (sort (board-all-reachable-from board pos) compare-row-col))))
+  (write-json (map gridposn->json-coordinate (sort (board-all-reachable-from board pos) compare-row-col))))

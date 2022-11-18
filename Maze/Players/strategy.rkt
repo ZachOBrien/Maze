@@ -58,13 +58,13 @@
 ;; Determine the player's move using the Riemann strategy
 (define (riemann-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-riemann-candidates
-                                    (gamestate-board plyr-state)
-                                    (gamestate-current-player plyr-state))))
+                                              (gamestate-board plyr-state)
+                                              (gamestate-current-player plyr-state))))
 
 ;; Board RefPlayerInfo -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
 (define (get-riemann-candidates board plyr)
-  (define goal-pos (get-goal-pos plyr))
+  (define goal-pos (get-goto-pos plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
@@ -73,13 +73,13 @@
 ;; Determine a player's move using the Euclidean strategy
 (define (euclidean-strategy plyr-state)
   (get-first-valid-candidate-move plyr-state (get-euclidean-candidates
-                                    (gamestate-board plyr-state)
-                                    (gamestate-current-player plyr-state))))
+                                              (gamestate-board plyr-state)
+                                              (gamestate-current-player plyr-state))))
 
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
 (define (get-euclidean-candidates board plyr)
-  (define goal-pos (get-goal-pos plyr))
+  (define goal-pos (get-goto-pos plyr))
   (define all-candidates (get-all-positions board))
   (sort all-candidates (lambda (pos1 pos2) (compare-euclidean-dist goal-pos pos1 pos2))))
 
@@ -100,8 +100,8 @@
 ;; Get all possible positions in a board
 (define (get-all-positions board)
   (apply append (for/list ([x (in-range 0 (num-cols board))])
-      (for/list ([y (in-range 0 (num-rows board))])
-        (cons x y)))))
+                  (for/list ([y (in-range 0 (num-rows board))])
+                    (cons x y)))))
 
 ;; PlayerState [Listof Move] -> Action
 ;; Finds the first Move which is valid in a PlayerState
@@ -119,6 +119,51 @@
   (map (curry apply move-new)
        (cartesian-product candidates shifts orientations)))
 
+
+(module+ serialize
+  (provide
+   (contract-out
+    ; Convert a JSON representation of a choice into an action
+    [json-choice->action (-> json-choice? action?)]
+    ; Convert an action into a JSON representation of a choice
+    [action->json-choice (-> action? json-choice?)]))
+
+  (require (submod "../Common/board.rkt" serialize))
+
+  (module+ test
+    (require rackunit))
+   
+  (define json-choice? (or/c "PASS" (list/c natural-number/c
+                                            json-direction?
+                                            orientation?
+                                            hash?)))
+
+  ;; JsonChoice -> Action
+  ;; Convert the JSON representation of a "choice" (action) to Action
+  (define (json-choice->action jsexpr)
+    (if (equal? jsexpr "PASS")
+        #f
+        (move-new (json-coordinate->gridposn (list-ref jsexpr 3))
+                  (shift-new (json-direction->shift-direction (list-ref jsexpr 1))
+                             (list-ref jsexpr 0))
+                  (list-ref jsexpr 2))))
+
+  (module+ test
+    (check-equal? (json-choice->action "PASS") #f))
+
+  ;; Action -> (U String List)
+  ;; Convert an action to json
+  (define (action->json-choice act)
+    (cond
+      [(move? act) (list (shift-index (move-shift act))
+                         (string-upcase (symbol->string (shift-direction (move-shift act))))
+                         (move-orientation act)
+                         (gridposn->json-coordinate (move-pos act)))]
+      [(false? act) "PASS"]))
+
+  (module+ test
+    (check-equal? (action->json-choice #f) "PASS")))
+                             
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -275,11 +320,11 @@
                       (cons 4 0) (cons 4 1) (cons 4 2) (cons 4 3) (cons 4 4) (cons 4 5) (cons 4 6)
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6)))
-    (check-equal? (get-all-positions board2)
+  (check-equal? (get-all-positions board2)
                 (list (cons 0 0) (cons 0 1) (cons 0 2)
                       (cons 1 0) (cons 1 1) (cons 1 2)
                       (cons 2 0) (cons 2 1) (cons 2 2)))
-    (check-equal? (get-all-positions board-nowhere-to-go)
+  (check-equal? (get-all-positions board-nowhere-to-go)
                 (list (cons 0 0) (cons 0 1) (cons 0 2) (cons 0 3) (cons 0 4) (cons 0 5) (cons 0 6)
                       (cons 1 0) (cons 1 1) (cons 1 2) (cons 1 3) (cons 1 4) (cons 1 5) (cons 1 6)
                       (cons 2 0) (cons 2 1) (cons 2 2) (cons 2 3) (cons 2 4) (cons 2 5) (cons 2 6)
@@ -288,16 +333,9 @@
                       (cons 5 0) (cons 5 1) (cons 5 2) (cons 5 3) (cons 5 4) (cons 5 5) (cons 5 6)
                       (cons 6 0) (cons 6 1) (cons 6 2) (cons 6 3) (cons 6 4) (cons 6 5) (cons 6 6))))
 
-; test get-goal-pos
-(module+ test
-  (check-equal? (get-goal-pos player-info1) (cons 1 1))
-  (check-equal? (get-goal-pos player-info2) (cons 3 3))
-  (check-equal? (get-goal-pos player-info3) (cons 1 3))
-  (check-equal? (get-goal-pos player-info4) (cons 5 5))
-  (check-equal? (get-goal-pos player-info9) (cons 3 3)))
-
 ; test get-first-valid-move
 (module+ test
   (check-equal? (get-first-valid-candidate-move player-state0 cand-list-1) (move-new (cons 1 1) (shift-new 'left 2) 0))
   (check-equal? (get-first-valid-candidate-move player-state0 cand-list-2) (move-new (cons 1 3) (shift-new 'left 0) 0))
   (check-equal? (get-first-valid-candidate-move player-state1 cand-list-3) (move-new (cons 0 4) (shift-new 'down 6) 90)))
+

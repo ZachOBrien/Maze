@@ -1,12 +1,14 @@
 #! /usr/bin/env racket
-#lang racket
+#lang racket/base
 
 (require json)
 
-(require "../Maze/Common/serialize.rkt")
 (require "../Maze/Common/state.rkt")
+(require (submod "../Maze/Common/state.rkt" serialize))
 (require "../Maze/Common/board.rkt")
+(require (submod "../Maze/Common/board.rkt" serialize))
 (require "../Maze/Players/strategy.rkt")
+(require (submod "../Maze/Players/strategy.rkt" serialize))
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -23,8 +25,7 @@
 (module+ main
   (define-values (strategy state-ht goal-ht) (read-state-input (current-input-port)))
 
-  (define goal (hash->gridposn goal-ht))
-  (define gstate (change-active-player-treasure (hash->gamestate state-ht) goal))
-  (define pstate (referee-state->player-state gstate (current-player-color gstate)))
+  (define goal (json-coordinate->gridposn goal-ht))
+  (define gstate (change-active-player-treasure (json-public-state->player-state state-ht) goal))
 
-  (write-json (action->json (if (equal? strategy "Riemann") (riemann-strategy pstate) (euclidean-strategy pstate)))))
+  (write-json (action->json-choice (if (equal? strategy "Riemann") (riemann-strategy gstate) (euclidean-strategy gstate)))))

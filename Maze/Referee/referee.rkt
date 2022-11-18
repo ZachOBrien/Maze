@@ -5,9 +5,9 @@
 ;; --------------------------------------------------------------------
 ;; MODULE INTERFACE
 
-
 (provide
  (contract-out
+  ; Run a game of Maze
   [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?) hash?))]))
      
 
@@ -21,6 +21,7 @@
 (require "../Common/rulebook.rkt")
 (require "../Common/math.rkt")
 (require "../Players/player.rkt")
+(require "../Remote/safety.rkt")
 (require "observer.rkt")
 
 ;; --------------------------------------------------------------------
@@ -32,7 +33,6 @@
 
 (define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
-
 
 ;; [Listof Player] RefereeState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
 ;; Runs a game of Labrynth, finding winners and cheaters
@@ -75,7 +75,7 @@
                         [(new-player-colors) (get-player-color-list (first new-states))]
                         [(all-players-passed) (equal? new-player-colors plyrs-passed-turn)])
             (cond
-              [(or (game-over? (first states-after-round)) all-players-passed) new-states]
+              [(or (game-over? (second new-states) (first new-states)) all-players-passed) new-states]
               [else (play-until-completion-help new-states players (sub1 rounds-remaining))]))]))
 
 
@@ -90,7 +90,7 @@
                                           (first player-colors))]
                            [(new-passed-plyrs) (if passed-turn (cons (first player-colors) passed-plyrs) passed-plyrs)])
                 (cond
-                  [(game-over? next-state) (values (cons next-state intermediate-states) passed-plyrs)]
+                  [(game-over? state next-state) (values (cons next-state intermediate-states) passed-plyrs)]
                   [else (run-round next-state
                                    players
                                    (rest player-colors)
@@ -105,7 +105,13 @@
   (cond
     [(false? mv) (values #t (end-current-turn state))]
     [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
-    [else (values #f (end-current-turn (gamestate-execute-move state mv)))]))
+    [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
+                 (if (player-on-treasure? gamestate-after-move)
+                     (let ([state-after-notify (send-setup-to-player gamestate-after-move player color)])
+                       (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player gamestate-after-move))
+                           (values #f (end-current-turn state-after-notify))
+                           (values #f state-after-notify)))
+                     (values #f (end-current-turn gamestate-after-move))))]))
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
@@ -169,7 +175,7 @@
 (define (send-setup-to-player state plyr color)
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
-                                    (player-info-treasure-pos (gamestate-get-by-color state color)))))
+                                    (get-goto-pos (gamestate-get-by-color state color)))))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 
@@ -187,17 +193,17 @@
 
 ;; Boolean [Listof AvatarColor] [Hash Color:Player] RefereeState -> RefereeState
 ;; Notify a set of players whether they have won or lost the game
-(define (notify-outcome won? colors players final-state)
+(define (notify-outcome win? colors players final-state)
   (for/fold ([state final-state])
             ([color colors])
-    (safe-send-outcome state (hash-ref players color) color won?)))
+    (safe-send-outcome state (hash-ref players color) color win?)))
 
 
 ;; Gamestate Player AvatarColor Boolean -> Gamestate
 ;; Notifies a player whether they won or lost, and returns the same gamestate either with that player
 ;; or, if they don't behave properly, without the player
-(define (safe-send-outcome state plyr color won?)
-  (match (execute-safe (thunk (send plyr won won?)))
+(define (safe-send-outcome state plyr color win?)
+  (match (execute-safe (thunk (send plyr win win?)))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 
@@ -211,12 +217,6 @@
 ;; If the player misbehaves in any of these ways, 'misbehaved is returned.
 (define (safe-get-action plyr plyr-state [time-limit-sec 4])
   (execute-safe (thunk (send plyr take-turn plyr-state)) time-limit-sec))
-
-;; Thunk Natural -> (U Any 'misbehaved)
-;; Evaluate a Thunk safely
-(define (execute-safe thnk [time-limit-sec 4])
-  (with-handlers ([exn:fail? (λ (exn) 'misbehaved)])
-    (call-with-limits time-limit-sec #f thnk)))
 
 
 ;; [Listof Any] [Listof Any] -> Boolean
@@ -281,12 +281,6 @@
   (check-equal? (determine-winners gamestate4) '("purple"))
   (check-equal? (determine-winners gamestate1) '("black")))
 
-;; test execute-safe
-(module+ test
-  (check-equal? (execute-safe (thunk (error 'hi))) 'misbehaved)
-  (check-equal? (execute-safe (thunk (sleep 2)) 1) 'misbehaved)
-  (check-equal? (execute-safe (thunk 2)) 2))
-
 
 ;; ==========================================
 ;; Tests for properly handling bad players
@@ -344,5 +338,5 @@
      (check-equal? state-after-inform-outcome gamestate0)))
   (test-case
    "A misbehaved player fails to handle setup"
-   (let ([state-after-inform-outcome (safe-send-outcome gamestate0 player-bad-won "blue" #t)])
+   (let ([state-after-inform-outcome (safe-send-outcome gamestate0 player-bad-win "blue" #t)])
      (check-equal? state-after-inform-outcome (remove-player gamestate0)))))

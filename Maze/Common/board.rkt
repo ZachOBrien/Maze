@@ -13,7 +13,7 @@
 ;; Creates a function to check for valid shift in the given board
 (define (valid-shift? board)
   (λ (shft) (and shift?
-                 (if (shifts-row? shft)
+                 (if (shifts-row? (shift-direction shft))
                      (valid-row-shift-index? board (shift-index shft))
                      (valid-col-shift-index? board (shift-index shft))))))
 
@@ -362,36 +362,187 @@
 (module+ serialize
   (require json)
   (require (submod "tile.rkt" serialize))
+  (require (submod "gem.rkt" serialize))
 
   (provide
    (contract-out
-    ; Converts a GridPosn into a HashTable according to spec
-    [gridposn->hash (-> grid-posn? hash?)]
-    ; Converts a Board into a HashTable according to spec
-    [board->hash (-> board? hash?)]
+    [json-coordinate? contract?]
+    [json-direction?  contract?]
+    [json-board?      contract?]
+    [json-action?     contract?]
+    ; Convert a JsonAction to a Shift or #f
+    [json-action->prev-shift (-> json-action? (or/c #f shift?))]
+    ; Convert a JSON representation of direction to a ShiftDirection
+    [json-direction->shift-direction (-> json-direction? shift-direction?)]
+    ; Converts a GridPosn into a JsonCoordinate
+    [gridposn->json-coordinate (-> grid-posn? json-coordinate?)]
+    ; Converts a JsonCoordinate into a GridPosn
+    [json-coordinate->gridposn (-> json-coordinate? grid-posn?)]
+    ; Converts a Board into a JsonBoard
+    [board->json-board (-> board? json-board?)]
     ; Convert a shift to a spec-specified Action
-    [shift->json-action (-> (or/c shift? #f) (or/c 'null (cons/c natural-number/c (cons/c string? empty))))]))
+    [shift->json-action (-> (or/c shift? #f) json-action?)]
+    ; Convert a spec-specified Action to a shift
+    [prev-shift->json-action (-> (or/c shift? #f) json-action?)]
+    ; Convert a json representation of a board to a board
+    [json-board->board (-> json-board? board?)]))
 
-  ;; GridPosn -> HashTable
-  ;; Converts a GridPosn into a HashTable according to spec
-  (define (gridposn->hash pos)
+  (module+ test
+    (require rackunit))
+
+  ;; JSON representation of the previous move
+  (define json-action? (or/c 'null (cons/c natural-number/c (cons/c string? empty))))
+
+  ;; JsonAction -> Move
+  ;; Makes a move from the list
+  (define (json-action->prev-shift action)
+    (if (equal? action 'null)
+        #f
+        (shift-new (json-direction->shift-direction (first (rest action)))
+                   (first action))))
+
+  (module+ test
+    (check-equal? (json-action->prev-shift (list 0 "UP"))
+                  (shift-new 'up 0))
+    (check-equal? (json-action->prev-shift (list 4 "RIGHT"))
+                  (shift-new 'right 4))
+    (check-equal? (json-action->prev-shift 'null)
+                  #f))
+
+  ;; (U Shift #f) -> JsonAction
+  ;; Makes a move from the list
+  (define (prev-shift->json-action prev-shift)
+    (if (false? prev-shift)
+        'null
+        (list (shift-index prev-shift) (string-upcase (symbol->string (shift-direction prev-shift))))))
+  
+  (module+ test
+    (check-equal? (prev-shift->json-action (shift-new 'right 0))
+                  (list 0 "RIGHT"))
+    (check-equal? (prev-shift->json-action (shift-new 'down 6))
+                  (list 6 "DOWN")))
+  
+  ;; Any -> Boolean
+  ;; Is this object a json representation of a coordinate?
+  (define (json-coordinate? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'row#)
+         (hash-has-key? ht 'column#)
+         (natural-number/c (hash-ref ht 'row#))
+         (natural-number/c (hash-ref ht 'column#))))
+
+  (module+ test
+    (check-true (contract? json-coordinate?))
+    (check-true (json-coordinate? (hash 'row# 1 'column# 3)))
+    (check-false (json-coordinate? (hash 'row# -1 'column# 3)))
+    (check-false (json-coordinate? (hash 'row 1 'column 3))))
+
+  ;; JsonCoordinate -> GridPosn
+  ;; Convert a JsonCoordinate into a GridPosn
+  (define (json-coordinate->gridposn ht)
+    (cons (hash-ref ht 'row#) (hash-ref ht 'column#)))
+
+  (module+ test
+    (check-equal? (json-coordinate->gridposn (hash 'row# 1 'column# 1)) (cons 1 1))
+    (check-equal? (json-coordinate->gridposn (hash 'row# 10000 'column# 2)) (cons 10000 2)))
+
+  ;; Any -> Boolean
+  ;; Is this object a json representation of a direction?
+  (define json-direction? (or/c "LEFT" "RIGHT" "UP" "DOWN"))
+
+  (module+ test
+    (check-true (contract? json-direction?))
+    (check-true (json-direction? "LEFT"))
+    (check-false (json-direction? "left")))
+
+  ;; JsonDirection -> ShiftDirection
+  ;; Convert a JSON representation of direction to a ShiftDirection
+  (define (json-direction->shift-direction json-direction)
+    (string->symbol (string-downcase json-direction)))
+
+  (module+ test
+    (check-equal? (json-direction->shift-direction "RIGHT") 'right)
+    (check-equal? (json-direction->shift-direction "UP") 'up))
+  
+  ;; GridPosn -> JsonCoordinate
+  ;; Convert a GridPosn into a JSON representation
+  (define (gridposn->json-coordinate pos)
     (hash 'row# (car pos)
           'column# (cdr pos)))
 
-  ;; Board -> HashTable
-  ;; Converts a Board into a HashTable according to spec
-  (define (board->hash b)
+  (module+ test
+    (check-equal? (gridposn->json-coordinate (cons 1 3)) (hash 'row# 1 'column# 3)))
+
+  ;; Any -> Boolean
+  ;; Is this object a json representation of a board?
+  (define (json-board? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'connectors)
+         (hash-has-key? ht 'treasures)
+         ((listof (listof json-connector?)) (hash-ref ht 'connectors))
+         ((listof (listof json-treasure?)) (hash-ref ht 'treasures))))
+  
+  (module+ test
+    (check-true (json-board? (hash 'connectors (list (list "│" "│" "│") (list "│" "│" "│") (list "│" "│" "│"))
+                                   'treasures (list (list (list "citrine" "beryl") (list "citrine" "citrine") (list "beryl" "beryl"))
+                                                    (list (list "bulls-eye" "beryl") (list "bulls-eye" "citrine") (list "bulls-eye" "beryl"))
+                                                    (list (list "garnet" "beryl") (list "garnet" "citrine") (list "garnet" "beryl")))))))
+  
+  ;; Board -> JsonBoard
+  ;; Converts a Board into a JSON representation of a board
+  (define (board->json-board b)
     (define connectors (map (λ (row) (map get-json-connector row)) b))
-    (define treasures (map (λ (row) (map get-json-gems row)) b))
+    (define treasures (map (λ (row) (map get-json-treasure row)) b))
     (hash 'connectors connectors
           'treasures treasures))
+
+  ;; TODO: Unit tests
 
   ;; Shift -> [Listof String]
   ;; Convert a shift to a spec-specified Action
   (define (shift->json-action shft)
     (if (false? shft)
         'null
-        (list (shift-index shft) (symbol->string (shift-direction shft))))))
+        (list (shift-index shft) (symbol->string (shift-direction shft)))))
+
+  ;; TODO: Unit tests
+
+  ;; HashTable -> Board
+  ;; Creates a matrix of tiles given a hashtable with matrices of connectors and treasures
+  (define (json-board->board ht)
+    (define connectors (hash-ref ht 'connectors))
+    (define treasures (hash-ref ht 'treasures))
+    (combine-matrices-elementwise json-connector-and-json-treasure->tile connectors treasures))
+
+  ;; TODO: Unit tests
+  
+  ;; (Any -> Any) [Listof [Listof Any]] [Listof [Listof Any]] -> [Listof [Listof Any]]
+  ;; Combine two matrices by applying proc to each matrix element-wise
+  (define (combine-matrices-elementwise proc matrix1 matrix2)
+    (for/list ([row_m1 matrix1]
+               [row_m2 matrix2])
+      (for/list ([val_m1 row_m1]
+                 [val_m2 row_m2])
+        (proc val_m1 val_m2))))
+
+
+  (module+ test
+    (define A (list '(1 2 3)
+                    '(4 5 6)
+                    '(7 8 9)))
+    (define I (list '(1 0 0)
+                    '(0 1 0)
+                    '(0 0 1)))
+    (check-equal?
+     (combine-matrices-elementwise + A A)
+     (list '(2 4 6)
+           '(8 10 12)
+           '(14 16 18)))
+    (check-equal?
+     (combine-matrices-elementwise * A I)
+     (list '(1 0 0)
+           '(0 5 0)
+           '(0 0 9)))))
 
 ;; --------------------------------------------------------------------
 ;; TESTS
@@ -433,10 +584,12 @@
   (define row-one-vert (list tile-horiz tile-horiz tile-horiz tile-vert tile-horiz tile-horiz tile-horiz))
   (define board-nowhere-to-go (list row-horiz row-horiz row-horiz row-one-vert row-horiz row-horiz row-horiz))
 
-  (define board6x7 (list row4 row3 row2 row1 row0 row5)))
+  (define board6x7 (list row4 row3 row2 row1 row0 row5))
+  (define board7x6 (list (rest row4) (rest row3) (rest row2) (rest row1) (rest row0) (rest row5) (rest row6))))
 
 (module+ test
   (require rackunit)
+  (require (submod ".." serialize test))
   (require (submod "tile.rkt" examples))
   (require (submod ".." examples))
   (require (submod ".." serialize)))
@@ -452,7 +605,8 @@
   (check-true ((valid-shift? board1) (shift 'right 2)))
   (check-true ((valid-shift? board1) (shift 'left 6)))
   (check-false ((valid-shift? board1) (shift 'up 1)))
-  (check-false ((valid-shift? board1) (shift 'down 3))))
+  (check-false ((valid-shift? board1) (shift 'down 3)))
+  (check-true ((valid-shift? board7x6) (shift 'left 6))))
 
 ;; Test valid-shift-indices
 (module+ test
@@ -465,6 +619,10 @@
   (check-true (valid-row-shift-index? board6x7 4))
   (check-false (valid-row-shift-index? board6x7 8))
   (check-false (valid-row-shift-index? board6x7 6))
+
+  (check-true (valid-row-shift-index? board7x6 0))
+  (check-true (valid-row-shift-index? board7x6 6))
+  (check-false (valid-row-shift-index? board7x6 7))
   
   (check-true (valid-col-shift-index? board6x7 6))
   (check-false (valid-col-shift-index? board6x7 1))
@@ -662,11 +820,15 @@
 
 ;; test num-rows
 (module+ test
-  (check-equal? (num-rows board1) 7))
+  (check-equal? (num-rows board1) 7)
+  (check-equal? (num-rows board7x6) 7)
+  (check-equal? (num-rows board6x7) 6))
 
 ;; test num-cols
 (module+ test
-  (check-equal? (num-cols board1) 7))
+  (check-equal? (num-cols board1) 7)
+  (check-equal? (num-cols board7x6) 6)
+  (check-equal? (num-cols board6x7) 7))
 
 
 ;; test board-all-reachable-from
@@ -754,9 +916,9 @@
   (check-false (shift-undoes-shift? #f (shift-new 'up 3)))
   (check-false (shift-undoes-shift? #f #f)))
 
-;; test board->hash
+;; test board->json-board
 (module+ test
-  (check-equal? (board->hash board1)
+  (check-equal? (board->json-board board1)
                 (hash 'connectors
                       (list (list "─" "┐" "└" "┘" "┌" "┬" "┤")
                             (list "┴" "├" "┼" "│" "─" "┐" "└")
@@ -815,3 +977,136 @@
                                   (list "tanzanite-trillion" "tigers-eye")
                                   (list "tourmaline-laser-cut" "tourmaline")
                                   (list "unakite" "white-square"))))))
+
+
+(module+ examples
+  (define example-board
+    (list
+     (list
+      (tile-new 'straight 0 (list 'stilbite 'zircon))
+      (tile-new 'straight 90 (list 'stilbite 'zircon))
+      (tile-new 'elbow 180 (list 'stilbite 'zircon))
+      (tile-new 'elbow 0 (list 'stilbite 'zircon))
+      (tile-new 'elbow 270 (list 'stilbite 'zircon))
+      (tile-new 'elbow 90 (list 'stilbite 'zircon))
+      (tile-new 'tri 0 (list 'stilbite 'zircon)))
+     (list
+      (tile-new 'straight 0 (list 'prasiolite 'carnelian))
+      (tile-new 'straight 90 (list 'prasiolite 'carnelian))
+      (tile-new 'elbow 180 (list 'prasiolite 'carnelian))
+      (tile-new 'elbow 0 (list 'prasiolite 'carnelian))
+      (tile-new 'elbow 270 (list 'prasiolite 'carnelian))
+      (tile-new 'elbow 90 (list 'prasiolite 'carnelian))
+      (tile-new 'tri 0 (list 'prasiolite 'carnelian)))
+     (list
+      (tile-new 'straight 0 (list 'fancy-spinel-marquise 'jasper))
+      (tile-new 'straight 90 (list 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 180 (list 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 0 (list 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 270 (list 'fancy-spinel-marquise 'jasper))
+      (tile-new 'elbow 90 (list 'fancy-spinel-marquise 'jasper))
+      (tile-new 'tri 0 (list 'fancy-spinel-marquise 'jasper)))
+     (list
+      (tile-new 'straight 0 (list 'peridot 'purple-cabochon))
+      (tile-new 'straight 90 (list 'peridot 'purple-cabochon))
+      (tile-new 'elbow 180 (list 'peridot 'purple-cabochon))
+      (tile-new 'elbow 0 (list 'peridot 'purple-cabochon))
+      (tile-new 'elbow 270 (list 'peridot 'purple-cabochon))
+      (tile-new 'elbow 90 (list 'peridot 'purple-cabochon))
+      (tile-new 'tri 0 (list 'peridot 'purple-cabochon)))
+     (list
+      (tile-new 'straight 0 (list 'diamond 'lapis-lazuli))
+      (tile-new 'straight 90 (list 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 180 (list 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 0 (list 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 270 (list 'diamond 'lapis-lazuli))
+      (tile-new 'elbow 90 (list 'diamond 'lapis-lazuli))
+      (tile-new 'tri 0 (list 'diamond 'lapis-lazuli)))
+     (list
+      (tile-new 'straight 0 (list 'cordierite 'mexican-opal))
+      (tile-new 'straight 90 (list 'cordierite 'mexican-opal))
+      (tile-new 'elbow 180 (list 'cordierite 'mexican-opal))
+      (tile-new 'elbow 0 (list 'cordierite 'mexican-opal))
+      (tile-new 'elbow 270 (list 'cordierite 'mexican-opal))
+      (tile-new 'elbow 90 (list 'cordierite 'mexican-opal))
+      (tile-new 'tri 0 (list 'cordierite 'mexican-opal)))
+     (list
+      (tile-new 'straight 0 (list 'pink-opal 'red-diamond))
+      (tile-new 'straight 90 (list 'pink-opal 'red-diamond))
+      (tile-new 'elbow 180 (list 'pink-opal 'red-diamond))
+      (tile-new 'elbow 0 (list 'pink-opal 'red-diamond))
+      (tile-new 'elbow 270 (list 'pink-opal 'red-diamond))
+      (tile-new 'elbow 90 (list 'pink-opal 'red-diamond))
+      (tile-new 'tri 0 (list 'pink-opal 'red-diamond)))))
+
+  (define spare-tile (tile-new 'elbow 90 (list 'lapis-lazuli 'pink-opal)))
+
+  (define example-treasures
+    (list
+     (list (list "stilbite" "zircon")
+           (list "stilbite" "zircon")
+           (list "stilbite" "zircon")
+           (list "stilbite" "zircon")
+           (list "stilbite" "zircon")
+           (list "stilbite" "zircon")
+           (list "stilbite" "zircon"))
+     (list (list "prasiolite" "carnelian")
+           (list "prasiolite" "carnelian")
+           (list "prasiolite" "carnelian")
+           (list "prasiolite" "carnelian")
+           (list "prasiolite" "carnelian")
+           (list "prasiolite" "carnelian")
+           (list "prasiolite" "carnelian"))
+     (list (list "fancy-spinel-marquise" "jasper")
+           (list "fancy-spinel-marquise" "jasper")
+           (list "fancy-spinel-marquise" "jasper")
+           (list "fancy-spinel-marquise" "jasper")
+           (list "fancy-spinel-marquise" "jasper")
+           (list "fancy-spinel-marquise" "jasper")
+           (list "fancy-spinel-marquise" "jasper"))
+     (list (list "peridot" "purple-cabochon")
+           (list "peridot" "purple-cabochon")
+           (list "peridot" "purple-cabochon")
+           (list "peridot" "purple-cabochon")
+           (list "peridot" "purple-cabochon")
+           (list "peridot" "purple-cabochon")
+           (list "peridot" "purple-cabochon"))
+     (list (list "diamond" "lapis-lazuli")
+           (list "diamond" "lapis-lazuli")
+           (list "diamond" "lapis-lazuli")
+           (list "diamond" "lapis-lazuli")
+           (list "diamond" "lapis-lazuli")
+           (list "diamond" "lapis-lazuli")
+           (list "diamond" "lapis-lazuli"))
+     (list (list "cordierite" "mexican-opal")
+           (list "cordierite" "mexican-opal")
+           (list "cordierite" "mexican-opal")
+           (list "cordierite" "mexican-opal")
+           (list "cordierite" "mexican-opal")
+           (list "cordierite" "mexican-opal")
+           (list "cordierite" "mexican-opal"))
+     (list (list "pink-opal" "red-diamond")
+           (list "pink-opal" "red-diamond")
+           (list "pink-opal" "red-diamond")
+           (list "pink-opal" "red-diamond")
+           (list "pink-opal" "red-diamond")
+           (list "pink-opal" "red-diamond")
+           (list "pink-opal" "red-diamond"))))
+
+
+  (define example-connectors
+    (list '("│" "─" "┐" "└" "┌" "┘" "┬")
+          '("│" "─" "┐" "└" "┌" "┘" "┬")
+          '("│" "─" "┐" "└" "┌" "┘" "┬")
+          '("│" "─" "┐" "└" "┌" "┘" "┬")
+          '("│" "─" "┐" "└" "┌" "┘" "┬")
+          '("│" "─" "┐" "└" "┌" "┘" "┬")
+          '("│" "─" "┐" "└" "┌" "┘" "┬")))
+
+  (define example-board-hash
+    (hash 'connectors example-connectors
+          'treasures example-treasures)))
+
+(module+ test
+  (require (submod ".." examples))
+  (check-equal? (json-board->board example-board-hash) example-board))
