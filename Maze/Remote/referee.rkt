@@ -1,9 +1,11 @@
-#lang racket
+#lang racket/base
 
 ;;; This module implements a remote proxy referee
 
 ;; --------------------------------------------------------------------
 ;; MODULE INTERFACE
+
+(require racket/contract)
 
 (provide
  (contract-out
@@ -16,6 +18,7 @@
 (require json)
 (require racket/list)
 (require racket/class)
+(require racket/match)
 
 (require "tcp-conn.rkt")
 (require (only-in "../Players/player.rkt" player-interface player?))
@@ -23,6 +26,16 @@
 (require (submod "../Common/state.rkt" serialize))
 (require (submod "../Common/board.rkt" serialize))
 (require (submod "../Players/strategy.rkt" serialize))
+
+(module+ examples
+  (provide (all-defined-out))
+  (require (submod "../Players/player.rkt" examples))
+  (require (submod "../Common/state.rkt" examples)))
+
+(module+ test
+  (require rackunit)
+  (require (submod ".." examples))
+  (require (submod "../Players/player.rkt" examples)))
 
 
 ;; --------------------------------------------------------------------
@@ -53,42 +66,37 @@
     (define/public (msg-handling-loop)
       (define msg (send tcp-conn receive-json))
       (match msg
-        ; TODO: this is looking like it could be a macro to me
-        [`["propose-board", msg] (check-valid-message msg propose-board-request-msg? propose-board-handler)]
-        [`["setup",         msg] (check-valid-message msg setup-request-msg?         setup-handler)]
-        [`["win",           msg] (check-valid-message msg win-request-msg?           win-handler)]
-        [`["take-turn",     msg] (check-valid-message msg take-turn-request-msg?     take-turn-handler)]
-        [`["get-goal",      msg] (check-valid-message msg get-goal-request-msg?      get-goal-handler)]))
+        [`["setup",     args] (handle-rpc valid-setup-args? setup-handler msg)]
+        [`["win",       args] (handle-rpc valid-win-args? win-handler msg)]
+        [`["take-turn", args] (handle-rpc valid-take-turn-args? take-turn-handler msg)]
+        [`["get-goal",  args] (handle-rpc valid-get-goal-args? get-goal-handler msg)]
+        [#f "Server closed connection"]))
 
-    ;; JsonString (-> JsonString Boolean) (->JsonString JsonPlayerResponse)
-    ;; Checks if message is valid as determined by the validator, and if so executes it.
-    (define (check-valid-message msg validator handler)
-      (if (validator msg)
-          (send tcp-conn send-json (handler msg player))
-          (error (string-append "receieved bad call from ref: " msg)))
+    ;; (-> [List String [Listof Jsexpr]] Boolean) (-> [Listof Jsexpr] JsonPlayerResponse) [List String [Listof Jsexpr]] -> Void
+    ;; Checks if message is valid as determined by the validator, and if so executes it
+    (define (handle-rpc validator handler msg)
+      (define rpc-args (second msg))
+      (if (validator rpc-args)
+          (send tcp-conn send-json (handler rpc-args player))
+          (error (string-append "receieved bad call from ref: " (jsexpr->string msg))))
       (msg-handling-loop)) ))
 
 
-;; ProposeBoardRequestMsg Player -> JsonBoard
-;; Handle a propose-board request
-(define (propose-board-handler propose-board-request-msg player)
-  (define min-num-rows (first propose-board-request-msg))
-  (define min-num-cols (second propose-board-request-msg))
-  (define proposed-board (send player propose-board min-num-rows min-num-cols))
-  (board->json-board proposed-board))
+(define proxy-referee? (is-a?/c proxy-referee%))
+
 
 ;; SetupRequestMsg Player -> JsonVoid
 ;; Handle a setup request
-(define (setup-handler setup-request-msg player)
-  (define new-goal (json-coordinate->gridposn (second setup-request-msg)))
-  (define plyr-state (json-public-state-and-goal-gridposn->player-state (first setup-request-msg) new-goal))
+(define (setup-handler setup-request-args player)
+  (define new-goal (json-coordinate->gridposn (second setup-request-args)))
+  (define plyr-state (json-public-state-and-goal-gridposn->player-state (first setup-request-args) new-goal))
   (send player setup plyr-state new-goal)
   "void")
 
 ;; WinRequestMsg Player -> JsonVoid
 ;; Handle a win request
-(define (win-handler win-request-msg player)
-  (define win-boolean (first win-request-msg))
+(define (win-handler win-request-args player)
+  (define win-boolean (first win-request-args))
   (send player win win-boolean)
   "void")
 
@@ -106,23 +114,76 @@
   (define player-goal (send player get-goal))
   (gridposn->json-coordinate player-goal))
 
+;; [List Jsexpr Jsexpr] -> Boolean
+;; Are these two JSON expressions valid arguments for the setup rpc?
+(define valid-setup-args? (list/c json-public-state? json-coordinate?))
+
+;; [List Jsexpr] -> Boolean
+;; Is this single JSON expression a valid argument for the win rpc?
+(define valid-win-args? (list/c boolean?))
+
 (module+ test
-  (require rackunit)
-  (require (submod "../Players/player.rkt" examples)))
+  (check-true (valid-win-args? (list #f)))
+  (check-true (valid-win-args? (list #t)))
+  (check-false (valid-win-args? #f))
+  (check-false (valid-win-args? #t)))
 
-; test propose-board handler
+;; [List Jsexpr] -> Boolean
+;; Is this single JSON expression a valid argument for the take-turn rpc?
+(define valid-take-turn-args? (list/c json-public-state?))
+
+;; EmptyList -> Boolean
+;; Returns true if given an empty list, the only valid input for get-goal rpc
+(define valid-get-goal-args? (and/c list? empty?))
+
 (module+ test
-  (define proposed-board1 (propose-board-handler (list 7 7) player0))
-  (check-true (json-board? proposed-board1)))
+  (check-true (valid-get-goal-args? '()))
+  (check-false (valid-get-goal-args? (list 1))))
 
-; test setup handler
-; TODO: test setup handler
+;; --------------------------------------------------------------------
+;; TESTS
+
+(module+ examples
+  (define example-setup-rpc-arglist (jsexpr->string (list "setup"
+                                                          (list (player-state->json-public-state player-state0)
+                                                                (gridposn->json-coordinate (cons 3 3))))))
+  (define example-take-turn-rpc-arglist (jsexpr->string (list "take-turn"
+                                                              (list (player-state->json-public-state player-state0)))))
+  (define example-win-rpc-arglist (jsexpr->string (list "win" (list #t)))))
 
 
-(define proxy-referee? (is-a?/c proxy-referee%))
+; Test receiving a setup message
+(module+ test
+  (test-case
+   "Test receiving a remote procedure call for setup(...)"
+   (define output (open-output-string))
+   (define input (open-input-string example-setup-rpc-arglist))
+   (define conn (tcp-conn-new input output))
+   (define proxy-referee (proxy-referee-new player0 conn))
+   (send proxy-referee msg-handling-loop)
+   (check-equal? (get-output-string output) "\"void\"")))
 
-(define propose-board-request-msg? (list/c natural-number/c natural-number/c))
-(define setup-request-msg? (list/c json-public-state? json-coordinate?))
-(define take-turn-request-msg? (list/c json-public-state?))
-(define win-request-msg? (list/c boolean?))
-(define get-goal-request-msg? empty?)
+
+; Test receiving a take-turn message
+(module+ test
+  (test-case
+   "Test receiving a remote procedure call for take-turn(...)"
+   (define output (open-output-string))
+   (define input (open-input-string example-take-turn-rpc-arglist))
+   (define conn (tcp-conn-new input output))
+   (define proxy-referee (proxy-referee-new player0 conn))
+   (send proxy-referee msg-handling-loop)
+   (check-equal? (get-output-string output) "[0,\"LEFT\",0,{\"column#\":3,\"row#\":3}]")))
+
+
+; Test receiving a win message
+(module+ test
+  (test-case
+   "Test receiving a remote procedure call for win(...)"
+   (define output (open-output-string))
+   (define input (open-input-string example-win-rpc-arglist))
+   (define conn (tcp-conn-new input output))
+   (define proxy-referee (proxy-referee-new player0 conn))
+   (send proxy-referee msg-handling-loop)
+   (check-equal? (get-output-string output) "\"void\"")))
+

@@ -117,9 +117,7 @@
    (check-equal? (get-output-string output) "[\"win\",[true]]")))
 
 
-; TODO: Fix these tests
 ;; test setup
-#;
 (module+ test
   (test-case
    "Test sending setup"
@@ -136,12 +134,11 @@
 
 
 ;; test takeTurn
-#;
 (module+ test
   (test-case
    "Test sending takeTurn"
    (define output (open-output-string))
-   (define input (open-input-string ""))
+   (define input (open-input-string "[2, \"LEFT\", 90, {\"row#\": 1, \"column#\": 1}]"))
    (define conn (tcp-conn-new input output))
    (define proxy-player (proxy-player-new "borat" conn))
    (check-equal? (get-output-string output) "")
