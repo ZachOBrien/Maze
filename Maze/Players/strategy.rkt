@@ -64,7 +64,7 @@
 ;; Board RefPlayerInfo -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
 (define (get-riemann-candidates board plyr)
-  (define goal-pos (get-goto-pos plyr))
+  (define goal-pos (player-info-goal-pos plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
@@ -79,7 +79,7 @@
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
 (define (get-euclidean-candidates board plyr)
-  (define goal-pos (get-goto-pos plyr))
+  (define goal-pos (player-info-goal-pos plyr))
   (define all-candidates (get-all-positions board))
   (sort all-candidates (lambda (pos1 pos2) (compare-euclidean-dist goal-pos pos1 pos2))))
 

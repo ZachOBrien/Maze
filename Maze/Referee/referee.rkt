@@ -175,7 +175,7 @@
 (define (send-setup-to-player state plyr color)
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
-                                    (get-goto-pos (gamestate-get-by-color state color)))))
+                                    (player-info-goal-pos (gamestate-get-by-color state color)))))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 

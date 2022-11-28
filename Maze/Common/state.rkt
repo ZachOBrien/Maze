@@ -662,23 +662,6 @@
 (module+ test
   (check-true (player-info-on-pos? player-info0 (cons 0 0))))
 
-;; Test player-info-move-to
-(module+ test
-  (check-equal? (player-info-move-to player-info0 (cons 3 3))
-                (ref-player-info-new
-                 (cons 3 3)
-                 (cons 6 6)
-                 (cons 5 1)
-                 #f
-                 "blue"))
-  (check-equal? (player-info-move-to player-info0 (cons 6 6))
-                (ref-player-info-new
-                 (cons 6 6)
-                 (cons 6 6)
-                 (cons 5 1)
-                 #f
-                 "blue")))
-
 
 ;; Test referee-state->player-state
 (module+ test
