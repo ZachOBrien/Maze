@@ -5,10 +5,6 @@ November 28, 2022
 
 ## Required Changes
 
-1. `PlayerInfo` must keep a collection of the goals they succesfully visited
-
-1. `PlayerInfo` data definition must include a new boolean flag, `going-home?`, which indicates that when this player was assigned a new goal, no goals remained so they are directed to go home.
-
 1. The `Gamestate` must keep a queue of goals
     - When a player visits their current goal, the state assigns them a new one by popping it off of this queue. When the queue is empty, players are informed there are no goals remaining, and should go home.
     - When no goals remain, the `PlayerInfo`'s `goal-pos` field will be `#f`
@@ -33,3 +29,8 @@ November 28, 2022
 
 
 ## Completed
+
+1. `PlayerInfo` must keep a collection of the goals they succesfully visited
+
+1. `PlayerInfo` data definition must include a new boolean flag, `going-home?`, which indicates that when this player was assigned a new goal, no goals remained so they are directed to go home.
+
