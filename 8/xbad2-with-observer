@@ -1,0 +1,37 @@
+#! /usr/bin/env racket
+#lang racket/base
+
+
+(require json)
+
+(require (submod "../Maze/Players/player.rkt" serialize))
+(require "../Maze/Common/state.rkt")
+(require (submod "../Maze/Common/state.rkt" serialize))
+(require "../Maze/Common/board.rkt")
+(require "../Maze/Players/strategy.rkt")
+(require "../Maze/Referee/referee.rkt")
+
+
+;; InputPort -> (values HashTable HashTable)
+;; Reads a board object and coordinate object from STDIN
+(define (read-state-input input-port)
+  (define player-list (read-json input-port))
+  (define ref-state-ht (read-json input-port))
+  (values player-list ref-state-ht))
+
+;; Reads a board and position from STDIN, computes all positions reachable from
+;; the given position, and writes these positions to STDOUT as JSON
+(module+ main
+  (define-values (player-list ref-state-ht) (read-state-input (current-input-port)))
+
+  (define players (map json-ps->player player-list))
+  (define ref-state (json-referee-state->ref-state ref-state-ht))
+
+  (define-values (winners cheaters color-to-name) (run-game players ref-state #t))
+
+  ; TODO: Make these last four lines a tested serialize function
+  (define winner-names (map (λ (col) (hash-ref color-to-name col)) winners))
+  (define criminal-names (map (λ (col) (hash-ref color-to-name col)) cheaters))
+
+  (write-json (list (sort winner-names string<?)
+  	            (sort criminal-names string<?))))

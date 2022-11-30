@@ -99,8 +99,8 @@
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a board
 (define (get-all-positions board)
-  (apply append (for/list ([x (in-range 0 (num-cols board))])
-                  (for/list ([y (in-range 0 (num-rows board))])
+  (apply append (for/list ([x (in-range 0 (num-rows board))])
+                  (for/list ([y (in-range 0 (num-cols board))])
                     (cons x y)))))
 
 ;; PlayerState [Listof Move] -> Action
