@@ -64,9 +64,7 @@
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
   ; Get a PlayerInfo by color
-  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
-  ; Has the game ended?
-  [game-over? (-> referee-state? referee-state? boolean?)]))
+  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -293,23 +291,6 @@
 ;; Get the list of avatar player colors
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
-
-;; (U Gamestate #f) Gamestate -> Boolean
-;; Has the game ended?
-(define (game-over? prev-state curr-state)
-  (cond
-    [(false? prev-state) (empty? (gamestate-players curr-state))]
-    [else (or (empty? (gamestate-players curr-state)) (player-win? prev-state curr-state))]))
-
-
-;; Did the active player in prev-state win by making curr-state?
-(define (player-win? prev-state curr-state)
-  (define prev-state-plyr (gamestate-current-player prev-state))
-  (define curr-state-plyr (gamestate-get-by-color curr-state (player-info-color prev-state-plyr)))
-  (and (player-info-visited-treasure? prev-state-plyr)
-       (not (player-info-on-home? prev-state-plyr))
-       (player-info-on-home? curr-state-plyr)))
-
 
 ;; [Listof Any] -> [Listof Any]
 ;; Move an item to the front of the list, if it exists. If more than one of the element

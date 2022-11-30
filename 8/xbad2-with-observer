@@ -1,6 +1,7 @@
 #! /usr/bin/env racket
 #lang racket/base
 
+
 (require json)
 
 (require (submod "../Maze/Players/player.rkt" serialize))
@@ -29,5 +30,9 @@
 
   (define-values (winners cheaters color-to-name) (run-game players ref-state (list (observer-new))))
 
-  ; TODO: Make writing winners/criminals a serialize function
-  (write-json (map (λ (col) (hash-ref color-to-name col)) winners)))
+  ; TODO: Make these last four lines a tested serialize function
+  (define winner-names (map (λ (col) (hash-ref color-to-name col)) winners))
+  (define criminal-names (map (λ (col) (hash-ref color-to-name col)) cheaters))
+
+  (write-json (list (sort winner-names string<?)
+  	            (sort criminal-names string<?))))

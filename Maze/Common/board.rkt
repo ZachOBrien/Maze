@@ -76,9 +76,9 @@
   ;; True if the shift direction shifts a column, False if it shifts a row
   [shifts-col? (-> shift-direction? boolean?)]
   ;; Number of rows in a board
-  [num-rows (-> board? (and/c integer? positive?))]
+  [num-rows (-> (listof (listof any/c)) (and/c integer? positive?))]
   ;; Number of columns in a board
-  [num-cols (-> board? (and/c integer? positive?))]
+  [num-cols (-> (listof (listof any/c)) (and/c integer? positive?))]
   ;; Compares two GridPosns in row-then-column order
   [compare-row-col (-> grid-posn? grid-posn? boolean?)]
   ;; Do these shifts undo each other?
@@ -107,9 +107,8 @@
 ;; DATA DEFINITIONS
 
 ;; A Board is a [Listof [Listof Tile]]
-;; interpretation: A square matrix of Maze game tiles with dimensions of odd length
-(define board? (and/c (non-empty-listof (non-empty-listof tile?))
-                      ))
+;; interpretation: A rectangular matrix of Maze game tiles
+(define board? (and/c (non-empty-listof (non-empty-listof tile?))))
                       
 
 ;; A GridPosn is a pair:
@@ -296,15 +295,27 @@
 (define (board-get-tile-at board pos)
   (list-ref (list-ref board (car pos)) (cdr pos)))
 
-;; Board -> PositiveInteger
-;; Gets the number of rows in a board
-(define (num-rows board)
-  (length board))
+;; [Listof [Listof Any]] -> PositiveInteger
+;; Gets the number of rows in a 2d matrix
+(define (num-rows matrix)
+  (length matrix))
 
-;; Board -> PositiveInteger
-;; Gets the number of columns in a board
-(define (num-cols board)
-  (length (first board)))
+;; [Listof [Listof Any]] -> Boolean
+;; Returns true if a matrix has the same number of items in every row
+(define (all-rows-same-length? matrix)
+  (apply = (map length matrix)))
+
+;; [Listof [Listof Any]] -> PositiveInteger
+;; Gets the number of columns in a 2d matrix.
+;; IMPORTANT: Assumes each row has the same length
+(define (num-cols matrix)
+  (length (first matrix)))
+
+;; [Listof [Listof Any]] [Listof [Listof Any]] -> Boolean
+;; Do two 2d matrices have the same number of rows and columns?
+(define (same-shape? matrix1 matrix2)
+  (and (= (num-rows matrix1) (num-rows matrix2))
+       (= (num-cols matrix1) (num-cols matrix2))))
 
 ;; GridPosn GridPosn -> Boolean
 ;; Compares two GridPosns in row-then-column order
@@ -479,6 +490,9 @@
     (and (hash? ht)
          (hash-has-key? ht 'connectors)
          (hash-has-key? ht 'treasures)
+         (all-rows-same-length? (hash-ref ht 'connectors))
+         (all-rows-same-length? (hash-ref ht 'treasures))
+         (same-shape? (hash-ref ht 'connectors) (hash-ref ht 'treasures))
          ((listof (listof json-connector?)) (hash-ref ht 'connectors))
          ((listof (listof json-treasure?)) (hash-ref ht 'treasures))))
   
@@ -824,11 +838,28 @@
   (check-equal? (num-rows board7x6) 7)
   (check-equal? (num-rows board6x7) 6))
 
+;; test all-rows-same-length?
+(module+ test
+  (check-true (all-rows-same-length? (list empty)))
+  (check-true (all-rows-same-length? (list (list 1))))
+  (check-true (all-rows-same-length? (list (list 1 2))))
+  (check-true (all-rows-same-length? (list empty empty)))
+  (check-true (all-rows-same-length? (list (list 1 2) (list 3 4))))
+  (check-false (all-rows-same-length? (list (list 1 2) (list 3))))
+  (check-false (all-rows-same-length? (list (list 1 2) empty)))
+  (check-false (all-rows-same-length? (list empty (list 1 2)))))
+
 ;; test num-cols
 (module+ test
   (check-equal? (num-cols board1) 7)
   (check-equal? (num-cols board7x6) 6)
   (check-equal? (num-cols board6x7) 7))
+
+;; test same-shape
+(module+ test
+  (check-true (same-shape? board1 board1))
+  (check-false (same-shape? board7x6 board6x7))
+  (check-false (same-shape? (list (list 1 2)) (list (list 1 2 3)))))
 
 
 ;; test board-all-reachable-from
