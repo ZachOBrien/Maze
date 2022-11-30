@@ -9,6 +9,7 @@
 (require "../Maze/Common/board.rkt")
 (require "../Maze/Players/strategy.rkt")
 (require "../Maze/Referee/referee.rkt")
+(require "../Maze/Referee/observer.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -26,7 +27,7 @@
   (define players (map json-ps->player player-list))
   (define ref-state (json-referee-state->ref-state ref-state-ht))
 
-  (define-values (winners cheaters color-to-name) (run-game players ref-state #t))
+  (define-values (winners cheaters color-to-name) (run-game players ref-state (list (observer-new))))
 
   ; TODO: Make writing winners/criminals a serialize function
   (write-json (map (λ (col) (hash-ref color-to-name col)) winners)))

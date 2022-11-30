@@ -8,7 +8,7 @@
 (provide
  (contract-out
   ; Run a game of Maze
-  [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?) hash?))]))
+  [run-game (-> (listof player?) referee-state? (listof any/c) (values (listof avatar-color?) (listof avatar-color?) hash?))]))
      
 
 ;; --------------------------------------------------------------------
@@ -34,9 +34,9 @@
 (define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
-;; [Listof Player] RefereeState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
+;; [Listof Player] RefereeState [Listof Observer] -> [Listof AvatarColor] [Listof AvatarColor]
 ;; Runs a game of Labrynth, finding winners and cheaters
-(define (run-game init-players state0 observer?)
+(define (run-game init-players state0 observers)
   (begin
     (define players (make-hash (for/list ([p init-players]
                                           [c (get-player-color-list state0)])
@@ -51,7 +51,8 @@
       (filter (λ (plyr) (member plyr (get-player-color-list final-state))) winners))
     (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                               (get-player-color-list state0)))
-    (if observer? (run-observer (reverse intermediate-states)) #f)
+    (for ([observer observers])
+      (send observer run intermediate-states))
     (values winners-that-didnt-get-kicked criminals color-names)))
 
 
@@ -144,6 +145,8 @@
 
 ;; [HashTable AvatarColor : Player] RefereeState -> (values RefereeState [HashTable AvatarColor : String])
 ;; Asks each player for their name to construct a hash table mapping colors to player names
+;; TODO: Use the state's color list to send setups in the correct order, rather than using
+;;       a list of colors from the hash table keys which *does not preserve order*
 (define (get-color-names players start-state)
   (define-values (final-state final-color-names)
     (for/fold ([state start-state]
