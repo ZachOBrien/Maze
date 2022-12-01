@@ -131,11 +131,13 @@
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
 (define (determine-winners state)
-  (define max-goals-visited (apply max (map num-goals-visited (gamestate-players state))))
-  (define players-that-visited-max-num-goals
-    (filter (λ (plyr-info) (= (num-goals-visited plyr-info) max-goals-visited))
-            (gamestate-players state)))
-  (map player-info-color (all-min-distance players-that-visited-max-num-goals)))
+  (cond
+    [(empty? (gamestate-players state)) empty]
+    [else (define max-goals-visited (apply max (map num-goals-visited (gamestate-players state))))
+          (define players-that-visited-max-num-goals
+            (filter (λ (plyr-info) (= (num-goals-visited plyr-info) max-goals-visited))
+                    (gamestate-players state)))
+          (map player-info-color (all-min-distance players-that-visited-max-num-goals))]))
 
 
 ;; [Listof Player] -> [Listof Player]
