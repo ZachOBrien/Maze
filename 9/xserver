@@ -1,0 +1,22 @@
+#! /usr/bin/env racket
+#lang racket/base
+
+(require racket/cmdline)
+(require racket/list)
+(require json)
+
+(require "../Maze/Server/server.rkt")
+(require (submod "../Maze/Common/state.rkt" serialize))
+
+(define DEFAULT-HOST "127.0.0.1")
+
+(define port (command-line #:args (port) (string->number port)))
+
+;; Reads a board and position from STDIN, computes all positions reachable from
+;; the given position, and writes these positions to STDOUT as JSON
+(module+ main
+  (define ref-state-ht (read-json (current-input-port)))
+  (define ref-state (json-referee-state->ref-state ref-state-ht))
+  (define-values (winners cheaters) (main ref-state empty port))
+  (write-json (list (sort winners string<?)
+  	            (sort cheaters string<?))))

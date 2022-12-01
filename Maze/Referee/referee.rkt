@@ -34,7 +34,7 @@
 (define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
-;; [Listof Player] RefereeState [Listof Observer] -> [Listof AvatarColor] [Listof AvatarColor]
+;; [Listof Player] RefereeState [Listof Observer] -> [Listof AvatarColor] [Listof AvatarColor] HashTable
 ;; Runs a game of Labrynth, finding winners and cheaters
 (define (run-game init-players state0 observers)
   (begin
