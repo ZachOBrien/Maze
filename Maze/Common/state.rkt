@@ -53,6 +53,8 @@
   [remove-player-by-color (-> gamestate? avatar-color? gamestate?)]
   ; Get the current player's color
   [current-player-color (-> gamestate? avatar-color?)]
+  ; Assign the player their next goal, or tell them to go home
+  [assign-next-goal (-> referee-state? avatar-color? referee-state?)]
   ; End the current player's turn and switch to the next player's turn
   [end-current-turn (-> gamestate? gamestate?)]
   ;; All reachable from current player current position
@@ -206,7 +208,7 @@
                [players (cons curr-player-moved (rest players))]))
 
 
-;; Gamestate AvatarColor -> Gamestate
+;; RefereeState AvatarColor -> RefereeState
 ;; Assign the next treasure in the queue to a player. If the queue is empty, tell them to go home
 (define (assign-next-goal state color)
   (define plyr (gamestate-get-by-color state color))
@@ -482,13 +484,12 @@
   (define (json-public-state-and-goal-gridposn->player-state json-plyr-state goal)
     
     (define public-plyr-list (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt)))
-    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) goal #f))
+    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) goal '() #f))
     (define plyr-list-with-goal-for-active-player (cons active-player-as-ref-player (rest public-plyr-list)))
     
     (player-state-new (json-board->board (hash-ref json-plyr-state 'board))
                       (json-tile->tile (hash-ref json-plyr-state 'spare))
                       plyr-list-with-goal-for-active-player
-                      'hidden
                       (json-action->prev-shift (hash-ref json-plyr-state 'last)))))
 
 ;; --------------------------------------------------------------------

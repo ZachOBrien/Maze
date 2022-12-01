@@ -28,7 +28,9 @@
   ; Get a player's current position
   [player-info-curr-pos (-> player-info? grid-posn?)]
   ; Get the list of goals a player visited
-  [player-info-goals-visited (-> ref-player-info? (listof grid-posn?))] 
+  [player-info-goals-visited (-> ref-player-info? (listof grid-posn?))]
+  ; Get the number of goals this player has visited
+  [num-goals-visited (-> ref-player-info? natural-number/c)]
   ; Check if a player is on a position
   [player-info-on-pos? (-> player-info? grid-posn? boolean?)]
   ; Is this player finished chasing goals and working back home?
@@ -193,6 +195,10 @@
 (define (distance-from-objective plyr-info dist-func)
   (dist-func (player-info-curr-pos plyr-info) (player-info-goal-pos plyr-info)))
 
+;; RefPlayerInfo -> Natural
+;; How many goals has this player already visited?
+(define (num-goals-visited plyr-info)
+  (length (player-info-goals-visited plyr-info)))
 
 (module+ serialize
   (require json)
@@ -544,7 +550,12 @@
                       'home (hash 'row# 4 'column# 4)
                       'color "green")))
 
-;; test recieve-next-goal
+;; test num-goals-visited
+(module+ test
+  (check-equal? 0 (num-goals-visited player-info1))
+  (check-equal? 1 (num-goals-visited (receive-next-goal player-info1 (cons 2 2)))))
+
+;; test receive-next-goal
 (module+ test
   (check-equal? (receive-next-goal player-info1 (cons 2 2))
                 (player-info (cons 1 1) (cons 5 5) (cons 2 2) (list (cons 1 1)) #f "purple"))

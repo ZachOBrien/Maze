@@ -110,25 +110,32 @@
     [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f #f (remove-player state))]
     [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
                  (cond
-                   [(and (player-on-treasure? gamestate-after-move) (false? (player-info-visited-treasure? (gamestate-current-player state))))
-                    (let ([state-after-notify (send-setup-to-player gamestate-after-move player color)])
-                       (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player gamestate-after-move))
-                           (values #f #f (end-current-turn state-after-notify))
-                           (values #f #f state-after-notify)))]
-                   [(and (player-on-home? gamestate-after-move) (player-info-visited-treasure? (gamestate-current-player state)))
+                   [(and (player-on-treasure? gamestate-after-move) (false? (player-info-going-home? (gamestate-current-player state))))
+                    (values #f #f (assign-next-goal-and-send-setup gamestate-after-move player color))]
+                   [(and (player-on-home? gamestate-after-move) (player-info-going-home? (gamestate-current-player state)))
                     (values #f #t (end-current-turn gamestate-after-move))]
-                   [else (values #f #f (end-current-turn gamestate-after-move))]))]))
+                   [else
+                    (values #f #f (end-current-turn gamestate-after-move))]))]))
+
+
+;; Gamestate Player AvatarColor -> RefereeState
+;; Assign a player their next goal, and return the Gamestate after notifying them
+(define (assign-next-goal-and-send-setup state player color)
+  (define state-after-assigning-next-goal (assign-next-goal state color))
+  (let ([state-after-notify (send-setup-to-player state-after-assigning-next-goal player color)])
+    (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player state-after-assigning-next-goal))
+        (end-current-turn state-after-notify)
+        state-after-notify)))
 
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
 (define (determine-winners state)
-  (define players-that-visited-treasure
-    (filter (λ (plyr-info) (player-info-visited-treasure? plyr-info))
+  (define max-goals-visited (apply max (map num-goals-visited (gamestate-players state))))
+  (define players-that-visited-max-num-goals
+    (filter (λ (plyr-info) (= (num-goals-visited plyr-info) max-goals-visited))
             (gamestate-players state)))
-  (map player-info-color (if (empty? players-that-visited-treasure)
-                             (all-min-distance (gamestate-players state))
-                             (all-min-distance players-that-visited-treasure))))
+  (map player-info-color (all-min-distance players-that-visited-max-num-goals)))
 
 
 ;; [Listof Player] -> [Listof Player]
@@ -263,21 +270,21 @@
    "Run a game of Maze"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1 player2) gamestate5 #f)])
+         (run-game (list player0 player1 player2) gamestate5 empty)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
   (test-case
    "Run a game of Maze gs4"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1 player2 player3) gamestate4 #f)])
+         (run-game (list player0 player1 player2 player3) gamestate4 empty)])
      (check-equal? empty criminals)
      (check-equal? (list "green") winners)))
   (test-case
    "Run a game of Maze gs5"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1) gamestate1 #f)])
+         (run-game (list player0 player1) gamestate1 empty)])
      (check-equal? empty criminals)
      (check-equal? (list "yellow") winners))))
 
