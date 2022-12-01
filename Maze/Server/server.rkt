@@ -19,12 +19,13 @@
 (define SIGNUP-ROUND-TIME-LIMIT-SEC 20)
 (define MAX-PLAYERS 6)
 (define DEFAULT-PORT 27015)
+(define MAX-SIGNUP-ROUNDS 2)
 
 ;; RefereeState Boolean -> [List [Listof String] [Listof String]]
 ;; Runs a server which hosts a game of Maze
 (define (main state0 observer?)
   (define server (tcp-listen DEFAULT-PORT))
-  (define proxy-players (signup server SIGNUP-ROUND-TIME-LIMIT-SEC MAX-PLAYERS))
+  (define proxy-players (signup server SIGNUP-ROUND-TIME-LIMIT-SEC MAX-PLAYERS MAX-SIGNUP-ROUNDS))
   (begin
     (cond
       [((length proxy-players) . < . 2) (write-json (list empty empty))]
@@ -32,15 +33,16 @@
     (tcp-close server)))
 
 
-;; Listener -> [Listof ProxyPlayer]
+;; Listener Integer Integer Integer -> [Listof ProxyPlayer]
 ;; Sign up proxy players to play a game of Maze
-(define (signup listener time-limit max-players)
-  (define first-phase-players (collect-players listener (current-seconds) time-limit max-players))
-  (define final-players
-    (cond
-      [((length first-phase-players) . >= . 2) first-phase-players]
-      [else (collect-players listener (current-seconds) time-limit max-players first-phase-players)]))
-  final-players)
+(define (signup listener time-limit max-players periods-remaining [collected-players '()])
+  (cond
+    [(zero? periods-remaining) collected-players]
+    [else (let* ([new-players (collect-players listener (current-seconds) time-limit (- max-players (length collected-players)))]
+                 [total-players (cons new-players collected-players)])
+            (if ((length total-players) . >= . 2)
+                collected-players
+                (signup listener time-limit max-players (sub1 periods-remaining) total-players)))]))
 
   
 ;; Listener Integer PositiveInteger PositiveInteger -> [Listof ProxyPlayer]
