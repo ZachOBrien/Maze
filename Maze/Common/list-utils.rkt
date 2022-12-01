@@ -12,13 +12,15 @@
   ; Do two lists have the same elements?
   [same-elements? (-> list? list? boolean?)]
   ; Divide a list into chunks
-  [chunk-list (-> list? (and/c integer? positive?) (listof list?))]))
+  [chunk-list (-> list? (and/c integer? positive?) (listof list?))]
+  ; Replace the first item in the list that passes the predicate with the given item
+  [replacef (-> list? (-> any/c boolean?) any/c list?)]))
 
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
 
-
+(require racket/function)
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
@@ -38,6 +40,15 @@
     [(empty? lst) (reverse acc)]
     [(< (length lst) chunk-size) (reverse (cons lst acc))]
     [else (chunk-list (list-tail lst chunk-size) chunk-size (cons (take lst chunk-size) acc))]))
+
+;; [Listof T] (-> T Boolean) T -> [Listof T]
+;; Replace the first item in the list that passes the predicate with the given item
+(define (replacef lst pred item)
+  (cond
+    [(empty? lst) empty]
+    [(pred (first lst)) (cons item (rest lst))]
+    [else (cons (first lst) (replacef (rest lst) pred item))]))
+    
 
 
 ;; --------------------------------------------------------------------
@@ -68,3 +79,8 @@
   (check-equal? (chunk-list '(1 2 3) 2) (list (list 1 2) (list 3)))
   (check-equal? (chunk-list '(1 2 3 4 5 6 7) 2) (list (list 1 2) (list 3 4) (list 5 6) (list 7)))
   (check-equal? (chunk-list '(1 2 3 4 5 6 7) 3) (list (list 1 2 3) (list 4 5 6) (list 7))))
+
+(module+ test
+  (check-equal? (replacef (list 1 2 3 4) even? 9) (list 1 9 3 4))
+  (check-equal? (replacef empty even? 0) empty)
+  (check-equal? (replacef (list 1 2 3 4) (curry equal? 5) 9) (list 1 2 3 4)))

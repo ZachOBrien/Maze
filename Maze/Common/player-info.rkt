@@ -40,7 +40,9 @@
   ; Move a player to the given gridposn
   [player-info-move-to (-> player-info? grid-posn? player-info?)]
   ; Move a player's goal to the given gridposn
-  [change-goal (-> ref-player-info? grid-posn? ref-player-info?)]
+  [replace-dummy-goal (-> ref-player-info? grid-posn? ref-player-info?)]
+  ; Inform the player of whether they should pursue the next goal or go home
+  [receive-next-goal (-> ref-player-info? (or/c #f grid-posn?) ref-player-info?)]
   ; Get a player's color
   [player-info-color (-> player-info? avatar-color?)]
   ; Is the player currently on their treasure?
@@ -118,6 +120,45 @@
 ;; Create a new ref-player-info
 (define (ref-player-info-new curr-pos home-pos goal-pos goals-visited going-home? color)
   (player-info curr-pos home-pos goal-pos goals-visited going-home? color))
+
+;; --------------------------------------------------------------------
+;; FUNCTIONALITY IMPLEMENTATION
+
+;; Player GridPosn -> Player
+;; Move a player to the given gridposn
+(define (player-info-move-to p pos)
+  (struct-copy player-info p
+               [curr-pos pos]))
+               
+
+;; RefPlayerInfo GridPosn -> RefPlayerInfo
+;; Move a player's goal to the given gridposn
+(define (replace-dummy-goal p new-goal-pos)
+  (struct-copy player-info p [goal-pos new-goal-pos]))
+
+;; RefPlayerInfo (U #f GridPosn) -> RefPlayerInfo
+;; Inform the player of whether they should pursue the next goal or go home
+;; If goal is false, the state has run out of goals and the player should go home
+(define (receive-next-goal plyr goal)
+  (if goal
+      (struct-copy player-info plyr
+                   [goal-pos goal]
+                   [goals-visited (cons (player-info-goal-pos plyr) (player-info-goals-visited plyr))])
+      (struct-copy player-info plyr
+                   [goal-pos (player-info-home-pos plyr)]
+                   [goals-visited (cons (player-info-goal-pos plyr) (player-info-goals-visited plyr))]
+                   [going-home? #t])))
+                   
+
+;; PlayerInfo GridPosn -> Boolean
+;; Returns True if the player is on the given position
+(define (player-info-on-pos? p pos)
+  (equal? (player-info-curr-pos p) pos))
+
+;; PlayerInfo -> Boolean
+;; Returns True if the player is on the their home position
+(define (player-info-on-home? plyr-info)
+  (equal? (player-info-curr-pos plyr-info) (player-info-home-pos plyr-info)))
 
 ;; RefPlayerInfo -> PubPlayerInfo
 ;; Convert a referee payer info into a public player info
@@ -304,30 +345,7 @@
                   (ref-player-info-new (cons 6 1) (cons 3 4) (cons 5 1) empty #f "red"))))
 
 ;; --------------------------------------------------------------------
-;; FUNCTIONALITY IMPLEMENTATION
-
-;; Player GridPosn -> Player
-;; Move a player to the given gridposn
-(define (player-info-move-to p pos)
-  (struct-copy player-info p
-               [curr-pos pos]))
-               
-
-;; RefPlayerInfo GridPosn -> RefPlayerInfo
-;; Move a player's goal to the given gridposn
-(define (change-goal p new-goal-pos)
-  (struct-copy player-info p [goal-pos new-goal-pos]))
-
-
-;; PlayerInfo GridPosn -> Boolean
-;; Returns True if the player is on the given position
-(define (player-info-on-pos? p pos)
-  (equal? (player-info-curr-pos p) pos))
-
-;; PlayerInfo -> Boolean
-;; Returns True if the player is on the their home position
-(define (player-info-on-home? plyr-info)
-  (equal? (player-info-curr-pos plyr-info) (player-info-home-pos plyr-info)))
+;; TESTS
 
 (module+ examples
   (provide (all-defined-out))
@@ -525,3 +543,10 @@
                 (hash 'current (hash 'row# 2 'column# 2)
                       'home (hash 'row# 4 'column# 4)
                       'color "green")))
+
+;; test recieve-next-goal
+(module+ test
+  (check-equal? (receive-next-goal player-info1 (cons 2 2))
+                (player-info (cons 1 1) (cons 5 5) (cons 2 2) (list (cons 1 1)) #f "purple"))
+  (check-equal? (receive-next-goal player-info1 #f)
+                (player-info (cons 1 1) (cons 5 5) (cons 5 5) (list (cons 1 1)) #t "purple")))
