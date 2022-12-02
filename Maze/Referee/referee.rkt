@@ -8,7 +8,7 @@
 (provide
  (contract-out
   ; Run a game of Maze
-  [run-game (-> (listof player?) referee-state? boolean? (values (listof avatar-color?) (listof avatar-color?) hash?))]))
+  [run-game (-> (listof (or/c player? proxy-player?)) referee-state? (listof any/c) (values (listof avatar-color?) (listof avatar-color?) hash?))]))
      
 
 ;; --------------------------------------------------------------------
@@ -21,6 +21,7 @@
 (require "../Common/rulebook.rkt")
 (require "../Common/math.rkt")
 (require "../Players/player.rkt")
+(require "../Remote/player.rkt")
 (require "../Remote/safety.rkt")
 (require "observer.rkt")
 
@@ -34,9 +35,9 @@
 (define DEFAULT-BOARD-SIZE 7)  ; Default number of tiles in a row and in a column
 (define MAX-ROUNDS 1000)  ; Maximum number of rounds the game may be played for
 
-;; [Listof Player] RefereeState Boolean -> [Listof AvatarColor] [Listof AvatarColor]
+;; [Listof Player] RefereeState [Listof Observer] -> [Listof AvatarColor] [Listof AvatarColor] HashTable
 ;; Runs a game of Labrynth, finding winners and cheaters
-(define (run-game init-players state0 observer?)
+(define (run-game init-players state0 observers)
   (begin
     (define players (make-hash (for/list ([p init-players]
                                           [c (get-player-color-list state0)])
@@ -51,7 +52,8 @@
       (filter (λ (plyr) (member plyr (get-player-color-list final-state))) winners))
     (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                               (get-player-color-list state0)))
-    (if observer? (run-observer (reverse intermediate-states)) #f)
+    (for ([observer observers])
+      (send observer run intermediate-states))
     (values winners-that-didnt-get-kicked criminals color-names)))
 
 
@@ -70,27 +72,27 @@
     [(<= rounds-remaining 0) prev-states]
     [else (let*-values ([(curr-state) (first prev-states)]
                         [(player-colors) (get-player-color-list curr-state)]
-                        [(states-after-round plyrs-passed-turn) (run-round curr-state players player-colors)]
+                        [(game-over? states-after-round plyrs-passed-turn) (run-round curr-state players player-colors)]
                         [(new-states) (append states-after-round prev-states)]
                         [(new-player-colors) (get-player-color-list (first new-states))]
                         [(all-players-passed) (equal? new-player-colors plyrs-passed-turn)])
             (cond
-              [(or (game-over? (second new-states) (first new-states)) all-players-passed) new-states]
+              [(or game-over? all-players-passed) new-states]
               [else (play-until-completion-help new-states players (sub1 rounds-remaining))]))]))
 
 
-;; RefereeState HashTable [Listof AvatarColor] [Listof AvatarColor] [Listof RefereeState] -> (values [Listof RefereeState] [Listof AvatarColor])
+;; RefereeState HashTable [Listof AvatarColor] [Listof AvatarColor] [Listof RefereeState] -> (values Boolean [Listof RefereeState] [Listof AvatarColor])
 ;; Run a round of the game, end the round early if the game is over. Accumulates states after
 ;; each move in reverse order.
+;; Returned boolean flag indicates whether a player won the game this round
 (define (run-round state players player-colors [passed-plyrs '()] [intermediate-states '()])
-  (cond [(empty? player-colors) (values intermediate-states passed-plyrs)]
-        [else (let*-values ([(passed-turn next-state)
-                            (execute-turn state
-                                          (hash-ref players (first player-colors))
-                                          (first player-colors))]
-                           [(new-passed-plyrs) (if passed-turn (cons (first player-colors) passed-plyrs) passed-plyrs)])
+  (cond [(empty? player-colors) (values #f intermediate-states passed-plyrs)]
+        [else (let*-values ([(passed-turn? player-won? next-state) (execute-turn state
+                                                                                 (hash-ref players (first player-colors))
+                                                                                 (first player-colors))]
+                            [(new-passed-plyrs) (if passed-turn? (cons (first player-colors) passed-plyrs) passed-plyrs)])
                 (cond
-                  [(game-over? state next-state) (values (cons next-state intermediate-states) passed-plyrs)]
+                  [player-won? (values #t (cons next-state intermediate-states) passed-plyrs)]
                   [else (run-round next-state
                                    players
                                    (rest player-colors)
@@ -98,30 +100,45 @@
                                    (cons next-state intermediate-states))]))]))
 
 
-;; RefereeState [Hash Color:Player] AvatarColor -> Boolean RefereeState
-;; Execute a turn for the player. The boolean flag is true if they chose to pass turn
+;; RefereeState [Hash Color:Player] AvatarColor -> (values Boolean Boolean RefereeState)
+;; Execute a turn for the player.
+;; The first boolean flag is true if they chose to pass turn
+;; The second boolean flag is true if they won on this turn
 (define (execute-turn state player color)
   (define mv (safe-get-action player (referee-state->player-state state color)))
   (cond
-    [(false? mv) (values #t (end-current-turn state))]
-    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f (remove-player state))]
+    [(false? mv) (values #t #f (end-current-turn state))]
+    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f #f (remove-player state))]
     [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
-                 (if (player-on-treasure? gamestate-after-move)
-                     (let ([state-after-notify (send-setup-to-player gamestate-after-move player color)])
-                       (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player gamestate-after-move))
-                           (values #f (end-current-turn state-after-notify))
-                           (values #f state-after-notify)))
-                     (values #f (end-current-turn gamestate-after-move))))]))
+                 (cond
+                   [(and (player-on-treasure? gamestate-after-move) (false? (player-info-going-home? (gamestate-current-player state))))
+                    (values #f #f (assign-next-goal-and-send-setup gamestate-after-move player color))]
+                   [(and (player-on-home? gamestate-after-move) (player-info-going-home? (gamestate-current-player state)))
+                    (values #f #t (end-current-turn gamestate-after-move))]
+                   [else
+                    (values #f #f (end-current-turn gamestate-after-move))]))]))
+
+
+;; Gamestate Player AvatarColor -> RefereeState
+;; Assign a player their next goal, and return the Gamestate after notifying them
+(define (assign-next-goal-and-send-setup state player color)
+  (define state-after-assigning-next-goal (assign-next-goal state color))
+  (let ([state-after-notify (send-setup-to-player state-after-assigning-next-goal player color)])
+    (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player state-after-assigning-next-goal))
+        (end-current-turn state-after-notify)
+        state-after-notify)))
+
 
 ;; RefereeState -> [Listof AvatarColor]
 ;; Determine which players (if any) won the game
 (define (determine-winners state)
-  (define players-that-visited-treasure
-    (filter (λ (plyr-info) (player-info-visited-treasure? plyr-info))
-            (gamestate-players state)))
-  (map player-info-color (if (empty? players-that-visited-treasure)
-                             (all-min-distance (gamestate-players state))
-                             (all-min-distance players-that-visited-treasure))))
+  (cond
+    [(empty? (gamestate-players state)) empty]
+    [else (define max-goals-visited (apply max (map num-goals-visited (gamestate-players state))))
+          (define players-that-visited-max-num-goals
+            (filter (λ (plyr-info) (= (num-goals-visited plyr-info) max-goals-visited))
+                    (gamestate-players state)))
+          (map player-info-color (all-min-distance players-that-visited-max-num-goals))]))
 
 
 ;; [Listof Player] -> [Listof Player]
@@ -138,6 +155,8 @@
 
 ;; [HashTable AvatarColor : Player] RefereeState -> (values RefereeState [HashTable AvatarColor : String])
 ;; Asks each player for their name to construct a hash table mapping colors to player names
+;; TODO: Use the state's color list to send setups in the correct order, rather than using
+;;       a list of colors from the hash table keys which *does not preserve order*
 (define (get-color-names players start-state)
   (define-values (final-state final-color-names)
     (for/fold ([state start-state]
@@ -175,7 +194,7 @@
 (define (send-setup-to-player state plyr color)
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
-                                    (get-goto-pos (gamestate-get-by-color state color)))))
+                                    (player-info-goal-pos (gamestate-get-by-color state color)))))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
 
@@ -251,26 +270,47 @@
 
 (module+ test
   (test-case
-   "Run a game of Maze"
+   "Run a game of Maze gs5"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1 player2) gamestate5 #f)])
+         (run-game (list player0 player1 player2) gamestate5 empty)])
      (check-equal? empty criminals)
      (check-equal? (list "red") winners)))
   (test-case
    "Run a game of Maze gs4"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1 player2 player3) gamestate4 #f)])
+         (run-game (list player0 player1 player2 player3) gamestate4 empty)])
      (check-equal? empty criminals)
      (check-equal? (list "green") winners)))
   (test-case
-   "Run a game of Maze gs5"
+   "Run a game of Maze gs1"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1) gamestate1 #f)])
+         (run-game (list player0 player1) gamestate1 empty)])
      (check-equal? empty criminals)
-     (check-equal? (list "yellow") winners))))
+     (check-equal? (list "yellow") winners)))
+  (test-case
+   "Run a game of Maze gs6: Multiple Goals"
+   (let-values
+       ([(winners criminals color-names)
+         (run-game (list player0 player1 player2 player3 player-bad-win) gamestate6 empty)])
+     (check-equal? (list "black") criminals)
+     (check-equal? (list "yellow") winners)))
+  (test-case
+   "Run a game of Maze gs7: Multiple Goals"
+   (let-values
+       ([(winners criminals color-names)
+         (run-game (list player0 player1) gamestate7 empty)])
+     (check-equal? empty criminals)
+     (check-equal? (list "A1A1A1") winners)))
+  (test-case
+   "Run a game of Maze gs8: Multiple Goals"
+   (let-values
+       ([(winners criminals color-names)
+         (run-game (list player0 player1) gamestate8 empty)])
+     (check-equal? empty criminals)
+     (check-equal? (list "B2B2B2") winners))))
 
 
 ;; ==========================================
@@ -319,13 +359,13 @@
   (test-case
    "A well-behaved player chooses an action"
    (let-values
-       ([(passed-turn? state-after-turn)
+       ([(passed-turn? player-won? state-after-turn)
          (execute-turn gamestate0 player0 "blue")])
      (check-equal? passed-turn? #f)))
   (test-case
    "A misbehaved player chooses an action"
    (let-values
-       ([(passed-turn? state-after-turn)
+       ([(passed-turn? player-won? state-after-turn)
          (execute-turn gamestate0 player-bad-taketurn "blue")])
      (check-equal? passed-turn? #f)
      (check-equal? state-after-turn (remove-player gamestate0)))))

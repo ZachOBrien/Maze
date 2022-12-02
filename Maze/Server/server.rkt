@@ -1,10 +1,28 @@
-#lang racket/base
+#lang racket
+
+;;; This module provides data definitions and logic for the gems that appear on tiles
+
+;; --------------------------------------------------------------------
+;; MODULE INTERFACE
+
+(require racket/contract)
+(require "../Common/state.rkt")
+(require "../Common/player-info.rkt")
+
+(provide
+ (contract-out
+  ; Connect remote players, and run a game of Maze
+  [main (-> referee-state? (listof any/c) (and/c positive? integer?) (values (listof string?) (listof string?)))]))
+
+;; --------------------------------------------------------------------
+;; DEPENDENCIES
 
 (require racket/class)
 (require racket/tcp)
 (require racket/function)
 (require racket/bool)
 (require racket/list)
+
 (require json)
 
 (require "../Remote/safety.rkt")
@@ -12,35 +30,45 @@
 (require "../Remote/tcp-conn.rkt")
 (require "../Referee/referee.rkt")
 
-;;; This script implements a server for a game of Maze
 
+;; --------------------------------------------------------------------
+;; DATA DEFINITIONS
 
+;;; This module implements a server for a game of Maze
 (define PLAYER-NAME-TIME-LIMIT-SEC 2)
 (define SIGNUP-ROUND-TIME-LIMIT-SEC 20)
 (define MAX-PLAYERS 6)
 (define DEFAULT-PORT 27015)
+(define MAX-SIGNUP-ROUNDS 5)
 
-;; RefereeState Boolean -> [List [Listof String] [Listof String]]
+;; --------------------------------------------------------------------
+;; FUNCTIONALITY IMPLEMENTATION
+
+;; RefereeState [Listof Observer] PositiveInteger -> (values [Listof String] [Listof String])
 ;; Runs a server which hosts a game of Maze
-(define (main state0 observer?)
-  (define server (tcp-listen DEFAULT-PORT))
-  (define proxy-players (signup server SIGNUP-ROUND-TIME-LIMIT-SEC MAX-PLAYERS))
-  (begin
-    (cond
-      [((length proxy-players) . < . 2) (write-json (list empty empty))]
-      [(run-game proxy-players state0 observer?)])
-    (tcp-close server)))
+(define (main state0 observers port)
+  (define server (tcp-listen port))
+  (define proxy-players (signup server SIGNUP-ROUND-TIME-LIMIT-SEC MAX-PLAYERS MAX-SIGNUP-ROUNDS))
+  (define-values (winners criminals color-to-name)
+    (if ((length proxy-players) . < . 2)
+        (values empty empty (hash))
+        (run-game proxy-players state0 observers)))
+  (tcp-close server)
+  
+  (define winner-names (map (λ (col) (hash-ref color-to-name col)) winners))
+  (define criminal-names (map (λ (col) (hash-ref color-to-name col)) criminals))
+  (values winner-names criminal-names))
 
 
-;; Listener -> [Listof ProxyPlayer]
+;; Listener Integer Integer Integer -> [Listof ProxyPlayer]
 ;; Sign up proxy players to play a game of Maze
-(define (signup listener time-limit max-players)
-  (define first-phase-players (collect-players listener (current-seconds) time-limit max-players))
-  (define final-players
-    (cond
-      [((length first-phase-players) . >= . 2) first-phase-players]
-      [else (collect-players listener (current-seconds) time-limit max-players first-phase-players)]))
-  final-players)
+(define (signup listener time-limit max-players periods-remaining [collected-players '()])
+  (cond
+    [(zero? periods-remaining) collected-players]
+    [else (let* ([players (collect-players listener (current-seconds) time-limit (- max-players (length collected-players)) collected-players)])
+            (if ((length players) . >= . 2)
+                players
+                (signup listener time-limit max-players (sub1 periods-remaining) players)))]))
 
   
 ;; Listener Integer PositiveInteger PositiveInteger -> [Listof ProxyPlayer]
@@ -56,9 +84,9 @@
                            (if (tcp-accept-ready? listener)
                                (let*-values ([(input-port output-port) (tcp-accept listener)]
                                              [(new-proxy-player) (new-connection->proxy-player input-port output-port PLAYER-NAME-TIME-LIMIT-SEC)])
-                                            (if (not (false? new-proxy-player))
-                                                (cons new-proxy-player players)
-                                                players))
+                                 (if (not (false? new-proxy-player))
+                                     (begin (cons new-proxy-player players))
+                                     players))
                                players))]))
 
 ;; InputPort OutputPort PositiveInteger -> (U ProxyPlayer #f)

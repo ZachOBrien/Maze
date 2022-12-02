@@ -32,7 +32,7 @@
   ; Create a new player state
   [player-state-new (-> board? tile? player-state-player-infos? (or/c #f shift?) player-state?)]
   ; Create a new referee state
-  [referee-state-new (-> board? tile? (listof ref-player-info?) (or/c #f shift?) referee-state?)]
+  [referee-state-new (-> board? tile? (listof ref-player-info?) (listof grid-posn?) (or/c #f shift?) referee-state?)]
   ; Execute a move
   [gamestate-execute-move (-> gamestate? move? gamestate?)]
   ; Shifts a row or column and inserts a tile in the empty space
@@ -53,6 +53,8 @@
   [remove-player-by-color (-> gamestate? avatar-color? gamestate?)]
   ; Get the current player's color
   [current-player-color (-> gamestate? avatar-color?)]
+  ; Assign the player their next goal, or tell them to go home
+  [assign-next-goal (-> referee-state? avatar-color? referee-state?)]
   ; End the current player's turn and switch to the next player's turn
   [end-current-turn (-> gamestate? gamestate?)]
   ;; All reachable from current player current position
@@ -60,13 +62,11 @@
   ; Makes a playerstate for a specific player in the referee state. 
   [referee-state->player-state (-> referee-state? avatar-color? player-state?)]
   ; Changes the treasure tile of the active player
-  [change-active-player-treasure (-> gamestate? grid-posn? gamestate?)]
+  [replace-active-player-dummy-goal (-> gamestate? grid-posn? gamestate?)]
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
   ; Get a PlayerInfo by color
-  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
-  ; Has the game ended?
-  [game-over? (-> referee-state? referee-state? boolean?)]))
+  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -75,6 +75,7 @@
 (require "board.rkt")
 (require "gem.rkt")
 (require "math.rkt")
+(require "list-utils.rkt")
 
 
 ;; --------------------------------------------------------------------
@@ -88,11 +89,11 @@
 ;; interpretation: A gamestate either has all the information a referee knows, or
 ;;                 only the information that one player should know
 
-;; (struct Board Tile [NonEmptyListof PlayerInfo] (U Shift #f))
+;; (struct Board Tile [NonEmptyListof PlayerInfo] [Listof GridPosn] (U Shift #f))
 ;; interpretation: A Gamestate has a board, an extra tile, players arranged in the order they
 ;;                 take turns (with the currently acting player at the front of the list)
-;;                 and the last shift made
-(struct gamestate [board extra-tile players prev-shift] #:transparent)
+;;                 a queue of goals to be chased and the previous shift made
+(struct gamestate [board extra-tile players goals prev-shift] #:transparent)
 
 (define player-state-player-infos?
   (or/c empty? (cons/c ref-player-info? (listof pub-player-info?))))
@@ -101,23 +102,25 @@
 ;; Is this gamestate a PlayerState?
 (define (player-state? state)
   (and (gamestate? state)
-       (player-state-player-infos? (gamestate-players state))))
+       (player-state-player-infos? (gamestate-players state))
+       (equal? (gamestate-goals state) 'hidden)))
 
 ;; Gamestate -> Boolean
 ;; Is this gamestate a RefereeState?
 (define (referee-state? state)
   (and (gamestate? state)
-       ((listof ref-player-info?) (gamestate-players state))))
+       ((listof ref-player-info?) (gamestate-players state))
+       ((listof grid-posn?) (gamestate-goals state))))
   
 ;; Board Tile (U empty (cons RefPlayerInfo [Listof PubPlayerInfo])) Shift -> Gamestate
 ;; Create a new player state
 (define (player-state-new board extra-tile players prev-shift)
-  (gamestate board extra-tile players prev-shift))
+  (gamestate board extra-tile players 'hidden prev-shift))
 
-;; Board Tile [Listof RefPlayerInfo] Shift -> Gamestate
+;; Board Tile [Listof RefPlayerInfo] [Listof GridPosn] Shift -> Gamestate
 ;; Create a new referee state
-(define (referee-state-new board extra-tile players prev-shift)
-  (gamestate board extra-tile players prev-shift))
+(define (referee-state-new board extra-tile players goals prev-shift)
+  (gamestate board extra-tile players goals prev-shift))
 
 ;; A Move is a structure:
 ;;    (struct GridPosn Shift Orientation)
@@ -151,7 +154,11 @@
      (gamestate-board state) shft (tile-rotate (gamestate-extra-tile state) orientation)))
   (define players-after-shift
     (shift-players state shft))
-  (gamestate new-board new-extra-tile players-after-shift shft))
+  (struct-copy gamestate state
+               [board new-board]
+               [extra-tile new-extra-tile]
+               [players players-after-shift]
+               [prev-shift shft]))
 
 
 ;; Gamestate Shift -> [Listof PlayerInfo]
@@ -200,6 +207,26 @@
   (struct-copy gamestate state
                [players (cons curr-player-moved (rest players))]))
 
+
+;; RefereeState AvatarColor -> RefereeState
+;; Assign the next treasure in the queue to a player. If the queue is empty, tell them to go home
+(define (assign-next-goal state color)
+  (define plyr (gamestate-get-by-color state color))
+  (define next-goal (if (empty? (gamestate-goals state))
+                        #f
+                        (first (gamestate-goals state))))
+                                
+  (define new-players (replacef (gamestate-players state)
+                                (λ (plyr) (equal? color (player-info-color plyr)))
+                                (receive-next-goal plyr next-goal)))
+
+  (define new-goals (if (empty? (gamestate-goals state))
+                        empty
+                        (rest (gamestate-goals state))))
+  
+  (struct-copy gamestate state
+               [players new-players]
+               [goals new-goals]))
 
 ;; PlayerInfo GridPosn -> Boolean
 ;; Returns True if the player is on the given position
@@ -270,12 +297,13 @@
    (gamestate-board state)
    (gamestate-extra-tile state)
    (cons (first plyr-infos) (map ref-player-info->pub-player-info (rest plyr-infos)))
+   'hidden
    (gamestate-prev-shift state)))
 
 ;; Gamestate GridPosn -> Gamestate
 ;; Changes the treasure position of the active player
-(define (change-active-player-treasure state new-treasure)
-  (define new-players (cons (change-treasure (gamestate-current-player state) new-treasure)
+(define (replace-active-player-dummy-goal state new-treasure)
+  (define new-players (cons (replace-dummy-goal (gamestate-current-player state) new-treasure)
                             (rest (gamestate-players state))))
   (struct-copy gamestate state [players new-players]))
 
@@ -293,23 +321,6 @@
 ;; Get the list of avatar player colors
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
-
-;; (U Gamestate #f) Gamestate -> Boolean
-;; Has the game ended?
-(define (game-over? prev-state curr-state)
-  (cond
-    [(false? prev-state) (empty? (gamestate-players curr-state))]
-    [else (or (empty? (gamestate-players curr-state)) (player-win? prev-state curr-state))]))
-
-
-;; Did the active player in prev-state win by making curr-state?
-(define (player-win? prev-state curr-state)
-  (define prev-state-plyr (gamestate-current-player prev-state))
-  (define curr-state-plyr (gamestate-get-by-color curr-state (player-info-color prev-state-plyr)))
-  (and (player-info-visited-treasure? prev-state-plyr)
-       (not (player-info-on-home? prev-state-plyr))
-       (player-info-on-home? curr-state-plyr)))
-
 
 ;; [Listof Any] -> [Listof Any]
 ;; Move an item to the front of the list, if it exists. If more than one of the element
@@ -360,30 +371,27 @@
                     (hex->number (substring color 4)))
         color))
 
+  ;; Image Image GridPosn [MultipleOf 10] PositiveInteger -> Image
+  (define (add-attribute-to-board-by-gridposn board-img attribute gp tile-size attribute-size)
+    (define-values (x-val y-val) (values (car gp) (cdr gp)))
+    (define attribute-x-pos (- (+ (/ tile-size 2) (* x-val tile-size)) attribute-size))
+    (define attribute-y-pos (- (+ (/ tile-size 2) (* y-val tile-size)) attribute-size))
+    (underlay/xy board-img attribute-x-pos attribute-y-pos attribute))
+
   ;; Image [MultipleOf 10] RefPlayerInfo -> Image
   (define (add-player-info-to-board-image plyr-info board-img tile-size)
-    (define avatar-size (/ tile-size 5))
+    (define avatar-size (/ tile-size 4))
     (define avatar (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info))))
-    (define-values (plyr-y-pos plyr-x-pos) (values (car (player-info-curr-pos plyr-info)) (cdr (player-info-curr-pos plyr-info))))
-    (define avatar-x-pos (- (+ (/ tile-size 2) (* plyr-x-pos tile-size)) avatar-size))
-    (define avatar-y-pos (- (+ (/ tile-size 2) (* plyr-y-pos tile-size)) avatar-size))
-    (define board-img-with-avatar (underlay/xy board-img avatar-x-pos avatar-y-pos avatar))
+    (define board-img-with-avatar (add-attribute-to-board-by-gridposn board-img avatar (player-info-curr-pos plyr-info) tile-size avatar-size))
 
     (define goal-size (/ tile-size 4))
     (define goal (star goal-size "solid" (usable-player-color (player-info-color plyr-info))))
-    (define-values (treasure-y-pos treasure-x-pos)
-      (values (car (player-info-treasure-pos plyr-info)) (cdr (player-info-treasure-pos plyr-info))))
-    (define goal-x-pos (- (+ (/ tile-size 2) (* treasure-x-pos tile-size)) avatar-size))
-    (define goal-y-pos (- (+ (/ tile-size 2) (* treasure-y-pos tile-size)) avatar-size))
-    (define board-img-with-goal (underlay/xy board-img-with-avatar goal-x-pos goal-y-pos goal))
+    (define board-img-with-goal (add-attribute-to-board-by-gridposn board-img-with-avatar goal (player-info-goal-pos plyr-info) tile-size goal-size))
+
 
     (define home-size (/ tile-size 4))
     (define home (triangle home-size "solid" (usable-player-color (player-info-color plyr-info))))
-    (define-values (home-y-pos home-x-pos)
-      (values (car (player-info-home-pos plyr-info)) (cdr (player-info-home-pos plyr-info))))
-    (define home-token-x-pos (- (+ (/ tile-size 2) (* home-x-pos tile-size)) avatar-size))
-    (define home-token-y-pos (- (+ (/ tile-size 2) (* home-y-pos tile-size)) avatar-size))
-    (define board-img-with-home (underlay/xy board-img-with-goal home-token-x-pos home-token-y-pos home))
+    (define board-img-with-home (add-attribute-to-board-by-gridposn board-img-with-goal home (player-info-home-pos plyr-info) tile-size home-size))
     board-img-with-home))
 
 (module+ serialize
@@ -453,10 +461,12 @@
 
   ;; JsonRefereeState -> RefereeState
   ;; Convert a JsonRefState into a RefState
+  ;; TODO: implement taking in JSON list of goals
   (define (json-referee-state->ref-state json-ref-state)
     (referee-state-new (json-board->board (hash-ref json-ref-state 'board))
                        (json-tile->tile (hash-ref json-ref-state 'spare))
                        (map json-referee-player-info->referee-player-info (hash-ref json-ref-state 'plmt))
+                       empty
                        (json-action->prev-shift (hash-ref json-ref-state 'last))))
 
   ;; JsonPlayerState -> PlayerState
@@ -471,7 +481,7 @@
   (define (json-public-state-and-goal-gridposn->player-state json-plyr-state goal)
     
     (define public-plyr-list (map json-public-player-info->public-player-info (hash-ref json-plyr-state 'plmt)))
-    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) goal #f))
+    (define active-player-as-ref-player (pub-player-info->ref-player-info (first public-plyr-list) goal '() #f))
     (define plyr-list-with-goal-for-active-player (cons active-player-as-ref-player (rest public-plyr-list)))
     
     (player-state-new (json-board->board (hash-ref json-plyr-state 'board))
@@ -491,27 +501,36 @@
   (define player-infos0 (list player-info0 player-info1 player-info2 player-info3 player-info4))
   ; player-info0 (a) not on treasure or home
   ; first top left
-  (define gamestate0 (gamestate board1 tile-extra player-infos0 #f))
+  (define gamestate0 (gamestate board1 tile-extra player-infos0 empty #f))
 
   (define player-infos1 (list player-info3 player-info4))
   ; player-info1 (a) not on treasure on home
-  (define gamestate1 (gamestate board1 tile-extra player-infos1 #f))
+  (define gamestate1 (gamestate board1 tile-extra player-infos1 empty #f))
   (define player-infos2 (list player-info1 player-info2 player-info3 player-info4))
   ; on treasure not home
-  (define gamestate2 (gamestate board1 tile-extra player-infos2 #f))
+  (define gamestate2 (gamestate board1 tile-extra player-infos2 empty #f))
 
   (define player-infos3 (list player-info1 player-info0 player-info5 player-info6 player-info7))
-  (define gamestate3 (gamestate board1 tile-extra player-infos3 #f))
+  (define gamestate3 (gamestate board1 tile-extra player-infos3 empty #f))
 
   (define player-infos4 (list player-info0 player-info1 player-info2 player-info5))
-  (define gamestate4 (gamestate board1 tile-extra player-infos4 #f))
+  (define gamestate4 (gamestate board1 tile-extra player-infos4 empty #f))
 
   (define player-infos5 (list player-info8 player-info5 player-info7))
-  (define gamestate5 (gamestate board1 tile-extra player-infos5 #f))
+  (define gamestate5 (gamestate board1 tile-extra player-infos5 empty #f))
 
-  (define player-state0 (gamestate board1 tile-extra (list player-info2) (shift-new 'up 0)))
-  (define player-state1 (gamestate board1 tile-extra (list player-info7) (shift-new 'down 4)))
-  (define player-state-nowhere-to-go (gamestate board-nowhere-to-go tile-extra (list player-info3) (shift-new 'right 4))))
+  (define gamestate6 (gamestate board1 tile-extra player-infos0 (list (cons 5 3) (cons 3 5)) #f))
+  (define gamestate7 (gamestate board1 tile-extra (list ref-player-info10 ref-player-info11) (list (cons 1 5)) #f))
+  (define gamestate8 (gamestate board1 tile-extra (list ref-player-info10 ref-player-info11) (list (cons 1 5)
+                                                                                                   (cons 3 3)
+                                                                                                   (cons 1 3)
+                                                                                                   (cons 1 1)
+                                                                                                   (cons 5 5)
+                                                                                                   (cons 5 5)) #f))
+
+  (define player-state0 (gamestate board1 tile-extra (list player-info2) 'hidden (shift-new 'up 0)))
+  (define player-state1 (gamestate board1 tile-extra (list player-info7) 'hidden (shift-new 'down 4)))
+  (define player-state-nowhere-to-go (gamestate board-nowhere-to-go tile-extra (list player-info3) 'hidden (shift-new 'right 4))))
   
 
 (module+ test
@@ -561,18 +580,18 @@
                  gamestate4
                  (shift-new 'right 0))
                 (list
-                 (ref-player-info-new (cons 0 1) (cons 6 6) (cons 5 1) #f "blue")
+                 (ref-player-info-new (cons 0 1) (cons 6 6) (cons 5 1) empty #f "blue")
                  player-info1
                  player-info2
-                 (ref-player-info-new (cons 0 0) (cons 5 5) (cons 1 5) #f "red")))
+                 (ref-player-info-new (cons 0 0) (cons 5 5) (cons 1 5) empty #f "red")))
   (check-equal? (shift-players
                  gamestate4
                  (shift-new 'left 0))
                 (list
-                 (ref-player-info-new (cons 0 6) (cons 6 6) (cons 5 1) #f "blue")
+                 (ref-player-info-new (cons 0 6) (cons 6 6) (cons 5 1) empty #f "blue")
                  player-info1
                  player-info2
-                 (ref-player-info-new (cons 0 5) (cons 5 5) (cons 1 5) #f "red")))
+                 (ref-player-info-new (cons 0 5) (cons 5 5) (cons 1 5) empty #f "red")))
   (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-shift-and-insert gamestate3 (shift-new 'up 0) 0)) 1)
                (cons 6 0)))
@@ -601,6 +620,30 @@
   (check-true (player-info-on-pos?
                (list-ref (gamestate-players (gamestate-move-player gamestate0 (cons 1 1))) 0)
                (cons 1 1))))
+
+;; test assign-next-goal
+(module+ test
+  (check-equal? (gamestate-players (assign-next-goal gamestate0 "blue"))
+                (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 6 6) (list (cons 5 1)) #t "blue")
+                      player-info1 player-info2 player-info3 player-info4))
+  (check-equal? (gamestate-players (assign-next-goal gamestate0 "yellow"))
+                (list player-info0 player-info1 player-info2
+                      (ref-player-info-new (cons 3 3) (cons 3 3) (cons 3 3) (list (cons 1 3)) #t "yellow")
+                      player-info4))
+  (check-equal? (gamestate-players (assign-next-goal gamestate6 "yellow"))
+                (list player-info0 player-info1 player-info2
+                      (ref-player-info-new (cons 3 3) (cons 3 3) (cons 5 3) (list (cons 1 3)) #f "yellow")
+                      player-info4))
+  (check-equal? (gamestate-players (assign-next-goal gamestate6 "blue"))
+                (list (ref-player-info-new (cons 0 0) (cons 6 6) (cons 5 3) (list (cons 5 1)) #f "blue")
+                      player-info1 player-info2 player-info3 player-info4))
+  (check-equal? (gamestate-goals (assign-next-goal gamestate6 "blue"))
+                (list (cons 3 5)))
+  (check-equal? (gamestate-goals (assign-next-goal (assign-next-goal gamestate6 "yellow") "blue"))
+                empty)
+  (check-equal? (gamestate-goals (assign-next-goal gamestate0 "blue"))
+                empty))
+              
 
 ;; test player is moved to correct tile after shift moves row/col
 (module+ test
@@ -662,23 +705,6 @@
 (module+ test
   (check-true (player-info-on-pos? player-info0 (cons 0 0))))
 
-;; Test player-info-move-to
-(module+ test
-  (check-equal? (player-info-move-to player-info0 (cons 3 3))
-                (ref-player-info-new
-                 (cons 3 3)
-                 (cons 6 6)
-                 (cons 5 1)
-                 #f
-                 "blue"))
-  (check-equal? (player-info-move-to player-info0 (cons 6 6))
-                (ref-player-info-new
-                 (cons 6 6)
-                 (cons 6 6)
-                 (cons 5 1)
-                 #f
-                 "blue")))
-
 
 ;; Test referee-state->player-state
 (module+ test
@@ -690,6 +716,7 @@
                                  (ref-player-info->pub-player-info player-info2)
                                  (ref-player-info->pub-player-info player-info3)
                                  (ref-player-info->pub-player-info player-info4))
+                           'hidden
                            #f)))
 ; test get-player-color-list
 (module+ test

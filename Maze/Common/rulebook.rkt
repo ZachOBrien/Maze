@@ -61,23 +61,23 @@
 ; test valid-move? board extra-tile prev-shift plyr-info orientation shift pos) (-> grid-posn? shift? orientation? move?)]
 (module+ test
   (check-false (valid-move?
-                (referee-state-new board1 tile-extra (list player-info1) (shift-new 'up 2))
+                (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'up 2))
                 (move-new (cons 3 1) (shift-new 'down 2) 0)))
   (check-false (valid-move?
-                (referee-state-new board1 tile-extra (list player-info1) (shift-new 'up 2))
+                (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'up 2))
                 (move-new (cons 5 1) (shift-new 'right 2) 90)))
   (check-false (valid-move?
-                (referee-state-new board1 tile-extra (list player-info1) (shift-new 'right 2))
+                (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'right 2))
                 (move-new (cons 3 3) (shift-new 'down 2) 180)))
   (check-false (valid-move?
-                (referee-state-new board1 tile-extra (list player-info1) (shift-new 'left 2))
+                (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'left 2))
                 (move-new (cons 1 1) (shift-new 'left 2) 270)))
   (check-not-false (valid-move?
-                    (referee-state-new board1 tile-extra (list player-info1) (shift-new 'down 2))
+                    (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'down 2))
                     (move-new (cons 1 2) (shift-new 'right 6) 0)))
   (check-not-false (valid-move?
-                    (referee-state-new board1 tile-extra (list player-info1) (shift-new 'down 6))
+                    (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'down 6))
                     (move-new (cons 0 0) (shift-new 'right 6) 0)))
   (check-not-false (valid-move?
-                    (referee-state-new board1 tile-extra (list player-info1) (shift-new 'down 6))
+                    (referee-state-new board1 tile-extra (list player-info1) empty (shift-new 'down 6))
                     (move-new (cons 2 0) (shift-new 'right 2) 90))))

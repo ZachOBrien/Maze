@@ -64,7 +64,7 @@
 ;; Board RefPlayerInfo -> [Listof GridPosn]
 ;; Order the possible candidates for Riemann search
 (define (get-riemann-candidates board plyr)
-  (define goal-pos (get-goto-pos plyr))
+  (define goal-pos (player-info-goal-pos plyr))
   (cons goal-pos (filter (lambda (pos)
                            (not (equal? pos goal-pos)))
                          (get-all-positions board))))
@@ -79,7 +79,7 @@
 ;; PlayerState -> [Listof GridPosn]
 ;; Order the possible candidates for Euclidean search
 (define (get-euclidean-candidates board plyr)
-  (define goal-pos (get-goto-pos plyr))
+  (define goal-pos (player-info-goal-pos plyr))
   (define all-candidates (get-all-positions board))
   (sort all-candidates (lambda (pos1 pos2) (compare-euclidean-dist goal-pos pos1 pos2))))
 
@@ -99,8 +99,8 @@
 ;; Board -> [Listof GridPosn]
 ;; Get all possible positions in a board
 (define (get-all-positions board)
-  (apply append (for/list ([x (in-range 0 (num-cols board))])
-                  (for/list ([y (in-range 0 (num-rows board))])
+  (apply append (for/list ([x (in-range 0 (num-rows board))])
+                  (for/list ([y (in-range 0 (num-cols board))])
                     (cons x y)))))
 
 ;; PlayerState [Listof Move] -> Action

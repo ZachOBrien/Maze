@@ -10,8 +10,8 @@
             ["├", "┐", "├", "└", "├", "├", "├"],
             ["├", "│", "┼", "┴", "┤", "┼", "┬"],
             ["└", "┐", "┐", "└", "┼", "┘", "┼"],
-	    ["┼", "┘", "┐", "┼", "┤", "├", "┬"],
-	    ["└", "┐", "┐", "└", "┼", "┘", "┼"]
+            ["┼", "┘", "┐", "┼", "┤", "├", "┬"],
+            ["└", "┐", "┐", "└", "┼", "┘", "┼"]
         ],
 	"treasures": [
             [
@@ -21,8 +21,7 @@
 		["apricot-square-radiant", "aquamarine"],
 		["australian-marquise", "aventurine"],
 		["azurite", "beryl"],
-		["aventurine", "aventurine"],
-		["azurite", "beryl"]
+		["aventurine", "aventurine"]
             ],
             [
 		["black-spinel-cushion", "blue-ceylon-sapphire"],
@@ -31,8 +30,7 @@
 		["carnelian", "chrome-diopside"],
 		["chrysoberyl-cushion", "chrysolite"],
 		["citrine-checkerboard", "citrine"],
-		["azurite", "aventurine"],
-		["beryl", "beryl"]
+		["azurite", "aventurine"]
             ],
             [
 		["cordierite", "diamond"],
@@ -41,8 +39,7 @@
 		["golden-diamond-cut", "goldstone"],
 		["grandidierite", "gray-agate"],
 		["green-aventurine", "green-beryl-antique"],
-		["diamond", "diamond"],
-		["emerald", "emerald"]
+		["diamond", "diamond"]
             ],
             [
 		["grossular-garnet", "hackmanite"],
@@ -51,8 +48,7 @@
 		["jaspilite", "kunzite-oval"],
 		["kunzite", "labradorite"],
 		["lapis-lazuli", "lemon-quartz-briolette"],
-		["jasper", "jasper"],
-		["hematite", "hematite"]
+		["jasper", "jasper"]
             ],
             [
 		["moonstone", "morganite-oval"],
@@ -61,8 +57,7 @@
 		["peridot", "pink-emerald-cut"],
 		["pink-opal", "pink-round"],
 		["pink-spinel-cushion", "prasiolite"],
-		["peridot", "peridot"],
-		["moonstone", "moonstone"]
+		["peridot", "peridot"]
             ],
             [
 		["purple-oval", "purple-spinel-trillion"],
@@ -71,8 +66,7 @@
 		["red-spinel-square-emerald-cut", "rhodonite"],
 		["rock-quartz", "rose-quartz"],
 		["ruby-diamond-profile", "ruby"],
-		["ruby", "ruby"],
-		["red-diamond", "red-diamond"]
+		["ruby", "ruby"]
             ],
             [
 		["star-cabochon", "stilbite"],
@@ -81,28 +75,26 @@
 		["tourmaline-laser-cut", "tourmaline"],
 		["unakite", "white-square"],
 		["yellow-baguette", "yellow-beryl-oval"],
-		["sunstone", "sunstone"],
-		["stilbite", "stilbite"]
+		["sunstone", "sunstone"]
             ],
-	    [
+            [
 		["unakite", "apatite"],
 		["unakite", "sunstone"],
 		["unakite", "super-seven"],
 		["unakite", "yellow-baguette"],
 		["unakite", "rock-quartz"],
 		["unakite", "kunzite"],
-		["unakite", "peridot"]
-	    ],
-	    [
+        ["unakite", "morganite-oval"]
+            ],
+            [
 		["unakite", "rose-quartz"],
 		["unakite", "ruby"],
 		["ruby", "super-seven"],
 		["ruby", "yellow-baguette"],
 		["ruby", "rock-quartz"],
 		["ruby", "kunzite"],
-		["ruby", "peridot"]	
-	    ]
-	    
+		["ruby", "morganite-oval"]
+            ]
         ]
     },
     "spare" : {
