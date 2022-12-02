@@ -23,7 +23,6 @@
 (require "../Players/player.rkt")
 (require "../Remote/player.rkt")
 (require "../Remote/safety.rkt")
-(require "observer.rkt")
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
