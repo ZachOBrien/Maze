@@ -270,7 +270,7 @@
 
 (module+ test
   (test-case
-   "Run a game of Maze"
+   "Run a game of Maze gs5"
    (let-values
        ([(winners criminals color-names)
          (run-game (list player0 player1 player2) gamestate5 empty)])
@@ -284,12 +284,26 @@
      (check-equal? empty criminals)
      (check-equal? (list "green") winners)))
   (test-case
-   "Run a game of Maze gs5"
+   "Run a game of Maze gs1"
    (let-values
        ([(winners criminals color-names)
          (run-game (list player0 player1) gamestate1 empty)])
      (check-equal? empty criminals)
-     (check-equal? (list "yellow") winners))))
+     (check-equal? (list "yellow") winners)))
+  (test-case
+   "Run a game of Maze gs6: Multiple Goals"
+   (let-values
+       ([(winners criminals color-names)
+         (run-game (list player0 player1 player2 player3 player-bad-win) gamestate6 empty)])
+     (check-equal? (list "black") criminals)
+     (check-equal? (list "yellow") winners)))
+  (test-case
+   "Run a game of Maze gs7: Multiple Goals"
+   (let-values
+       ([(winners criminals color-names)
+         (run-game (list player0 player1) gamestate7 (list (observer-new)))])
+     (check-equal? empty criminals)
+     (check-equal? (list "B2B2B2") winners))))
 
 
 ;; ==========================================

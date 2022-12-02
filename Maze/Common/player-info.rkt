@@ -434,36 +434,53 @@
      (cons 5 5)
      (list (cons 5 1))
      #f
-     "A5B4C1"))) ; ice blue gray ish
-(define public-player-info0
-  (player-info
-   (cons 0 0)
-   (cons 6 6)
-   'hidden
-   'hidden
-   'hidden
-   "blue"))
-(define public-player-info1
-  (player-info
-   (cons 1 1)
-   (cons 5 5)
-   'hidden
-   'hidden
-   'hidden
-   "purple"))
-(define public-player-info2
-  (player-info
-   (cons 2 2)
-   (cons 4 4)
-   'hidden
-   'hidden
-   'hidden
-   "green"))
+     "A5B4C1")) ; ice blue gray ish
+  (define public-player-info0
+    (player-info
+     (cons 0 0)
+     (cons 6 6)
+     'hidden
+     'hidden
+     'hidden
+     "blue"))
+  (define public-player-info1
+    (player-info
+     (cons 1 1)
+     (cons 5 5)
+     'hidden
+     'hidden
+     'hidden
+     "purple"))
+  (define public-player-info2
+    (player-info
+     (cons 2 2)
+     (cons 4 4)
+     'hidden
+     'hidden
+     'hidden
+     "green"))
+  (define ref-player-info10
+    (ref-player-info-new
+     (cons 6 6)
+     (cons 5 5)
+     (cons 1 1)
+     empty
+     #f
+     "red"))
+  (define ref-player-info11
+    (ref-player-info-new
+     (cons 1 1)
+     (cons 1 1)
+     (cons 5 5)
+     empty
+     #f
+     "blue")) )
 
 (module+ test
   (require (submod ".." examples))
   (require (submod ".." serialize))
-  (require (submod ".." serialize test)))
+  (require (submod ".." serialize test))
+  (require "math.rkt"))
 
 ;; test hex-color-code?
 (module+ test
@@ -549,6 +566,11 @@
                 (hash 'current (hash 'row# 2 'column# 2)
                       'home (hash 'row# 4 'column# 4)
                       'color "green")))
+
+;; test distance-from-objective
+(module+ test
+  (check-equal? (distance-from-objective (player-info (cons 2 1) (cons 2 2) (cons 5 1) empty #f "blue") euclidean-dist) 3)
+  (check-equal? (distance-from-objective (player-info (cons 2 1) (cons 2 2) (cons 2 2) (list (cons 5 1)) #t "blue") euclidean-dist) 1))
 
 ;; test num-goals-visited
 (module+ test

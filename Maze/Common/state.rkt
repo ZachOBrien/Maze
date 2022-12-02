@@ -523,6 +523,7 @@
   (define gamestate5 (gamestate board1 tile-extra player-infos5 empty #f))
 
   (define gamestate6 (gamestate board1 tile-extra player-infos0 (list (cons 5 3) (cons 3 5)) #f))
+  (define gamestate7 (gamestate board1 tile-extra (list ref-player-info10 ref-player-info11) (list (cons 6 6)) #f))
 
   (define player-state0 (gamestate board1 tile-extra (list player-info2) 'hidden (shift-new 'up 0)))
   (define player-state1 (gamestate board1 tile-extra (list player-info7) 'hidden (shift-new 'down 4)))
@@ -635,8 +636,8 @@
                       player-info1 player-info2 player-info3 player-info4))
   (check-equal? (gamestate-goals (assign-next-goal gamestate6 "blue"))
                 (list (cons 3 5)))
-  (check-equal? (gamestate-goals (assign-next-goal gamestate6 "yellow"))
-                (list (cons 3 5)))
+  (check-equal? (gamestate-goals (assign-next-goal (assign-next-goal gamestate6 "yellow") "blue"))
+                empty)
   (check-equal? (gamestate-goals (assign-next-goal gamestate0 "blue"))
                 empty))
               
