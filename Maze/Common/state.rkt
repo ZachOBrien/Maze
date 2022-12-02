@@ -371,30 +371,27 @@
                     (hex->number (substring color 4)))
         color))
 
+  ;; Image Image GridPosn [MultipleOf 10] PositiveInteger -> Image
+  (define (add-attribute-to-board-by-gridposn board-img attribute gp tile-size attribute-size)
+    (define-values (x-val y-val) (values (car gp) (cdr gp)))
+    (define attribute-x-pos (- (+ (/ tile-size 2) (* x-val tile-size)) attribute-size))
+    (define attribute-y-pos (- (+ (/ tile-size 2) (* y-val tile-size)) attribute-size))
+    (underlay/xy board-img attribute-x-pos attribute-y-pos attribute))
+
   ;; Image [MultipleOf 10] RefPlayerInfo -> Image
   (define (add-player-info-to-board-image plyr-info board-img tile-size)
-    (define avatar-size (/ tile-size 5))
+    (define avatar-size (/ tile-size 4))
     (define avatar (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info))))
-    (define-values (plyr-y-pos plyr-x-pos) (values (car (player-info-curr-pos plyr-info)) (cdr (player-info-curr-pos plyr-info))))
-    (define avatar-x-pos (- (+ (/ tile-size 2) (* plyr-x-pos tile-size)) avatar-size))
-    (define avatar-y-pos (- (+ (/ tile-size 2) (* plyr-y-pos tile-size)) avatar-size))
-    (define board-img-with-avatar (underlay/xy board-img avatar-x-pos avatar-y-pos avatar))
+    (define board-img-with-avatar (add-attribute-to-board-by-gridposn board-img avatar (player-info-curr-pos plyr-info) tile-size avatar-size))
 
     (define goal-size (/ tile-size 4))
     (define goal (star goal-size "solid" (usable-player-color (player-info-color plyr-info))))
-    (define-values (treasure-y-pos treasure-x-pos)
-      (values (car (player-info-goal-pos plyr-info)) (cdr (player-info-goal-pos plyr-info))))
-    (define goal-x-pos (- (+ (/ tile-size 2) (* treasure-x-pos tile-size)) avatar-size))
-    (define goal-y-pos (- (+ (/ tile-size 2) (* treasure-y-pos tile-size)) avatar-size))
-    (define board-img-with-goal (underlay/xy board-img-with-avatar goal-x-pos goal-y-pos goal))
+    (define board-img-with-goal (add-attribute-to-board-by-gridposn board-img-with-avatar goal (player-info-goal-pos plyr-info) tile-size goal-size))
+
 
     (define home-size (/ tile-size 4))
     (define home (triangle home-size "solid" (usable-player-color (player-info-color plyr-info))))
-    (define-values (home-y-pos home-x-pos)
-      (values (car (player-info-home-pos plyr-info)) (cdr (player-info-home-pos plyr-info))))
-    (define home-token-x-pos (- (+ (/ tile-size 2) (* home-x-pos tile-size)) avatar-size))
-    (define home-token-y-pos (- (+ (/ tile-size 2) (* home-y-pos tile-size)) avatar-size))
-    (define board-img-with-home (underlay/xy board-img-with-goal home-token-x-pos home-token-y-pos home))
+    (define board-img-with-home (add-attribute-to-board-by-gridposn board-img-with-goal home (player-info-home-pos plyr-info) tile-size home-size))
     board-img-with-home))
 
 (module+ serialize
