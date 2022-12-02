@@ -520,7 +520,13 @@
   (define gamestate5 (gamestate board1 tile-extra player-infos5 empty #f))
 
   (define gamestate6 (gamestate board1 tile-extra player-infos0 (list (cons 5 3) (cons 3 5)) #f))
-  (define gamestate7 (gamestate board1 tile-extra (list ref-player-info10 ref-player-info11) (list (cons 6 6)) #f))
+  (define gamestate7 (gamestate board1 tile-extra (list ref-player-info10 ref-player-info11) (list (cons 1 5)) #f))
+  (define gamestate8 (gamestate board1 tile-extra (list ref-player-info10 ref-player-info11) (list (cons 1 5)
+                                                                                                   (cons 3 3)
+                                                                                                   (cons 1 3)
+                                                                                                   (cons 1 1)
+                                                                                                   (cons 5 5)
+                                                                                                   (cons 5 5)) #f))
 
   (define player-state0 (gamestate board1 tile-extra (list player-info2) 'hidden (shift-new 'up 0)))
   (define player-state1 (gamestate board1 tile-extra (list player-info7) 'hidden (shift-new 'down 4)))

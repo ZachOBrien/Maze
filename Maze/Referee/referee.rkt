@@ -301,7 +301,14 @@
    "Run a game of Maze gs7: Multiple Goals"
    (let-values
        ([(winners criminals color-names)
-         (run-game (list player0 player1) gamestate7 (list (observer-new)))])
+         (run-game (list player0 player1) gamestate7 empty)])
+     (check-equal? empty criminals)
+     (check-equal? (list "A1A1A1") winners)))
+  (test-case
+   "Run a game of Maze gs8: Multiple Goals"
+   (let-values
+       ([(winners criminals color-names)
+         (run-game (list player0 player1) gamestate8 empty)])
      (check-equal? empty criminals)
      (check-equal? (list "B2B2B2") winners))))
 

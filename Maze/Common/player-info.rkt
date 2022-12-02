@@ -466,7 +466,7 @@
      (cons 1 1)
      empty
      #f
-     "red"))
+     "A1A1A1"))
   (define ref-player-info11
     (ref-player-info-new
      (cons 1 1)
@@ -474,7 +474,7 @@
      (cons 5 5)
      empty
      #f
-     "blue")) )
+     "B2B2B2")) )
 
 (module+ test
   (require (submod ".." examples))
