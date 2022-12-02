@@ -65,7 +65,6 @@
     ;; Handle incoming remote procedure calls
     (define/public (msg-handling-loop)
       (define msg (send tcp-conn receive-json))
-      (writeln msg)
       (match msg
         [`["setup",     args] (handle-rpc valid-setup-args? setup-handler msg)]
         [`["win",       args] (handle-rpc valid-win-args? win-handler msg)]

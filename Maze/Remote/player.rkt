@@ -70,7 +70,6 @@
       (send tcp-conn send-json (list "setup" (list (player-state->json-public-state plyr-state)
                                                    (gridposn->json-coordinate new-goal))))
       (define response (send tcp-conn receive-json))
-      (writeln response)
       (or (equal? response "void") (error "invalid response to setup")))
 
     ;; PlayerState -> Action

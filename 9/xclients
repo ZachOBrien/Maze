@@ -21,11 +21,10 @@
 (module+ main
   (define player-list (read-json (current-input-port)))
   (define players (map json-ps->player player-list))
-  (writeln players)
   (define thread-descriptors
     (for/list ([player players])
       (sleep 2)
-      (thread (thunk (run-client host port (send player name) euclidean-strategy)))))
+      (thread (thunk (run-client host port player)))))
   (for ([td thread-descriptors])
     (thread-wait td)))
   

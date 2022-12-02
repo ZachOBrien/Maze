@@ -43,7 +43,6 @@
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
     (define-values (state-after-getting-names color-names) (get-color-names players state0))
-    (writeln color-names)
     (define state-after-setup (setup-all-players players state-after-getting-names))
     (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
     (define game-over-state (first intermediate-states))
@@ -193,7 +192,6 @@
 ;; Sends a gamestate to the player, and returns the same gamestate either with that player
 ;; or, if they don't behave properly, without the player
 (define (send-setup-to-player state plyr color)
-  (writeln (string-append "Sending setup to: " color))
   (match (execute-safe (thunk (send plyr setup
                                     (referee-state->player-state state color)
                                     (player-info-goal-pos (gamestate-get-by-color state color)))))

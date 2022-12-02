@@ -49,7 +49,6 @@
 (define (main state0 observers port)
   (define server (tcp-listen port))
   (define proxy-players (signup server SIGNUP-ROUND-TIME-LIMIT-SEC MAX-PLAYERS MAX-SIGNUP-ROUNDS))
-  (write (length proxy-players))
   (define-values (winners criminals color-to-name)
     (if ((length proxy-players) . < . 2)
         (values empty empty (hash))
@@ -85,9 +84,8 @@
                            (if (tcp-accept-ready? listener)
                                (let*-values ([(input-port output-port) (tcp-accept listener)]
                                              [(new-proxy-player) (new-connection->proxy-player input-port output-port PLAYER-NAME-TIME-LIMIT-SEC)])
-                                 (writeln "player connected")
                                  (if (not (false? new-proxy-player))
-                                     (begin (writeln "Player was good!") (cons new-proxy-player players))
+                                     (begin (cons new-proxy-player players))
                                      players))
                                players))]))
 
@@ -95,7 +93,6 @@
 ;; Given a connection, attempts to create a new ProxyPlayer by retrieving a name within some time limit
 (define (new-connection->proxy-player input-port output-port time-limit-s)
   (define name (execute-safe (thunk (read-json input-port)) time-limit-s))
-  (writeln name)
   (cond
     [(or (not (string? name)) (equal? name 'misbehaved)) #f]
     [else (proxy-player-new name (tcp-conn-new input-port output-port))]))

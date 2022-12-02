@@ -23,17 +23,17 @@
 (provide
  (contract-out
   ; Run a client for a player of Maze
-  [run-client (-> string? (and/c integer? positive?) string? strategy? any)]))
+  [run-client (-> string? (and/c integer? positive?) player? any)]))
 
 
-;; IpAddress PortNo String Strategy
+;; IpAddress PortNo Player
 ;; Run a client for the Maze game
-(define (run-client ip-addr port player-name strategy)         
+(define (run-client ip-addr port player)         
   (define-values (c-in c-out) (try-connect ip-addr port))
   (define conn (tcp-conn-new c-in c-out))
-  (write-json player-name c-out)
+  (write-json (send player name) c-out)
   (flush-output c-out)
-  (define ref-proxy (proxy-referee-new (player-new player-name strategy) conn))
+  (define ref-proxy (proxy-referee-new player conn))
   (send ref-proxy msg-handling-loop))
 
 
