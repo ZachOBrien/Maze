@@ -24,7 +24,7 @@ This respository implements the base game logic and a client-server architecture
             | (Common/ directory)              |
             +----------------------------------+
             |                                  |
-            | GameState                        |
+            | Gamestate                        |
             |                                  |
             | Rules                            |
             +----------------------------------+
@@ -37,7 +37,7 @@ This respository implements the base game logic and a client-server architecture
 | Assets | Static assets. Currently, only image files for gems |
 | [Client](Client/README.md) | A client which connects to a game server over TCP |
 | [Common](Common/README.md) | Components of the game shared by clients and the server |
-| [Planning](Planning/REAMDE.md) | Planning for milestones and changes to the codebase |
+| Planning | Planning for milestones and changes to the codebase |
 | [Players](Players/README.md) | The player interface, protocol, and implementations |
 | [Referee](Referee/README.md) | Component responsible for coordinating players and enforcing rules |
 | [Remote](Remote/README.md) | Mechanisms for communicating over a network connection |
