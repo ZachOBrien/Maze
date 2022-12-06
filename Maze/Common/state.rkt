@@ -373,7 +373,7 @@
 
   ;; Image Image GridPosn [MultipleOf 10] PositiveInteger -> Image
   (define (add-attribute-to-board-by-gridposn board-img attribute gp tile-size attribute-size)
-    (define-values (x-val y-val) (values (car gp) (cdr gp)))
+    (define-values (y-val x-val) (values (car gp) (cdr gp)))
     (define attribute-x-pos (- (+ (/ tile-size 2) (* x-val tile-size)) attribute-size))
     (define attribute-y-pos (- (+ (/ tile-size 2) (* y-val tile-size)) attribute-size))
     (underlay/xy board-img attribute-x-pos attribute-y-pos attribute))
@@ -730,22 +730,6 @@
   (check-equal? (move-to-front 5 '(5 6 7)) '(5 6 7))
   (check-equal? (move-to-front 7 '(5 6 7)) '(7 5 6))
   (check-equal? (move-to-front 1 '(5 6 1 8 1 7)) '(1 5 6 8 1 7)))
-
-; test ref-state->json
-;TODO figure out how to reconstruct player state from public json representation
-#;
-(module+ test
-  (require (submod "./player-info.rkt" serialize examples))
-  (check-equal? (json-public-state->player-state (hash 'board example-board-hash
-                                                       'spare (hash 'tilekey "┘"
-                                                                    '1-image "lapis-lazuli"
-                                                                    '2-image "pink-opal")
-                                                       'plmt example-player-infos1
-                                                       'last (list 0 "LEFT")))
-                (player-state-new example-board
-                                  spare-tile
-                                  expected-player-infos1
-                                  (shift-new 'left 0))))
 
 ; test ref-state->hash
 (module+ test
