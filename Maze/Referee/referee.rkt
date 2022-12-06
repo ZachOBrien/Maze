@@ -43,7 +43,7 @@
                                  (cons c p))))
     (define-values (state-after-getting-names color-names) (get-color-names players state0))
     (define state-after-setup (setup-all-players players state-after-getting-names))
-    (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS))
+    (define intermediate-states (play-until-completion state-after-setup players MAX-ROUNDS observers))
     (define game-over-state (first intermediate-states))
     (define winners (determine-winners game-over-state))
     (define final-state (notify-winners-and-losers winners game-over-state players))
@@ -52,49 +52,51 @@
     (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
                               (get-player-color-list state0)))
     (for ([observer observers])
-      (send observer run intermediate-states))
+      (send observer run))
     (values winners-that-didnt-get-kicked criminals color-names)))
 
 
-;; RefereeState HashTable Natural -> [Listof RefereeState]
+;; RefereeState HashTable Natural [Listof Observer] -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
 ;; gamestate when the game has ended. Accumulates the states after each player move
 ;; in reverse order
-(define (play-until-completion state players rounds-remaining)
-  (play-until-completion-help (list state) players rounds-remaining))
+(define (play-until-completion state players rounds-remaining observers)
+  (play-until-completion-help (list state) players rounds-remaining observers))
          
-;; [NonEmptyListof RefereeState] HashTable Natural -> [Listof RefereeState]
+;; [NonEmptyListof RefereeState] HashTable Natural [Listof Observer] -> [Listof RefereeState]
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns a list of
 ;; all intermediate gamestates once the game is over
-(define (play-until-completion-help prev-states players rounds-remaining)
+(define (play-until-completion-help prev-states players rounds-remaining observers)
   (cond
     [(<= rounds-remaining 0) prev-states]
     [else (let*-values ([(curr-state) (first prev-states)]
                         [(player-colors) (get-player-color-list curr-state)]
-                        [(game-over? states-after-round plyrs-passed-turn) (run-round curr-state players player-colors)]
+                        [(game-over? states-after-round plyrs-passed-turn) (run-round curr-state players player-colors observers)]
                         [(new-states) (append states-after-round prev-states)]
                         [(new-player-colors) (get-player-color-list (first new-states))]
                         [(all-players-passed) (equal? new-player-colors plyrs-passed-turn)])
             (cond
               [(or game-over? all-players-passed) new-states]
-              [else (play-until-completion-help new-states players (sub1 rounds-remaining))]))]))
+              [else (play-until-completion-help new-states players (sub1 rounds-remaining) observers)]))]))
 
 
-;; RefereeState HashTable [Listof AvatarColor] [Listof AvatarColor] [Listof RefereeState] -> (values Boolean [Listof RefereeState] [Listof AvatarColor])
+;; RefereeState HashTable [Listof AvatarColor] [Listof Observer] [Listof AvatarColor] [Listof RefereeState] -> (values Boolean [Listof RefereeState] [Listof AvatarColor])
 ;; Run a round of the game, end the round early if the game is over. Accumulates states after
 ;; each move in reverse order.
 ;; Returned boolean flag indicates whether a player won the game this round
-(define (run-round state players player-colors [passed-plyrs '()] [intermediate-states '()])
+(define (run-round state players player-colors observers [passed-plyrs '()] [intermediate-states '()])
   (cond [(empty? player-colors) (values #f intermediate-states passed-plyrs)]
         [else (let*-values ([(passed-turn? player-won? next-state) (execute-turn state
                                                                                  (hash-ref players (first player-colors))
                                                                                  (first player-colors))]
                             [(new-passed-plyrs) (if passed-turn? (cons (first player-colors) passed-plyrs) passed-plyrs)])
+                (notify-observers next-state observers)
                 (cond
                   [player-won? (values #t (cons next-state intermediate-states) passed-plyrs)]
                   [else (run-round next-state
                                    players
                                    (rest player-colors)
+                                   observers
                                    new-passed-plyrs
                                    (cons next-state intermediate-states))]))]))
 
@@ -149,6 +151,12 @@
             [min-dist (apply min distances)])
        (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))]))
 
+
+;; RefereeState [Listof Observer] -> [Listof Void]
+;; Updates the observers with the state
+(define (notify-observers state observers)
+  (for ([observer observers])
+    (send observer add-state state)))
 
 ;; ===== SAFELY GETTING NAMES =====
 
