@@ -343,19 +343,19 @@
   (provide
    (contract-out
     ;; Draw a referee state
-    [referee-state->image (-> referee-state? natural-number/c image?)]))
+    [referee-state->image (-> referee-state? hash? natural-number/c image?)]))
 
   ;; RefereeState [MultipleOf 10] -> Image
   ;; Draw a referee state
-  (define (referee-state->image state tile-size)
-    (define board-with-players-img (board-and-players->image (gamestate-board state) (gamestate-players state) tile-size))
+  (define (referee-state->image state color:name tile-size)
+    (define board-with-players-img (board-and-players->image (gamestate-board state) (gamestate-players state) color:name tile-size))
     (beside/align "bottom" board-with-players-img (rectangle tile-size 1 "solid" "white") (tile->image (gamestate-extra-tile state) tile-size)))
 
-  ;; Board [Listof RefPlayerInfo] [MultipleOf 10] -> Image
+  ;; Board [Listof RefPlayerInfo] [HashTable AvatarColor : String] [MultipleOf 10] -> Image
   ;; Given a board image, adds player avatars, home locations, and goal positions
-  (define (board-and-players->image board player-infos tile-size)
+  (define (board-and-players->image board player-infos color:name tile-size)
     (define base-board-img (board->image board tile-size))
-    (foldl (curryr add-player-info-to-board-image tile-size) base-board-img player-infos))
+    (foldl (curryr add-player-info-to-board-image tile-size color:name) base-board-img player-infos))
 
   ;; String -> Number
   ;; Convert a hexidecimal string to a number
@@ -379,9 +379,12 @@
     (underlay/xy board-img attribute-x-pos attribute-y-pos attribute))
 
   ;; Image [MultipleOf 10] RefPlayerInfo -> Image
-  (define (add-player-info-to-board-image plyr-info board-img tile-size)
+  (define (add-player-info-to-board-image plyr-info board-img tile-size color:name)
     (define avatar-size (/ tile-size 4))
-    (define avatar (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info))))
+    (define avatar
+      (overlay
+       (text (hash-ref color:name (player-info-color plyr-info)) 14 "black")
+       (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info)))))
     (define board-img-with-avatar (add-attribute-to-board-by-gridposn board-img avatar (player-info-curr-pos plyr-info) tile-size avatar-size))
 
     (define goal-size (/ tile-size 4))

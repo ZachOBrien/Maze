@@ -43,6 +43,7 @@
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
     (define-values (state-after-getting-names color-names) (get-color-names players state0))
+    (notify-observers-of-names color-names observers)
     (define state-after-setup (setup-all-players players state-after-getting-names))
     (notify-observers state-after-setup observers)
     (define game-over-state (play-until-completion state-after-setup players MAX-ROUNDS observers))
@@ -148,11 +149,19 @@
        (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))]))
 
 
-;; RefereeState [Listof Observer] -> [Listof Void]
+;; RefereeState [Listof Observer] -> Void
 ;; Updates the observers with the state
 (define (notify-observers state observers)
   (for ([observer observers])
     (send observer add-state state)))
+
+
+;; [HashTable AvatarColor : String] [Listof Observer] -> Void
+;; Notify the observer of the players' names
+(define (notify-observers-of-names color:name observers)
+  (for ([observer observers])
+    (send observer update-names color:name)))
+  
 
 ;; ===== SAFELY GETTING NAMES =====
 

@@ -34,17 +34,23 @@
 
     (define current-state 0)
     (define states empty)
+    (define color:name #f)
 
     ;; RefereeState -> Void
     ;; Add a state to the list of states
     (define/public (add-state state)
       (set! states (append states (cons state empty))))
 
+    ;; [HashTable AvatarColor : String] -> Void
+    ;; Update the player names
+    (define/public (update-names color-names)
+      (set! color:name color-names))
+
     ;; Void -> Void
     ;; Run the observer with some states
     (define/public (run)
       (define (draw dc)
-        (render-image (referee-state->image (list-ref states current-state) 100) dc 0 0))
+        (render-image (referee-state->image (list-ref states current-state) color:name 100) dc 0 0))
 
       (define frame (new frame%
                          [label "Maze"]
