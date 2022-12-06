@@ -78,43 +78,47 @@
               [(or game-over? all-players-passed) state-after-round]
               [else (play-until-completion-help state-after-round players (sub1 rounds-remaining) observers)]))]))
 
+;; A PLAYERWON value is a boolean indicating if the currently active player won with their last move
+(define PLAYER-WON #t)
+(define PLAYER-NOT-WON #f)
 
-;; RefereeState [HashTable AvatarColor : Player] [Listof AvatarColor] [Listof Observer] [Listof AvatarColor] -> (values Boolean RefereeState [Listof AvatarColor])
+;; RefereeState [HashTable AvatarColor : Player] [Listof AvatarColor] [Listof Observer] [Listof AvatarColor] -> (values PLAYERWON RefereeState [Listof AvatarColor])
 ;; Run a round of the game, end the round early if the game is over.
 ;; Returned boolean flag indicates whether a player won the game this round
 (define (run-round state players player-colors observers [passed-plyrs '()])
-  (cond [(empty? player-colors) (values #f state passed-plyrs)]
+  (cond [(empty? player-colors) (values PLAYER-NOT-PASS state passed-plyrs)]
         [else (let*-values ([(passed-turn? player-won? next-state) (execute-turn state
                                                                                  (hash-ref players (first player-colors))
                                                                                  (first player-colors))]
                             [(new-passed-plyrs) (if passed-turn? (cons (first player-colors) passed-plyrs) passed-plyrs)])
                 (notify-observers next-state observers)
                 (cond
-                  [player-won? (values #t next-state passed-plyrs)]
+                  [player-won? (values PLAYER-PASS next-state passed-plyrs)]
                   [else (run-round next-state
                                    players
                                    (rest player-colors)
                                    observers
                                    new-passed-plyrs)]))]))
 
+;; A PLAYERPASS value is a boolean indicating if the player passed on their turn
+(define PLAYER-PASS #t)
+(define PLAYER-NOT-PASS #f)
 
-;; RefereeState [Hash Color:Player] AvatarColor -> (values Boolean Boolean RefereeState)
+;; RefereeState [Hash Color:Player] AvatarColor -> (values PLAYERPASS PLAYERWON RefereeState)
 ;; Execute a turn for the player.
-;; The first boolean flag is true if they chose to pass turn
-;; The second boolean flag is true if they won on this turn
 (define (execute-turn state player color)
   (define mv (safe-get-action player (referee-state->player-state state color)))
   (cond
-    [(false? mv) (values #t #f (end-current-turn state))]
-    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values #f #f (remove-player state))]
+    [(false? mv) (values PLAYER-PASS PLAYER-NOT-WON (end-current-turn state))]
+    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values PLAYER-NOT-PASS PLAYER-NOT-WON (remove-player state))]
     [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
                  (cond
                    [(and (player-on-treasure? gamestate-after-move) (false? (player-info-going-home? (gamestate-current-player state))))
-                    (values #f #f (assign-next-goal-and-send-setup gamestate-after-move player color))]
+                    (values PLAYER-NOT-PASS PLAYER-NOT-WON (assign-next-goal-and-send-setup gamestate-after-move player color))]
                    [(and (player-on-home? gamestate-after-move) (player-info-going-home? (gamestate-current-player state)))
-                    (values #f #t (end-current-turn gamestate-after-move))]
+                    (values PLAYER-NOT-PASS PLAYER-WON (end-current-turn gamestate-after-move))]
                    [else
-                    (values #f #f (end-current-turn gamestate-after-move))]))]))
+                    (values PLAYER-NOT-PASS PLAYER-NOT-WON (end-current-turn gamestate-after-move))]))]))
 
 
 ;; Gamestate Player AvatarColor -> RefereeState
