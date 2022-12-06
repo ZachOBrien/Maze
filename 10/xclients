@@ -1,0 +1,31 @@
+#! /usr/bin/env racket
+#lang racket/base
+
+(require racket/cmdline)
+(require racket/function)
+(require racket/class)
+(require json)
+
+(require (submod "../Maze/Players/player.rkt" serialize))
+(require "../Maze/Client/client.rkt")
+(require "../Maze/Players/strategy.rkt")
+
+
+(define DEFAULT-HOST "127.0.0.1")
+
+(define-values (port host) (command-line #:args (port [host DEFAULT-HOST]) (values (string->number port) host)))
+
+
+;; Reads a list of PS from STDIN, and launches clients which will connect to a server
+;; at a host and port
+(module+ main
+  (define player-list (read-json (current-input-port)))
+  (define players (map json-ps->player player-list))
+  (define thread-descriptors
+    (for/list ([player players])
+      (sleep 2)
+      (thread (thunk (run-client host port player)))))
+  (for ([td thread-descriptors])
+    (thread-wait td)))
+  
+  
