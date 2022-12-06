@@ -38,11 +38,13 @@
 ;; Runs a game of Labrynth, finding winners and cheaters
 (define (run-game init-players state0 observers)
   (begin
+    (notify-observers state0 observers)
     (define players (make-hash (for/list ([p init-players]
                                           [c (get-player-color-list state0)])
                                  (cons c p))))
     (define-values (state-after-getting-names color-names) (get-color-names players state0))
     (define state-after-setup (setup-all-players players state-after-getting-names))
+    (notify-observers state-after-setup observers)
     (define game-over-state (play-until-completion state-after-setup players MAX-ROUNDS observers))
     (define winners (determine-winners game-over-state))
     (define final-state (notify-winners-and-losers winners game-over-state players))
