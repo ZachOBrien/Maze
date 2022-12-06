@@ -415,6 +415,8 @@
     [player-state->json-public-state (-> player-state? json-public-state?)]
     ; Convert a JsonRefState into a RefState
     [json-referee-state->ref-state (-> json-referee-state? referee-state?)]
+    ; Convert a JsonRefState2 into a RefState
+    [json-referee-state2->ref-state (-> json-referee-state2? referee-state?)]
     ; Convert a JsonPlayerState into a PlayerState. Uses a dummy treasure value for the active player.
     [json-public-state->player-state (-> json-public-state? player-state?)]
     ; Convert a JsonPlayerState and a GridPosn into a PlayerState
@@ -446,6 +448,21 @@
          ((listof json-referee-player-info?) (hash-ref ht 'plmt))
          (json-action? (hash-ref ht 'last))))
 
+  ;; Any -> Boolean
+  ;; Is this object a hashtable JSON representation of a RefereeState2
+  (define (json-referee-state2? ht)
+    (and (hash? ht)
+         (hash-has-key? ht 'board)
+         (hash-has-key? ht 'spare)
+         (hash-has-key? ht 'plmt)
+         (hash-has-key? ht 'last)
+         (hash-has-key? ht 'goals)
+         (json-board? (hash-ref ht 'board))
+         (json-tile?  (hash-ref ht 'spare))
+         ((listof json-referee-player-info?) (hash-ref ht 'plmt))
+         (listof json-coordinate?) (hash-ref ht 'goals)
+         (json-action? (hash-ref ht 'last))))
+
   ;; RefereeState -> JsonRefereeState
   ;; Convert a RefState into a JsonRefState
   (define (ref-state->json-referee-state ref-state)
@@ -464,7 +481,6 @@
 
   ;; JsonRefereeState -> RefereeState
   ;; Convert a JsonRefState into a RefState
-  ;; TODO: implement taking in JSON list of goals
   (define (json-referee-state->ref-state json-ref-state)
     (referee-state-new (json-board->board (hash-ref json-ref-state 'board))
                        (json-tile->tile (hash-ref json-ref-state 'spare))
@@ -472,6 +488,17 @@
                        empty
                        (json-action->prev-shift (hash-ref json-ref-state 'last))))
 
+
+  ;; JsonRefereeState -> RefereeState
+  ;; Convert a JsonRefState2 into a RefState
+  (define (json-referee-state2->ref-state json-ref-state)
+    (referee-state-new (json-board->board (hash-ref json-ref-state 'board))
+                       (json-tile->tile (hash-ref json-ref-state 'spare))
+                       (map json-referee-player-info->referee-player-info (hash-ref json-ref-state 'plmt))
+                       (map json-coordinate->gridposn (hash-ref json-ref-state 'goals))
+                       (json-action->prev-shift (hash-ref json-ref-state 'last))))
+
+  
   ;; JsonPlayerState -> PlayerState
   ;; Convert a JsonPlayerState into a PlayerState
   ;; IMPORTANT: The active player is given a dummy treasure tile at (1, 1)
