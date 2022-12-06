@@ -18,21 +18,31 @@
 (require (submod "../Common/state.rkt" serialize))
 
 
+(define observer-interface (class/c
+                            [add-state (->m referee-state? void?)]
+                            [run (->m void?)]))
+
 (define (observer-new)
   (new observer%))
 
 
-(define observer%
+(define/contract observer% observer-interface
   (class object%
     (init)
 
     (super-new)
 
     (define current-state 0)
+    (define states empty)
 
-    ;; [Listof RefereeState] -> Void
+    ;; RefereeState -> Void
+    ;; Add a state to the list of states
+    (define/public (add-state state)
+      (set! states (cons state states)))
+
+    ;; Void -> Void
     ;; Run the observer with some states
-    (define/public (run states)
+    (define/public (run)
       (define (draw dc)
         (render-image (referee-state->image (list-ref states current-state) 100) dc 0 0))
 
