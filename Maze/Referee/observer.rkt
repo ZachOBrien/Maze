@@ -38,7 +38,7 @@
     ;; RefereeState -> Void
     ;; Add a state to the list of states
     (define/public (add-state state)
-      (set! states (cons state states)))
+      (set! states (append states (cons state empty))))
 
     ;; Void -> Void
     ;; Run the observer with some states
