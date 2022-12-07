@@ -338,6 +338,7 @@
   (require (submod "board.rkt" draw))
 
   (define DEFAULT-TILE-SIZE 100)
+  (define PIECE-SIZE (/ DEFAULT-TILE-SIZE 4))
   (define ARM-LENGTH (/ DEFAULT-TILE-SIZE 10))
 
   (provide
@@ -349,8 +350,10 @@
   ;; Draw a referee state
   (define (referee-state->image state color:name tile-size)
     (define board-with-players-img (board-and-players->image (gamestate-board state) (gamestate-players state) color:name tile-size))
-    (beside/align "bottom" board-with-players-img (rectangle tile-size 1 "solid" "white") (tile->image (gamestate-extra-tile state) tile-size)))
-
+    (define board+spare (beside/align "bottom" board-with-players-img (rectangle tile-size 1 "solid" "white") (tile->image (gamestate-extra-tile state) tile-size)))
+    (define player-progress-img (draw-all-players-collected-goals (gamestate-players state) color:name))
+    (beside board+spare player-progress-img))
+    
   ;; Board [Listof RefPlayerInfo] [HashTable AvatarColor : String] [MultipleOf 10] -> Image
   ;; Given a board image, adds player avatars, home locations, and goal positions
   (define (board-and-players->image board player-infos color:name tile-size)
@@ -378,13 +381,16 @@
     (define attribute-y-pos (- (+ (/ tile-size 2) (* y-val tile-size)) attribute-size))
     (underlay/xy board-img attribute-x-pos attribute-y-pos attribute))
 
+  ;; RefPlayerInfo Name -> Image
+  ;; Draw a RefPlayerInfo's avatar
+  (define (draw-avatar plyr-info name size)
+    (overlay (text name 14 "black")
+             (circle size "solid" (usable-player-color (player-info-color plyr-info)))))
+    
   ;; Image [MultipleOf 10] RefPlayerInfo -> Image
   (define (add-player-info-to-board-image plyr-info board-img tile-size color:name)
     (define avatar-size (/ tile-size 4))
-    (define avatar
-      (overlay
-       (text (hash-ref color:name (player-info-color plyr-info)) 14 "black")
-       (circle avatar-size "solid" (usable-player-color (player-info-color plyr-info)))))
+    (define avatar (draw-avatar plyr-info (hash-ref color:name (player-info-color plyr-info)) avatar-size))
     (define board-img-with-avatar (add-attribute-to-board-by-gridposn board-img avatar (player-info-curr-pos plyr-info) tile-size avatar-size))
 
     (define goal-size (/ tile-size 4))
@@ -395,7 +401,20 @@
     (define home-size (/ tile-size 4))
     (define home (triangle home-size "solid" (usable-player-color (player-info-color plyr-info))))
     (define board-img-with-home (add-attribute-to-board-by-gridposn board-img-with-goal home (player-info-home-pos plyr-info) tile-size home-size))
-    board-img-with-home))
+    board-img-with-home)
+
+  ;; [Listof RefPlayerInfo [HashTable AvatarColor : String] -> Image
+  (define (draw-all-players-collected-goals players color:name)
+    (apply above (for/list ([plyr players])
+                   (draw-collected-goals plyr (hash-ref color:name (player-info-color plyr))))))
+           
+  ;; RefPlayerInfo Name -> Image
+  ;; Draw a RefPlayerInfo's collected goals next to their name
+  (define (draw-collected-goals plyr-info name)
+    (define goals-txt (text (apply string-append (map pair->string (player-info-goals-visited plyr-info))) 14 "black"))
+    (define avatar (draw-avatar plyr-info name PIECE-SIZE))
+    (beside avatar goals-txt)))
+    
 
 (module+ serialize
   (require json)
