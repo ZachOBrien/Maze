@@ -73,7 +73,7 @@
     [else (let*-values ([(player-colors) (get-player-color-list curr-state)]
                         [(game-over? state-after-round plyrs-passed-turn) (run-round curr-state players player-colors observers)]
                         [(new-player-colors) (get-player-color-list state-after-round)]
-                        [(all-players-passed) (equal? new-player-colors plyrs-passed-turn)])
+                        [(all-players-passed) (= (length new-player-colors) (length plyrs-passed-turn))])
             (cond
               [(or game-over? all-players-passed) state-after-round]
               [else (play-until-completion-help state-after-round players (sub1 rounds-remaining) observers)]))]))
