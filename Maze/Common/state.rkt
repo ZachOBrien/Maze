@@ -212,9 +212,12 @@
 ;; Assign the next treasure in the queue to a player. If the queue is empty, tell them to go home
 (define (assign-next-goal state color)
   (define plyr (gamestate-get-by-color state color))
-  (define next-goal (if (empty? (gamestate-goals state))
-                        #f
-                        (first (gamestate-goals state))))
+  (define next-goal
+    (cond
+      [(empty? (gamestate-goals state)) #f]
+      [(and (= (length (gamestate-goals state)) 1)
+            (equal? (first (gamestate-goals state)) (player-info-home-pos plyr))) #f]
+      [else (first (gamestate-goals state))]))
                                 
   (define new-players (replacef (gamestate-players state)
                                 (λ (plyr) (equal? color (player-info-color plyr)))
