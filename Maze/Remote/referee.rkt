@@ -89,7 +89,7 @@
 ;; Handle a setup request
 (define (setup-handler setup-request-args player)
   (define new-goal (json-coordinate->gridposn (second setup-request-args)))
-  (define plyr-state (json-public-state-and-goal-gridposn->player-state (first setup-request-args) new-goal))
+  (define plyr-state (if (first setup-request-args) (json-public-state-and-goal-gridposn->player-state (first setup-request-args) new-goal) #f))
   (send player setup plyr-state new-goal)
   "void")
 
