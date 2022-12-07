@@ -352,7 +352,9 @@
     (define board-with-players-img (board-and-players->image (gamestate-board state) (gamestate-players state) color:name tile-size))
     (define board+spare (beside/align "bottom" board-with-players-img (rectangle tile-size 1 "solid" "white") (tile->image (gamestate-extra-tile state) tile-size)))
     (define player-progress-img (draw-all-players-collected-goals (gamestate-players state) color:name))
-    (beside board+spare player-progress-img))
+    (define goal-queue-img (text (apply string-append (map pair->string (gamestate-goals state))) 14 "black"))
+    (above (beside board+spare player-progress-img)
+           goal-queue-img))
     
   ;; Board [Listof RefPlayerInfo] [HashTable AvatarColor : String] [MultipleOf 10] -> Image
   ;; Given a board image, adds player avatars, home locations, and goal positions
