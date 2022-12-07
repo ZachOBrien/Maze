@@ -14,7 +14,9 @@
   ; Divide a list into chunks
   [chunk-list (-> list? (and/c integer? positive?) (listof list?))]
   ; Replace the first item in the list that passes the predicate with the given item
-  [replacef (-> list? (-> any/c boolean?) any/c list?)]))
+  [replacef (-> list? (-> any/c boolean?) any/c list?)]
+  ; Convert a pair of numbers to a string representation
+  [pair->string (-> (cons/c number? number?) string?)]))
 
 
 ;; --------------------------------------------------------------------
@@ -48,6 +50,12 @@
     [(empty? lst) empty]
     [(pred (first lst)) (cons item (rest lst))]
     [else (cons (first lst) (replacef (rest lst) pred item))]))
+
+
+;; Pair -> String
+;; Represent a cons pair of numbers as a string
+(define (pair->string pair)
+  (string-append "(" (number->string (car pair)) ", " (number->string (cdr pair)) ")"))
     
 
 
@@ -84,3 +92,8 @@
   (check-equal? (replacef (list 1 2 3 4) even? 9) (list 1 9 3 4))
   (check-equal? (replacef empty even? 0) empty)
   (check-equal? (replacef (list 1 2 3 4) (curry equal? 5) 9) (list 1 2 3 4)))
+
+
+; test pair->string
+(module+ test
+  (check-equal? (pair->string (cons 9 1)) "(9, 1)"))
