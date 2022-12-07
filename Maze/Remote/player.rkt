@@ -64,10 +64,10 @@
       (send tcp-conn send-json (list "propose-board" (list min-num-rows min-num-cols)))
       (json-board->board (send tcp-conn receive-json)))
   
-    ;; PlayerState GridPosn -> Any
+    ;; (U #f PlayerState) GridPosn -> Any
     ;; Sets initial state and treasure position
     (define/public (setup plyr-state new-goal)
-      (send tcp-conn send-json (list "setup" (list (player-state->json-public-state plyr-state)
+      (send tcp-conn send-json (list "setup" (list (if plyr-state (player-state->json-public-state plyr-state) #f)
                                                    (gridposn->json-coordinate new-goal))))
       (define response (send tcp-conn receive-json))
       (or (equal? response "void") (error "invalid response to setup")))

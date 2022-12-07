@@ -116,10 +116,15 @@
 
 ;; [List Jsexpr Jsexpr] -> Boolean
 ;; Are these two JSON expressions valid arguments for the setup rpc?
-(define valid-setup-args? (list/c json-public-state? json-coordinate?))
+(define valid-setup-args? (list/c (or/c #f json-public-state?) json-coordinate?))
+
+(module+ test
+  (check-true (valid-setup-args? (list #f (hash 'column# 3 'row# 2))))
+  (check-false (valid-setup-args? empty))
+  (check-false (valid-setup-args? (list #f))))
 
 ;; [List Jsexpr] -> Boolean
-;; Is this single JSON expression a valid argument for the win rpc?
+;; Is this single JSON expression a valid argument list for the win rpc?
 (define valid-win-args? (list/c boolean?))
 
 (module+ test
@@ -129,7 +134,7 @@
   (check-false (valid-win-args? #t)))
 
 ;; [List Jsexpr] -> Boolean
-;; Is this single JSON expression a valid argument for the take-turn rpc?
+;; Is this single JSON expression a valid argument list for the take-turn rpc?
 (define valid-take-turn-args? (list/c json-public-state?))
 
 ;; EmptyList -> Boolean

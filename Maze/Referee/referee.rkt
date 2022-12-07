@@ -125,7 +125,7 @@
 ;; Assign a player their next goal, and return the Gamestate after notifying them
 (define (assign-next-goal-and-send-setup state player color)
   (define state-after-assigning-next-goal (assign-next-goal state color))
-  (let ([state-after-notify (send-setup-to-player state-after-assigning-next-goal player color)])
+  (let ([state-after-notify (send-setup-to-player state-after-assigning-next-goal #f player color)])
     (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player state-after-assigning-next-goal))
         (end-current-turn state-after-notify)
         state-after-notify)))
@@ -201,15 +201,15 @@
 (define (setup-all-players players state0)
   (for/fold ([state state0])
             ([color (hash-keys players)])
-    (send-setup-to-player state (hash-ref players color) color)))
+    (send-setup-to-player state #t (hash-ref players color) color)))
 
 
-;; Gamestate Player AvatarColor -> Gamestate
-;; Sends a gamestate to the player, and returns the same gamestate either with that player
-;; or, if they don't behave properly, without the player
-(define (send-setup-to-player state plyr color)
+;; Gamestate Boolean Player AvatarColor -> Gamestate
+;; Notifies the player of their current goal position and optionally the state. The state
+;; is only sent to the player if `send-state?` is true
+(define (send-setup-to-player state send-state? plyr color)
   (match (execute-safe (thunk (send plyr setup
-                                    (referee-state->player-state state color)
+                                    (if send-state? (referee-state->player-state state color) #f)
                                     (player-info-goal-pos (gamestate-get-by-color state color)))))
     ['misbehaved (remove-player-by-color state color)]
     [_ state]))
@@ -363,11 +363,11 @@
 (module+ test
   (test-case
    "A well-behaved player handles setup"
-   (let ([state-after-setup (send-setup-to-player gamestate0 player0 "blue")])
+   (let ([state-after-setup (send-setup-to-player gamestate0 #t player0 "blue")])
      (check-equal? state-after-setup gamestate0)))
   (test-case
    "A misbehaved player fails to handle setup"
-   (let ([state-after-setup (send-setup-to-player gamestate0 player-bad-setup "blue")])
+   (let ([state-after-setup (send-setup-to-player gamestate0 #t player-bad-setup "blue")])
      (check-equal? state-after-setup (remove-player gamestate0)))))
 
 ;; Test having players take their turn

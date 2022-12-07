@@ -96,7 +96,7 @@
 (define player-interface (class/c
                           [name (->m string?)]
                           [propose-board (->m natural-number/c natural-number/c board?)]
-                          [setup (->m player-state? grid-posn? any)]
+                          [setup (->m (or/c #f player-state?) grid-posn? any)]
                           [take-turn (->m player-state? action?)]
                           [win (->m boolean? any)]
                           [get-goal (->m (or/c #f grid-posn?))]))
@@ -126,10 +126,10 @@
                                (add1 board-size)
                                board-size)))
   
-    ;; PlayerState GridPosn -> Any
+    ;; (U #f PlayerState) GridPosn -> Any
     ;; Sets initial state and treasure position
     (define/public (setup plyr-state new-goal)
-      (set! plyr-state0 plyr-state)
+      (if plyr-state (set! plyr-state0 plyr-state) #f)
       (set! goal new-goal))
 
     ;; PlayerState -> Action
