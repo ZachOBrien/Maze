@@ -126,9 +126,11 @@
 (define (assign-next-goal-and-send-setup state player color)
   (define state-after-assigning-next-goal (assign-next-goal state color))
   (let ([state-after-notify (send-setup-to-player state-after-assigning-next-goal #f player color)])
-    (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player state-after-assigning-next-goal))
-        (end-current-turn state-after-notify)
-        state-after-notify)))
+    (cond
+      [(empty? (gamestate-players state-after-notify)) state-after-notify]
+      [else  (if (equal? (gamestate-current-player state-after-notify) (gamestate-current-player state-after-assigning-next-goal))
+                 (end-current-turn state-after-notify)
+                 state-after-notify)])))
 
 
 ;; RefereeState -> [Listof AvatarColor]
