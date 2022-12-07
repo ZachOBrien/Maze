@@ -246,18 +246,11 @@
   ;; Tile [MultipleOf 10] -> Image
   ;; Draw a tile, a square with side lengths `size`
   (define (tile->image t size)
-    (define base-tile
-      (overlay (square size "outline" "black")
-               (clear-pinhole (overlay/pinhole (draw-connector (tile-connector t)
-                                                               (tile-orientation t)
-                                                               (/ size 2))
-                                               (square size "solid" "navajowhite")))))
-    (define gems-to-draw (tile-gems t))
-    (underlay/xy (underlay/xy base-tile
-                              10 10
-                              (scale 0.20 (gem->image (first gems-to-draw))))
-                 (- size 30) (- size 30)
-                 (scale 0.20 (gem->image (second gems-to-draw))))))
+    (overlay (square size "outline" "black")
+             (clear-pinhole (overlay/pinhole (draw-connector (tile-connector t)
+                                                             (tile-orientation t)
+                                                             (/ size 2))
+                                             (square size "solid" "navajowhite"))))))
 
 (module+ serialize
   (require json)
