@@ -39,7 +39,7 @@
 (define SIGNUP-ROUND-TIME-LIMIT-SEC 20)
 (define MAX-PLAYERS 6)
 (define DEFAULT-PORT 27015)
-(define MAX-SIGNUP-ROUNDS 5)
+(define MAX-SIGNUP-ROUNDS 2)
 
 ;; --------------------------------------------------------------------
 ;; FUNCTIONALITY IMPLEMENTATION
