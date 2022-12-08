@@ -60,6 +60,13 @@
   (values winner-names criminal-names))
 
 
+;; String -> Boolean
+;; Is the string a valid name for a player?
+(define (valid-name? name)
+  (and (regexp-match #rx"^[a-zA-Z0-9]+$" name)
+       ((string-length name) . >= . 1)
+       ((string-length name) . <= . 20)))
+
 ;; Listener Integer Integer Integer -> [Listof ProxyPlayer]
 ;; Sign up proxy players to play a game of Maze
 (define (signup listener time-limit max-players periods-remaining [collected-players '()])
@@ -93,9 +100,9 @@
 ;; Given a connection, attempts to create a new ProxyPlayer by retrieving a name within some time limit
 (define (new-connection->proxy-player input-port output-port time-limit-s)
   (define name (execute-safe (thunk (read-json input-port)) time-limit-s))
-  (cond
-    [(or (not (string? name)) (equal? name 'misbehaved)) #f]
-    [else (proxy-player-new name (tcp-conn-new input-port output-port))]))
+  (if (and (string? name) (valid-name? name))
+      (proxy-player-new name (tcp-conn-new input-port output-port))
+      #f))
 
 
 ;; --------------------------------------------------------------------
@@ -104,6 +111,15 @@
 (module+ test
   (require rackunit))
 
+; test valid-name?
+(module+ test
+  (check-true (valid-name? "f"))
+  (check-false (valid-name? ""))
+  (check-true (valid-name? "12345678"))
+  (check-false (valid-name? "who-ey-lewis"))
+  (check-false (valid-name? "12345fjas6as78hajfjfj"))
+  (check-true (valid-name? "12345fjas6as78hajfjf"))
+  (check-false (valid-name? "12345fja#jfjfj")))
 
 ; Test new-connection->proxy-player
 (module+ test
