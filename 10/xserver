@@ -16,7 +16,7 @@
 ;; the given position, and writes these positions to STDOUT as JSON
 (module+ main
   (define ref-state-ht (read-json (current-input-port)))
-  (define ref-state (json-referee-state2->ref-state ref-state-ht))
+  (define ref-state (json-referee-state->ref-state ref-state-ht))
   (define-values (winners cheaters) (main ref-state empty port))
   (write-json (list (sort winners string<?)
   	            (sort cheaters string<?))))

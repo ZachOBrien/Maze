@@ -26,7 +26,7 @@
   (define-values (player-list ref-state-ht) (read-state-input (current-input-port)))
 
   (define players (reverse (map json-ps->player player-list)))
-  (define ref-state (json-referee-state2->ref-state ref-state-ht))
+  (define ref-state (json-referee-state->ref-state ref-state-ht))
 
   (define-values (winners cheaters color-to-name) (run-game players ref-state (list (observer-new))))
 
