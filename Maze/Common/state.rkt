@@ -66,7 +66,9 @@
   ; Get the list of players colors
   [get-player-color-list (-> gamestate? (listof avatar-color?))]
   ; Get a PlayerInfo by color
-  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]))
+  [gamestate-get-by-color (-> gamestate? avatar-color? player-info?)]
+  ; Find the player(s) that have visited the highest number of goals
+  [gamestate-players-with-max-num-goals (-> referee-state? (listof ref-player-info?))]))
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
@@ -324,6 +326,11 @@
 ;; Get the list of avatar player colors
 (define (get-player-color-list gstate)
   (map player-info-color (gamestate-players gstate)))
+
+;; Gamestate -> [Listof PlayerInfo]
+;; Find the player(s) that have visited the highest number of goals
+(define (gamestate-players-with-max-num-goals state)
+  (all-with-max-num-goals-visited (gamestate-players state)))
 
 ;; [Listof Any] -> [Listof Any]
 ;; Move an item to the front of the list, if it exists. If more than one of the element

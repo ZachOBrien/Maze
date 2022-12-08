@@ -23,6 +23,7 @@
 (require "../Players/player.rkt")
 (require "../Remote/player.rkt")
 (require "../Remote/safety.rkt")
+(require "../Common/list-utils.rkt")
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -49,13 +50,10 @@
     (define game-over-state (play-until-completion state-after-setup players MAX-ROUNDS observers))
     (define winners (determine-winners game-over-state))
     (define final-state (notify-winners-and-losers winners game-over-state players))
-    (define winners-that-didnt-get-kicked
-      (filter (λ (plyr) (member plyr (get-player-color-list final-state))) winners))
-    (define criminals (filter (λ (plyr) (not (member plyr (get-player-color-list final-state))))
-                              (get-player-color-list state0)))
-    (for ([observer observers])
-      (send observer run))
-    (values winners-that-didnt-get-kicked criminals color-names)))
+    (define winners-that-didnt-get-kicked (list-difference (gamestate-players final-state)))
+    (define criminals (list-difference (gamestate-players state0) (gamestate-players final-state)))
+    (for ([observer observers]) (send observer run))
+    (values (map player-info-color winners) (map player-info-color criminals) color-names)))
 
 
 ;; RefereeState HashTable Natural [Listof Observer] -> [Listof RefereeState]
@@ -116,7 +114,7 @@
                    [(and (player-on-treasure? gamestate-after-move) (false? (player-info-going-home? (gamestate-current-player state))))
                     (values PLAYER-NOT-PASS PLAYER-NOT-WON (assign-next-goal-and-send-setup gamestate-after-move player color))]
                    [(and (player-on-home? gamestate-after-move) (player-info-going-home? (gamestate-current-player state)))
-                    (values PLAYER-NOT-PASS PLAYER-WON (end-current-turn gamestate-after-move))]
+                    (values PLAYER-NOT-PASS PLAYER-WON gamestate-after-move)]
                    [else
                     (values PLAYER-NOT-PASS PLAYER-NOT-WON (end-current-turn gamestate-after-move))]))]))
 
@@ -133,26 +131,16 @@
                  state-after-notify)])))
 
 
-;; RefereeState -> [Listof AvatarColor]
+;; RefereeState -> [Listof PlayerInfo]
 ;; Determine which players (if any) won the game
 (define (determine-winners state)
   (cond
     [(empty? (gamestate-players state)) empty]
-    [else (define max-goals-visited (apply max (map num-goals-visited (gamestate-players state))))
-          (define players-that-visited-max-num-goals
-            (filter (λ (plyr-info) (= (num-goals-visited plyr-info) max-goals-visited))
-                    (gamestate-players state)))
-          (map player-info-color (all-min-distance players-that-visited-max-num-goals))]))
-
-
-;; [Listof Player] -> [Listof Player]
-;; Get all players which are minimum distance from their objective
-(define (all-min-distance players)
-  (cond
-    [(empty? players) empty]
-    [(let* ([distances (map (curryr distance-from-objective euclidean-dist) players)]
-            [min-dist (apply min distances)])
-       (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) players))]))
+    [else (let ([players-with-max-num-goals (gamestate-players-with-max-num-goals state)]
+                [game-terminating-player (gamestate-current-player state)])
+            (if (member game-terminating-player players-with-max-num-goals)
+                (list game-terminating-player)
+                (players-min-distance-from-objective players-with-max-num-goals)))]))
 
 
 ;; RefereeState [Listof Observer] -> Void
@@ -220,19 +208,19 @@
 
 ;; ===== SAFELY NOTIFYING WINNERS AND LOSERS =====
 
-;; [Listof AvatarColor] RefereeState [Hash AvatarColor : Player] -> RefereeState
+;; [Listof PlayerInfo] RefereeState [Hash AvatarColor : Player] -> RefereeState
 ;; Notify players that they either won or lost
 (define (notify-winners-and-losers winners final-state players)
-  (define losers (filter (λ (color) (not (member color winners))) (get-player-color-list final-state)))
+  (define losers (list-difference (gamestate-players final-state) winners))
   (define state-after-notifying-winners (notify-outcome #t winners players final-state))
   (define state-after-notifying-losers (notify-outcome #f losers players state-after-notifying-winners))
   state-after-notifying-losers)
 
-;; Boolean [Listof AvatarColor] [Hash Color:Player] RefereeState -> RefereeState
+;; Boolean [Listof PlayerInfo] [Hash Color:Player] RefereeState -> RefereeState
 ;; Notify a set of players whether they have won or lost the game
-(define (notify-outcome win? colors players final-state)
+(define (notify-outcome win? plyr-infos players final-state)
   (for/fold ([state final-state])
-            ([color colors])
+            ([color (map player-info-color plyr-infos)])
     (safe-send-outcome state (hash-ref players color) color win?)))
 
 

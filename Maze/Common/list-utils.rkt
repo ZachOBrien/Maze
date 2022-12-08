@@ -16,7 +16,10 @@
   ; Replace the first item in the list that passes the predicate with the given item
   [replacef (-> list? (-> any/c boolean?) any/c list?)]
   ; Convert a pair of numbers to a string representation
-  [pair->string (-> (cons/c number? number?) string?)]))
+  [pair->string (-> (cons/c number? number?) string?)]
+  ; Keep all elements in list1 which do not appear in list2
+  ; Items must be comparable with equal?
+  [list-difference (-> (listof any/c) (listof any/c) (listof any/c))]))
 
 
 ;; --------------------------------------------------------------------
@@ -56,7 +59,20 @@
 ;; Represent a cons pair of numbers as a string
 (define (pair->string pair)
   (string-append "(" (number->string (car pair)) ", " (number->string (cdr pair)) ")"))
-    
+
+
+;; [Listof Any] [Listof Any] -> [Listof Any]
+;; Keep all elements in list1 which do not appear in list2
+;; Items must be comparable with equal?
+(define (list-difference list1 list2)
+  (filter (λ (x) (not (member x list2))) list1))
+
+
+;; [Listof Any] [Listof Any] -> [Listof Any]
+;; Keep all elements in list1 which alsoappear in list2
+;; Items must be comparable with equal?
+(define (list-intersection list1 list2)
+  (filter (λ (x) (member x list2)) list1))
 
 
 ;; --------------------------------------------------------------------
@@ -97,3 +113,14 @@
 ; test pair->string
 (module+ test
   (check-equal? (pair->string (cons 9 1)) "(9, 1)"))
+
+
+; test list-difference
+(module+ test
+  (check-equal? (list-difference empty empty) empty)
+  (check-equal? (list-difference empty '(1)) empty)
+  (check-equal? (list-difference '(1) empty) '(1))
+  (check-equal? (list-difference '(1 2 3) '(2)) '(1 3))
+  (check-equal? (list-difference '(1 2 3) '(2 3 1)) empty))
+
+(module+ 

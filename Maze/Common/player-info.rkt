@@ -51,13 +51,20 @@
   [on-treasure? (-> ref-player-info? boolean?)]
   ; Determine the distance of a player from their objective. If they have not found their treasure,
   ; that is their objective. If they have found their treasure, getting home is their objective.
-  [distance-from-objective (-> ref-player-info? (-> grid-posn? grid-posn? (not/c negative?)) (not/c negative?))]))
+  [distance-from-objective (-> ref-player-info? (-> grid-posn? grid-posn? (not/c negative?)) (not/c negative?))]
+  ; Get all players which have visited the maximum number of goals
+  [all-with-max-num-goals-visited (-> (listof ref-player-info?) (listof ref-player-info?))]
+  ; Get all players which are minimum distance from their objective
+  [players-min-distance-from-objective (-> (listof ref-player-info?) (listof ref-player-info?))]))
+
 
 ;; --------------------------------------------------------------------
 ;; DEPENDENCIES
 
-(require "board.rkt")
 (require rackunit)
+
+(require "board.rkt")
+(require "math.rkt")
 
 ;; --------------------------------------------------------------------
 ;; DATA DEFINITIONS
@@ -189,7 +196,6 @@
   (struct-copy player-info plyr-info
                [going-home? going-home?]))
 
-
 ;; RefPlayerInfo (-> GridPosn GridPosn PositiveReal) -> PositiveReal
 ;; Determine the distance of a player from the goal it is working toward
 (define (distance-from-objective plyr-info dist-func)
@@ -199,6 +205,28 @@
 ;; How many goals has this player already visited?
 (define (num-goals-visited plyr-info)
   (length (player-info-goals-visited plyr-info)))
+
+;; [NonEmptyListof PlayerInfo] -> Natural
+;; Find the maximum number of goals any player visited
+(define (max-num-goals-visited plyr-infos)
+  (apply max (map num-goals-visited plyr-infos)))
+
+;; [Listof PlayerInfo] -> [Listof PlayerInfo]
+;; Get all players which have visited the maximum number of goals
+(define (all-with-max-num-goals-visited plyr-infos)
+  (cond
+    [(empty? plyr-infos) empty]
+    [else (let ([max-goals-visited (max-num-goals-visited plyr-infos)])
+            (filter (λ (plyr-info) (= (num-goals-visited plyr-info) max-goals-visited)) plyr-infos))]))
+
+;; [Listof PlayerInfo] -> [Listof Player]
+;; Get all players which are minimum distance from their objective
+(define (players-min-distance-from-objective plyr-infos)
+  (cond
+    [(empty? plyr-infos) empty]
+    [(let* ([distances (map (curryr distance-from-objective euclidean-dist) plyr-infos)]
+            [min-dist (apply min distances)])
+       (filter (λ (plyr) (= (distance-from-objective plyr euclidean-dist) min-dist)) plyr-infos))]))
 
 (module+ serialize
   (require json)
@@ -575,11 +603,45 @@
 ;; test num-goals-visited
 (module+ test
   (check-equal? 0 (num-goals-visited player-info1))
-  (check-equal? 1 (num-goals-visited (receive-next-goal player-info1 (cons 2 2)))))
+  (check-equal? 1 (num-goals-visited (receive-next-goal player-info1 (cons 3 3)))))
 
 ;; test receive-next-goal
 (module+ test
-  (check-equal? (receive-next-goal player-info1 (cons 2 2))
-                (player-info (cons 1 1) (cons 5 5) (cons 2 2) (list (cons 1 1)) #f "purple"))
+  (check-equal? (receive-next-goal player-info1 (cons 3 3))
+                (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1)) #f "purple"))
   (check-equal? (receive-next-goal player-info1 #f)
                 (player-info (cons 1 1) (cons 5 5) (cons 5 5) (list (cons 1 1)) #t "purple")))
+
+;; test max-num-goals-visited
+(module+ test
+  (check-equal? (max-num-goals-visited (list (player-info (cons 1 1) (cons 5 5) (cons 3 3) empty #f "purple"))) 0)
+  (check-equal? (max-num-goals-visited (list (player-info (cons 1 3) (cons 1 5) (cons 5 2) empty #f "purple")
+                                             (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1)) #f "purple")))
+                1)
+  (check-equal? (max-num-goals-visited (list (player-info (cons 1 3) (cons 1 5) (cons 5 2) empty #f "purple")
+                                             (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1)) #f "purple")
+                                             (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1) (cons 3 3)) #f "purple")
+                                             (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1) (cons 5 5)) #f "purple")))
+                2))
+
+;; test all-with-shortest-distance-to-objective
+(module+ test
+  (check-equal? (all-with-max-num-goals-visited empty) empty)
+  (check-equal? (all-with-max-num-goals-visited (list (player-info (cons 1 3) (cons 1 5) (cons 5 2) empty #f "purple")
+                                                      (player-info (cons 1 1) (cons 5 5) (cons 2 2) (list (cons 1 1)) #f "purple")))
+                (list (player-info (cons 1 1) (cons 5 5) (cons 2 2) (list (cons 1 1)) #f "purple")))
+  (check-equal? (all-with-max-num-goals-visited (list (player-info (cons 1 3) (cons 1 5) (cons 5 2) empty #f "purple")
+                                                      (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1)) #f "purple")
+                                                      (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1) (cons 3 3)) #f "purple")
+                                                      (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1) (cons 5 5)) #f "purple")))
+                (list (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1) (cons 3 3)) #f "purple")
+                      (player-info (cons 1 1) (cons 5 5) (cons 3 3) (list (cons 1 1) (cons 5 5)) #f "purple"))))
+
+(module+ test
+  (check-equal? (players-min-distance-from-objective empty) empty)
+  (check-equal? (players-min-distance-from-objective (list (player-info (cons 1 3) (cons 1 5) (cons 5 7) empty #f "purple")
+                                                           (player-info (cons 1 3) (cons 5 3) (cons 3 3) (list (cons 1 1)) #f "purple")
+                                                           (player-info (cons 1 1) (cons 1 1) (cons 7 7) (list (cons 1 1) (cons 3 3)) #f "purple")
+                                                           (player-info (cons 3 1) (cons 1 5) (cons 3 3) (list (cons 1 1) (cons 5 5)) #f "purple")))
+                (list (player-info (cons 1 3) (cons 5 3) (cons 3 3) (list (cons 1 1)) #f "purple")
+                      (player-info (cons 3 1) (cons 1 5) (cons 3 3) (list (cons 1 1) (cons 5 5)) #f "purple"))))
