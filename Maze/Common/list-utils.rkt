@@ -19,7 +19,10 @@
   [pair->string (-> (cons/c number? number?) string?)]
   ; Keep all elements in list1 which do not appear in list2
   ; Items must be comparable with equal?
-  [list-difference (-> (listof any/c) (listof any/c) (listof any/c))]))
+  [list-difference (-> (listof any/c) (listof any/c) (listof any/c))]
+  ; Keep all elements in list1 which alsoappear in list2
+  ; Items must be comparable with equal?
+  [list-intersection (-> (listof any/c) (listof any/c) (listof any/c))]))
 
 
 ;; --------------------------------------------------------------------
@@ -123,4 +126,10 @@
   (check-equal? (list-difference '(1 2 3) '(2)) '(1 3))
   (check-equal? (list-difference '(1 2 3) '(2 3 1)) empty))
 
-(module+ 
+; test list-intersection
+(module+ test
+  (check-equal? (list-intersection empty empty) empty)
+  (check-equal? (list-intersection empty '(1)) empty)
+  (check-equal? (list-intersection '(1) empty) empty)
+  (check-equal? (list-intersection '(1 2 3) '(2)) '(2))
+  (check-equal? (list-intersection '(1 2 3) '(2 3 1)) '(1 2 3)))

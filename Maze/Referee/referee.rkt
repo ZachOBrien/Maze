@@ -47,51 +47,53 @@
     (notify-observers-of-names color-names observers)
     (define state-after-setup (setup-all-players players state-after-getting-names))
     (notify-observers state-after-setup observers)
-    (define game-over-state (play-until-completion state-after-setup players MAX-ROUNDS observers))
-    (define winners (determine-winners game-over-state))
+    (define-values (game-over-state player-terminated-game?) (play-until-completion state-after-setup players MAX-ROUNDS observers))
+    (define winners (map player-info-color (determine-winners game-over-state player-terminated-game?)))
     (define final-state (notify-winners-and-losers winners game-over-state players))
-    (define winners-that-didnt-get-kicked (list-difference (gamestate-players final-state)))
-    (define criminals (list-difference (gamestate-players state0) (gamestate-players final-state)))
+    (define winners-that-didnt-get-kicked (list-intersection winners (get-player-color-list final-state)))
+    (define criminals (list-difference (get-player-color-list state0) (get-player-color-list final-state)))
     (for ([observer observers]) (send observer run))
-    (values (map player-info-color winners) (map player-info-color criminals) color-names)))
+    (values winners-that-didnt-get-kicked criminals color-names)))
 
 
-;; RefereeState HashTable Natural [Listof Observer] -> [Listof RefereeState]
+;; A PLAYERTERMINATED value is a boolean indicating if the currently active player won with their last move
+(define PLAYER-TERMINATED-GAME #t)
+(define NO-PLAYER-TERMINATED-GAME #f)
+
+;; RefereeState HashTable Natural [Listof Observer] -> (values RefereeState PLAYERTERMINATED)
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns the
-;; gamestate when the game has ended. Accumulates the states after each player move
-;; in reverse order
+;; gamestate when the game has ended and whether a player won the game.
 (define (play-until-completion state players rounds-remaining observers)
   (play-until-completion-help state players rounds-remaining observers))
-         
-;; RefereeState [HashTable AvatarColor : Player] Natural [Listof Observer] -> RefereeState
+
+
+;; RefereeState [HashTable AvatarColor : Player] Natural [Listof Observer] -> (values RefereeState PLAYERTERMINATED)
 ;; Plays at most `rounds-remaining` rounds of Maze, and returns final state
 (define (play-until-completion-help curr-state players rounds-remaining observers)
   (cond
-    [(<= rounds-remaining 0) curr-state]
+    [(<= rounds-remaining 0) (values curr-state NO-PLAYER-TERMINATED-GAME)]
     [else (let*-values ([(player-colors) (get-player-color-list curr-state)]
-                        [(game-over? state-after-round plyrs-passed-turn) (run-round curr-state players player-colors observers)]
+                        [(player-terminated-game? state-after-round plyrs-passed-turn) (run-round curr-state players player-colors observers)]
                         [(new-player-colors) (get-player-color-list state-after-round)]
-                        [(all-players-passed) (= (length new-player-colors) (length plyrs-passed-turn))])
+                        [(all-players-passed?) (= (length new-player-colors) (length plyrs-passed-turn))])
             (cond
-              [(or game-over? all-players-passed) state-after-round]
+              [all-players-passed? (values state-after-round NO-PLAYER-TERMINATED-GAME)]
+              [player-terminated-game? (values state-after-round PLAYER-TERMINATED-GAME)]
               [else (play-until-completion-help state-after-round players (sub1 rounds-remaining) observers)]))]))
 
-;; A PLAYERWON value is a boolean indicating if the currently active player won with their last move
-(define PLAYER-WON #t)
-(define PLAYER-NOT-WON #f)
 
-;; RefereeState [HashTable AvatarColor : Player] [Listof AvatarColor] [Listof Observer] [Listof AvatarColor] -> (values PLAYERWON RefereeState [Listof AvatarColor])
+;; RefereeState [HashTable AvatarColor : Player] [Listof AvatarColor] [Listof Observer] [Listof AvatarColor] -> (values PLAYERTERMINATED RefereeState [Listof AvatarColor])
 ;; Run a round of the game, end the round early if the game is over.
 ;; Returned boolean flag indicates whether a player won the game this round
 (define (run-round state players player-colors observers [passed-plyrs '()])
-  (cond [(empty? player-colors) (values PLAYER-NOT-PASS state passed-plyrs)]
-        [else (let*-values ([(passed-turn? player-won? next-state) (execute-turn state
+  (cond [(empty? player-colors) (values NO-PLAYER-TERMINATED-GAME state passed-plyrs)]
+        [else (let*-values ([(passed-turn? player-terminated-game? next-state) (execute-turn state
                                                                                  (hash-ref players (first player-colors))
                                                                                  (first player-colors))]
                             [(new-passed-plyrs) (if passed-turn? (cons (first player-colors) passed-plyrs) passed-plyrs)])
                 (notify-observers next-state observers)
                 (cond
-                  [player-won? (values PLAYER-PASS next-state passed-plyrs)]
+                  [player-terminated-game? (values PLAYER-TERMINATED-GAME next-state passed-plyrs)]
                   [else (run-round next-state
                                    players
                                    (rest player-colors)
@@ -102,21 +104,21 @@
 (define PLAYER-PASS #t)
 (define PLAYER-NOT-PASS #f)
 
-;; RefereeState [Hash Color:Player] AvatarColor -> (values PLAYERPASS PLAYERWON RefereeState)
+;; RefereeState [Hash Color:Player] AvatarColor -> (values PLAYERPASS PLAYERTERMINATED RefereeState)
 ;; Execute a turn for the player.
 (define (execute-turn state player color)
   (define mv (safe-get-action player (referee-state->player-state state color)))
   (cond
-    [(false? mv) (values PLAYER-PASS PLAYER-NOT-WON (end-current-turn state))]
-    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values PLAYER-NOT-PASS PLAYER-NOT-WON (remove-player state))]
+    [(false? mv) (values PLAYER-PASS NO-PLAYER-TERMINATED-GAME (end-current-turn state))]
+    [(or (equal? 'misbehaved mv) (not (valid-move? state mv))) (values PLAYER-NOT-PASS NO-PLAYER-TERMINATED-GAME (remove-player state))]
     [else (begin (define gamestate-after-move (gamestate-execute-move state mv))
                  (cond
                    [(and (player-on-treasure? gamestate-after-move) (false? (player-info-going-home? (gamestate-current-player state))))
-                    (values PLAYER-NOT-PASS PLAYER-NOT-WON (assign-next-goal-and-send-setup gamestate-after-move player color))]
+                    (values PLAYER-NOT-PASS NO-PLAYER-TERMINATED-GAME (assign-next-goal-and-send-setup gamestate-after-move player color))]
                    [(and (player-on-home? gamestate-after-move) (player-info-going-home? (gamestate-current-player state)))
-                    (values PLAYER-NOT-PASS PLAYER-WON gamestate-after-move)]
+                    (values PLAYER-NOT-PASS PLAYER-TERMINATED-GAME gamestate-after-move)]
                    [else
-                    (values PLAYER-NOT-PASS PLAYER-NOT-WON (end-current-turn gamestate-after-move))]))]))
+                    (values PLAYER-NOT-PASS NO-PLAYER-TERMINATED-GAME (end-current-turn gamestate-after-move))]))]))
 
 
 ;; Gamestate Player AvatarColor -> RefereeState
@@ -131,15 +133,15 @@
                  state-after-notify)])))
 
 
-;; RefereeState -> [Listof PlayerInfo]
+;; RefereeState PLAYERTERMINATED -> [Listof PlayerInfo]
 ;; Determine which players (if any) won the game
-(define (determine-winners state)
+(define (determine-winners state player-terminated-game?)
   (cond
     [(empty? (gamestate-players state)) empty]
     [else (let ([players-with-max-num-goals (gamestate-players-with-max-num-goals state)]
-                [game-terminating-player (gamestate-current-player state)])
-            (if (member game-terminating-player players-with-max-num-goals)
-                (list game-terminating-player)
+                [last-player-to-act (gamestate-current-player state)])
+            (if (and player-terminated-game? (member last-player-to-act players-with-max-num-goals))
+                (list last-player-to-act)
                 (players-min-distance-from-objective players-with-max-num-goals)))]))
 
 
@@ -208,19 +210,19 @@
 
 ;; ===== SAFELY NOTIFYING WINNERS AND LOSERS =====
 
-;; [Listof PlayerInfo] RefereeState [Hash AvatarColor : Player] -> RefereeState
+;; [Listof AvatarColor] RefereeState [Hash AvatarColor : Player] -> RefereeState
 ;; Notify players that they either won or lost
 (define (notify-winners-and-losers winners final-state players)
-  (define losers (list-difference (gamestate-players final-state) winners))
+  (define losers (list-difference (get-player-color-list final-state) winners))
   (define state-after-notifying-winners (notify-outcome #t winners players final-state))
   (define state-after-notifying-losers (notify-outcome #f losers players state-after-notifying-winners))
   state-after-notifying-losers)
 
-;; Boolean [Listof PlayerInfo] [Hash Color:Player] RefereeState -> RefereeState
+;; Boolean [Listof AvatarColor] [Hash Color:Player] RefereeState -> RefereeState
 ;; Notify a set of players whether they have won or lost the game
-(define (notify-outcome win? plyr-infos players final-state)
+(define (notify-outcome win? colors players final-state)
   (for/fold ([state final-state])
-            ([color (map player-info-color plyr-infos)])
+            ([color colors])
     (safe-send-outcome state (hash-ref players color) color win?)))
 
 
@@ -323,9 +325,12 @@
 ;; Tests for helpers
 
 (module+ test
-  (check-equal? (determine-winners gamestate5) '("red"))
-  (check-equal? (determine-winners gamestate4) '("purple"))
-  (check-equal? (determine-winners gamestate1) '("black")))
+  (check-equal? (determine-winners gamestate5 #f)
+                (list (ref-player-info-new (cons 0 6) (cons 5 5) (cons 1 5) '() #f "red")))
+  (check-equal? (determine-winners gamestate4 #f)
+                (list (ref-player-info-new (cons 1 1) (cons 5 5) (cons 1 1) '() #f "purple")))
+  (check-equal? (determine-winners gamestate1 #f)
+                (list (ref-player-info-new (cons 4 4) (cons 2 2) (cons 5 5) '() #f "black"))))
 
 
 ;; ==========================================
@@ -365,13 +370,13 @@
   (test-case
    "A well-behaved player chooses an action"
    (let-values
-       ([(passed-turn? player-won? state-after-turn)
+       ([(passed-turn? player-terminated-game? state-after-turn)
          (execute-turn gamestate0 player0 "blue")])
      (check-equal? passed-turn? #f)))
   (test-case
    "A misbehaved player chooses an action"
    (let-values
-       ([(passed-turn? player-won? state-after-turn)
+       ([(passed-turn? player-terminated-game? state-after-turn)
          (execute-turn gamestate0 player-bad-taketurn "blue")])
      (check-equal? passed-turn? #f)
      (check-equal? state-after-turn (remove-player gamestate0)))))
