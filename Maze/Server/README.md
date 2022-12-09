@@ -10,7 +10,7 @@ Mechanism for listening for client requests, accepting and processing those requ
 | Server                                                                          |
 +---------------------------------------------------------------------------------+
 |                                                                                 |
-| fn: main (Gamestate observers port -> [Listof [Listof String] [Listof String]]) |
+| fn: main (Gamestate Observers PortNo -> [List [List Winners] [List Cheaters]])  |
 +---------------------------------------------------------------------------------+
               |                       |
               |                       | 
@@ -18,7 +18,7 @@ Mechanism for listening for client requests, accepting and processing those requ
               |                       |
               v                       v
      +------------------+        +------------------+
-     | ProxyPlayer      |        | Referee          |
+     | Player           |        | Referee          |
      +------------------+        +------------------+
      |                  |        |                  |
      | + fn: name       |        | + fn: run-game   |
