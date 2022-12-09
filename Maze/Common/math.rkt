@@ -32,3 +32,14 @@
 ;; --------------------------------------------------------------------
 ;; TESTS
 
+(module+ test
+  (require rackunit))
+
+
+(define EPSILON .00001)
+
+; test euclidean-dist
+(module+ test
+  (check-= (euclidean-dist (cons 1 1) (cons 1 1)) 0 EPSILON)
+  (check-= (euclidean-dist (cons 1 2) (cons 3 4)) 2.828427 EPSILON)
+  (check-= (euclidean-dist (cons 3 4) (cons 1 2)) 2.828427 EPSILON))
