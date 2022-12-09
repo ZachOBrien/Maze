@@ -28,3 +28,9 @@ Mechanism for listening for client requests, accepting and processing those requ
      +------------------+        
 ```
 
+## Directory Structure
+
+| File | Purpose |
+| --------- | ------- |
+| [server.rkt](server.rkt) | Provides functionality for creating a Maze server | 
+
