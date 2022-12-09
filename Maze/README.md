@@ -24,9 +24,11 @@ This respository implements the base game logic and a client-server architecture
             | (Common/ directory)              |
             +----------------------------------+
             |                                  |
+            | game pieces (gems, tiles, board) |
+            |                                  |
             | Gamestate                        |
             |                                  |
-            | Rules                            |
+            | rules of the game                |
             +----------------------------------+
 ```
 
