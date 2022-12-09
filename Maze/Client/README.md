@@ -26,7 +26,8 @@ Mechanism for connecting to a game server over TCP, and handling requests from t
                          +------------------+
 ```
 
+## Directory Structure
 
-## Remote Interactions
-
-todo
+| File | Purpose |
+| --------- | ------- |
+| [client.rkt](client.rkt) | A client which connects to a game server over TCP |
