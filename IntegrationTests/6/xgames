@@ -4,12 +4,12 @@
 (require json)
 (require racket/list)
 
-(require (submod "../Maze/Players/player.rkt" serialize))
-(require "../Maze/Common/state.rkt")
-(require (submod "../Maze/Common/state.rkt" serialize))
-(require "../Maze/Common/board.rkt")
-(require "../Maze/Players/strategy.rkt")
-(require "../Maze/Referee/referee.rkt")
+(require (submod "../../Maze/Players/player.rkt" serialize))
+(require "../../Maze/Common/state.rkt")
+(require (submod "../../Maze/Common/state.rkt" serialize))
+(require "../../Maze/Common/board.rkt")
+(require "../../Maze/Players/strategy.rkt")
+(require "../../Maze/Referee/referee.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)

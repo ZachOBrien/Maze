@@ -4,13 +4,13 @@
 
 (require json)
 
-(require (submod "../Maze/Players/player.rkt" serialize))
-(require "../Maze/Common/state.rkt")
-(require (submod "../Maze/Common/state.rkt" serialize))
-(require "../Maze/Common/board.rkt")
-(require "../Maze/Players/strategy.rkt")
-(require "../Maze/Referee/referee.rkt")
-(require "../Maze/Referee/observer.rkt")
+(require (submod "../../Maze/Players/player.rkt" serialize))
+(require "../../Maze/Common/state.rkt")
+(require (submod "../../Maze/Common/state.rkt" serialize))
+(require "../../Maze/Common/board.rkt")
+(require "../../Maze/Players/strategy.rkt")
+(require "../../Maze/Referee/referee.rkt")
+(require "../../Maze/Referee/observer.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -25,7 +25,7 @@
 (module+ main
   (define-values (player-list ref-state-ht) (read-state-input (current-input-port)))
 
-  (define players (reverse (map json-ps->player player-list)))
+  (define players (map json-ps->player player-list))
   (define ref-state (json-referee-state->ref-state ref-state-ht))
 
   (define-values (winners cheaters color-to-name) (run-game players ref-state (list (observer-new))))

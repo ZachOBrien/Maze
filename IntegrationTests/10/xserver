@@ -5,8 +5,8 @@
 (require racket/list)
 (require json)
 
-(require "../Maze/Server/server.rkt")
-(require (submod "../Maze/Common/state.rkt" serialize))
+(require "../../Maze/Server/server.rkt")
+(require (submod "../../Maze/Common/state.rkt" serialize))
 
 (define DEFAULT-HOST "127.0.0.1")
 

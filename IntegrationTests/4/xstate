@@ -3,10 +3,10 @@
 
 (require json)
 
-(require (submod "../Maze/Common/board.rkt" serialize))
-(require (submod "../Maze/Common/state.rkt" serialize))
-(require "../Maze/Common/state.rkt")
-(require "../Maze/Common/board.rkt")
+(require (submod "../../Maze/Common/board.rkt" serialize))
+(require (submod "../../Maze/Common/state.rkt" serialize))
+(require "../../Maze/Common/state.rkt")
+(require "../../Maze/Common/board.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)

@@ -3,13 +3,14 @@
 
 
 (require json)
+(require racket/list)
 
-(require (submod "../Maze/Players/player.rkt" serialize))
-(require "../Maze/Common/state.rkt")
-(require (submod "../Maze/Common/state.rkt" serialize))
-(require "../Maze/Common/board.rkt")
-(require "../Maze/Players/strategy.rkt")
-(require "../Maze/Referee/referee.rkt")
+(require (submod "../../Maze/Players/player.rkt" serialize))
+(require "../../Maze/Common/state.rkt")
+(require (submod "../../Maze/Common/state.rkt" serialize))
+(require "../../Maze/Common/board.rkt")
+(require "../../Maze/Players/strategy.rkt")
+(require "../../Maze/Referee/referee.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -24,10 +25,13 @@
 (module+ main
   (define-values (player-list ref-state-ht) (read-state-input (current-input-port)))
 
-  (define players (map json-ps->player player-list))
+  (define players (reverse (map json-ps->player player-list)))
   (define ref-state (json-referee-state->ref-state ref-state-ht))
 
-  (define-values (winners cheaters color-to-name) (run-game players ref-state '()))
+  (define-values (winners cheaters color-to-name)
+    (cond
+      [(<= 2 (length players)) (run-game players ref-state '())]
+      [else (values empty empty (hash))]))
 
   ; TODO: Make these last four lines a tested serialize function
   (define winner-names (map (λ (col) (hash-ref color-to-name col)) winners))

@@ -6,9 +6,9 @@
 (require racket/class)
 (require json)
 
-(require (submod "../Maze/Players/player.rkt" serialize))
-(require "../Maze/Client/client.rkt")
-(require "../Maze/Players/strategy.rkt")
+(require (submod "../../Maze/Players/player.rkt" serialize))
+(require "../../Maze/Client/client.rkt")
+(require "../../Maze/Players/strategy.rkt")
 
 
 (define DEFAULT-HOST "127.0.0.1")

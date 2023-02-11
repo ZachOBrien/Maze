@@ -1,15 +1,15 @@
 #! /usr/bin/env racket
 #lang racket/base
 
+
 (require json)
 
-(require (submod "../Maze/Players/player.rkt" serialize))
-(require "../Maze/Common/state.rkt")
-(require (submod "../Maze/Common/state.rkt" serialize))
-(require "../Maze/Common/board.rkt")
-(require "../Maze/Players/strategy.rkt")
-(require "../Maze/Referee/referee.rkt")
-(require "../Maze/Referee/observer.rkt")
+(require (submod "../../Maze/Players/player.rkt" serialize))
+(require "../../Maze/Common/state.rkt")
+(require (submod "../../Maze/Common/state.rkt" serialize))
+(require "../../Maze/Common/board.rkt")
+(require "../../Maze/Players/strategy.rkt")
+(require "../../Maze/Referee/referee.rkt")
 
 
 ;; InputPort -> (values HashTable HashTable)
@@ -27,7 +27,11 @@
   (define players (map json-ps->player player-list))
   (define ref-state (json-referee-state->ref-state ref-state-ht))
 
-  (define-values (winners cheaters color-to-name) (run-game players ref-state (list (observer-new))))
+  (define-values (winners cheaters color-to-name) (run-game players ref-state '()))
 
-  ; TODO: Make writing winners/criminals a serialize function
-  (write-json (map (λ (col) (hash-ref color-to-name col)) winners)))
+  ; TODO: Make these last four lines a tested serialize function
+  (define winner-names (map (λ (col) (hash-ref color-to-name col)) winners))
+  (define criminal-names (map (λ (col) (hash-ref color-to-name col)) cheaters))
+
+  (write-json (list (sort winner-names string<?)
+  	            (sort criminal-names string<?))))
