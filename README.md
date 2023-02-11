@@ -1,7 +1,6 @@
 # Maze
 
-Colin Rozzi, Zach OBrien
-
+[![Racket 8.6](https://img.shields.io/badge/racket-8.6-blue)](https://racket-lang.org)
 ## Purpose
 
 Maze is an implementation of the board game "Labyrinth". The real game involves players navigating a maze, represented as a physical grid board of pathways, with the objective of collecting treasure.
