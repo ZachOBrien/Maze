@@ -36,13 +36,13 @@ This respository implements the base game logic and a client-server architecture
 | Directory | Purpose |
 | --------- | ------- |
 | Assets | Static assets. Currently, only image files for gems |
-| [Client](Client/README.md) | A client which connects to a game server over TCP |
-| [Common](Common/README.md) | Components of the game shared by clients and the server |
+| [Client](Maze/Client/README.md) | A client which connects to a game server over TCP |
+| [Common](Maze/Common/README.md) | Components of the game shared by clients and the server |
 | Planning | Planning for milestones and changes to the codebase |
-| [Players](Players/README.md) | The player interface, protocol, and implementations |
-| [Referee](Referee/README.md) | Component responsible for coordinating players and enforcing rules |
-| [Remote](Remote/README.md) | Mechanisms for communicating over a network connection |
-| [Server](Server/README.md) | A server which accepts client connections over TCP | 
+| [Players](Maze/Players/README.md) | The player interface, protocol, and implementations |
+| [Referee](Maze/Referee/README.md) | Component responsible for coordinating players and enforcing rules |
+| [Remote](Maze/Remote/README.md) | Mechanisms for communicating over a network connection |
+| [Server](Maze/Server/README.md) | A server which accepts client connections over TCP | 
 
 
 ## Set Up Development Environment
