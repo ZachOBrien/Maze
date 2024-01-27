@@ -6,4 +6,4 @@ COPY . Maze/
 
 WORKDIR Maze/
 
-CMD ["./xtest"]
+CMD ["./run_unit_tests.sh"]
