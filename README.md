@@ -22,7 +22,7 @@
 
 Maze is an implementation of the board game "Labyrinth". The real game involves players navigating a maze, represented as a physical grid board of pathways, with the objective of collecting treasure.
 
-This respository implements the base game logic and a client-server architecture for playing the game. To find more information on each of these architectural components, see the `README` in their respective directories.
+This repository implements a client-server architecture and basic GUI for configuring and observing the game. To find more information on each of these architectural components, see the `README` in their respective directories.
 
 ```
 +-----------------+                    +-----------------+
@@ -52,14 +52,14 @@ This respository implements the base game logic and a client-server architecture
 
 | Directory | Purpose |
 | --------- | ------- |
-| Assets | Static assets. Currently, only image files for gems |
-| [Client](Maze/Client/README.md) | A client which connects to a game server over TCP |
-| [Common](Maze/Common/README.md) | Components of the game shared by clients and the server |
+| Assets | Static assets. Currently only image files for gems |
+| [Client](Maze/Client/README.md) | A client which connects to a game server |
+| [Common](Maze/Common/README.md) | Core data structures and logic for the game |
 | Planning | Planning for milestones and changes to the codebase |
 | [Players](Maze/Players/README.md) | The player interface, protocol, and implementations |
 | [Referee](Maze/Referee/README.md) | Component responsible for coordinating players and enforcing rules |
 | [Remote](Maze/Remote/README.md) | Mechanisms for communicating over a network connection |
-| [Server](Maze/Server/README.md) | A server which accepts client connections over TCP | 
+| [Server](Maze/Server/README.md) | A server which accepts client connections and facilitates the game | 
 
 
 ## Try it Out
