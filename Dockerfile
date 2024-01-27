@@ -6,6 +6,4 @@ COPY . Maze/
 
 WORKDIR Maze/
 
-RUN raco make xtest
-
 CMD ["./xtest"]
