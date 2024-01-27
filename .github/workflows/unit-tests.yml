@@ -18,4 +18,4 @@ jobs:
         run: ./build_docker.sh
 
       - name: Run the docker image
-        run: docker run --rm -it maze:latest
+        run: docker run maze:latest
