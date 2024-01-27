@@ -5,18 +5,18 @@
 <h4 align="center">An implementation of <a href="https://en.wikipedia.org/wiki/Labyrinth_(board_game)">Labyrinth</a>.</h4>
 
 <p align="center">
-  <a href="https://racket-lang.org">
-    <img src="https://img.shields.io/badge/racket-8.6-blue"
-         alt="Racket 8.6">
-</p>
-
-<p align="center">
   <a href="#about">About</a> •
   <a href="#directory-structure">Directory Structure</a> •
   <a href="#try-it-out">Try it Out</a>
 </p>
 
 ## About
+
+<p>
+  <a href="https://racket-lang.org">
+    <img src="https://img.shields.io/badge/racket-8.6-blue"
+         alt="Racket 8.6">
+</p>
 
 <a href="https://en.wikipedia.org/wiki/Labyrinth_(board_game)"><img src="https://upload.wikimedia.org/wikipedia/en/d/dd/Amazing_Labyrinth_game_box.jpg" alt="Labyrinth Box" width="300"></a>
 
