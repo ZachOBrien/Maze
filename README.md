@@ -1,4 +1,4 @@
-# Maze
+# Maze 💎
 
 [![Racket 8.6](https://img.shields.io/badge/racket-8.6-blue)](https://racket-lang.org)
 ## Purpose
