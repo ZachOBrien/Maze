@@ -1,7 +1,22 @@
-# Maze 💎
+<h1 align="center">
+  :gem: MAZE :gem:
+</h1>
 
-[![Racket 8.6](https://img.shields.io/badge/racket-8.6-blue)](https://racket-lang.org)
-## Purpose
+<h4 align="center">An implementation of <a href="https://en.wikipedia.org/wiki/Labyrinth_(board_game)">Labyrinth</a>.</h4>
+
+<p align="center">
+  <a href="https://racket-lang.org">
+    <img src="https://img.shields.io/badge/racket-8.6-blue"
+         alt="Racket 8.6">
+</p>
+
+<p align="center">
+  <a href="#about">About</a> •
+  <a href="#directory-structure">Directory Structure</a> •
+  <a href="#try-it-out">Try it Out</a>
+</p>
+
+## About
 
 Maze is an implementation of the board game "Labyrinth". The real game involves players navigating a maze, represented as a physical grid board of pathways, with the objective of collecting treasure.
 
@@ -45,13 +60,13 @@ This respository implements the base game logic and a client-server architecture
 | [Server](Maze/Server/README.md) | A server which accepts client connections over TCP | 
 
 
-## Set Up Development Environment
+## Try it Out
 
 Install Racket version 8.6
 
 Install `raco`
 
-## Run Integration Tests
+### Run Integration Tests
 
 Run all integration tests:
 
@@ -59,7 +74,7 @@ Run all integration tests:
 ./xtest-integration
 ```
 
-## Run Unit Tests
+### Run Unit Tests
 
 Run all unit tests:
 
