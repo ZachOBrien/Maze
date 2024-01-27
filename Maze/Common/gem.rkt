@@ -147,7 +147,7 @@
       path))
   
 
-(define IMAGES-PATH (build-path (get-project-root up-path) "Maze/Assets/gems/"))
+(define IMAGES-PATH (build-path (get-project-root up-path) "maze/Maze/Assets/gems/"))
 
 ;; Gem -> Image
 ;; Render a gem as an image
