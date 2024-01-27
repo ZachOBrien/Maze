@@ -18,6 +18,8 @@
 
 ## About
 
+<a href="https://en.wikipedia.org/wiki/Labyrinth_(board_game)"><img src="https://upload.wikimedia.org/wikipedia/en/d/dd/Amazing_Labyrinth_game_box.jpg" alt="Labyrinth Box" width="300"></a>
+
 Maze is an implementation of the board game "Labyrinth". The real game involves players navigating a maze, represented as a physical grid board of pathways, with the objective of collecting treasure.
 
 This respository implements the base game logic and a client-server architecture for playing the game. To find more information on each of these architectural components, see the `README` in their respective directories.
