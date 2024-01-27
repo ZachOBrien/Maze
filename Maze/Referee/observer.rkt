@@ -2,6 +2,10 @@
 
 (require racket/contract)
 
+; don't run this file for testing:
+; This is because of the Gtk issue on headless servers
+(module test racket/base)
+
 (provide
  (contract-out
   ; Create an observer
